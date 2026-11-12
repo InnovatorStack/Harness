@@ -50,7 +50,8 @@ try
         }
         else if (message.Kind == "reset")
         {
-            await Task.WhenAll(tasks);
+            // Keep the blocking input loop on its dedicated main thread after a reset.
+            Task.WhenAll(tasks).GetAwaiter().GetResult();
             tasks.Clear();
             methodContext.Unload();
             methodContext = new MethodContext(references);
@@ -58,6 +59,7 @@ try
         }
         else if (message.Kind == "invoke")
         {
+            protocol.Write(new { kind = "received", id = message.Id });
             tasks.RemoveAll(task => task.IsCompleted);
 
             if (tasks.Count >= WorkLimits.PendingCallsMax)
@@ -77,5 +79,5 @@ try
 finally
 {
     protocol.Stop();
-    await Task.WhenAll(tasks);
+    Task.WhenAll(tasks).GetAwaiter().GetResult();
 }
