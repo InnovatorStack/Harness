@@ -305,10 +305,10 @@ describe("action and event pipeline", () => {
         expect(harness.storage.listItems("TestNode")).toEqual([]);
     });
 
-    test("selected response properties are the after-event context and required fields cannot be cleared", async () => {
+    test("ID-only event contexts hydrate without widening selected responses or allowing required fields to clear", async () => {
         const harness = await world({
             after: (context) => {
-                expect(context.getProperty("name")).toBe("");
+                expect(context.getProperty("name")).toBe("After");
                 expect(context.getID()).not.toBe("");
 
                 return context;

@@ -1,22 +1,39 @@
 import { assertActiveContext } from "../core/context.js";
 import type { ExecutionContext } from "../core/types.js";
 import { Item } from "../items/item.js";
+import type { SelectQuery } from "../queries/types.js";
 import type { HarnessStorage, ItemTypeDefinition, StoredItem } from "../storage/types.js";
 import { PlatformError, requireSuccess } from "./errors.js";
 import type { RunEvents } from "./events/types.js";
 import { projectItem } from "./projection.js";
+import type { ReferenceCatalog } from "./references/catalog.js";
 import type { PlatformTrace } from "./trace.js";
+import { ItemUnlocks } from "./unlocking.js";
 import { manualVersioning } from "./version-policy.js";
 
 /** Locks are database state, so nested calls and transaction rollback see the same owner. */
 export class ItemLocks {
+    private readonly unlocks: ItemUnlocks;
+
     constructor(
         private readonly storage: HarnessStorage,
         private readonly trace: PlatformTrace,
         private readonly events: RunEvents,
         private readonly userId: (() => string) | undefined,
         private readonly dispatch: (item: Item, context: ExecutionContext) => Promise<Item>,
-    ) {}
+        catalog: ReferenceCatalog,
+        select?: SelectQuery,
+    ) {
+        this.unlocks = new ItemUnlocks(storage, trace, events, () => this.owner(), catalog, select);
+    }
+
+    async unlockVersionSources(
+        definition: ItemTypeDefinition,
+        sources: readonly StoredItem[],
+        context: ExecutionContext,
+    ): Promise<void> {
+        await this.unlocks.unlockVersionSources(definition, sources, context);
+    }
 
     owner(): string {
         const id = this.userId?.();

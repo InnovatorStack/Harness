@@ -113,6 +113,7 @@ export class PackageImporter {
         const catalog = this.resolveCatalog(errors);
         throwImportErrors(errors);
         this.reconcileSystemProperties(catalog);
+        this.completeSystemReferences(catalog);
         const definitions = this.defineItemTypes(catalog);
 
         this.persistCatalog(catalog);
@@ -716,6 +717,36 @@ export class PackageImporter {
                 },
             });
             existing.add(property.name);
+        }
+    }
+
+    private completeSystemReferences(catalog: Map<string, CatalogEntry>): void {
+        const user = [...catalog.values()].find(
+            (entry) =>
+                entry.type === "ItemType" && String(entry.properties.name).toLowerCase() === "user",
+        );
+
+        if (!user) {
+            return;
+        }
+
+        for (const entry of catalog.values()) {
+            const owner = entry.properties.source_id;
+
+            if (
+                entry.type !== "Property" ||
+                entry.properties.name !== "locked_by_id" ||
+                entry.properties.data_type !== "item" ||
+                entry.properties.data_source === user.id ||
+                typeof owner !== "string" ||
+                entry.id !== stableId(`system-property-v1:${owner}:locked_by_id`)
+            ) {
+                continue;
+            }
+
+            const updated = { ...entry, properties: { ...entry.properties, data_source: user.id } };
+            this.draft.put({ ...updated, properties: { ...updated.properties } });
+            catalog.set(entryKey(entry.type, entry.id), updated);
         }
     }
 

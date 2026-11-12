@@ -199,6 +199,11 @@ describe("versionable actions", () => {
         expect(
             engine.storage.getItem("VersionedRecord", original.getID())?.properties.locked_by_id,
         ).toBeNull();
+        engine.storage.insertItem({
+            type: "User",
+            id: "OTHER_USER",
+            properties: { login_name: "other_owner" },
+        });
         const other = engine.seed("VersionedRecord", {
             name: "Locked by someone else",
             locked_by_id: "OTHER_USER",
@@ -284,6 +289,8 @@ describe("versionable actions", () => {
             "onAfterLock",
             "onBeforeUpdate",
             "onBeforeVersion",
+            "onBeforeUnlock",
+            "onAfterUnlock",
             "onAfterVersion",
             "onBeforeUpdate",
             "onAfterUpdate",

@@ -244,6 +244,7 @@ export class Versioning {
             prepared.push(target);
         }
 
+        await this.locks.unlockVersionSources(definition, sources, context);
         await this.finishVersions(definition, sources, prepared, context);
         const updates = prepared.map((target) => ({
             ...target,
@@ -278,7 +279,10 @@ export class Versioning {
     ): Promise<Item> {
         for (const record of records) {
             assertActiveContext(context);
-            this.storage.updateItem(definition.name, record.id, { is_current: 0 });
+            this.storage.updateItem(definition.name, record.id, {
+                is_current: 0,
+                ...(record.properties.locked_by_id === undefined ? { locked_by_id: null } : {}),
+            });
         }
 
         const update = request.clone();
@@ -597,10 +601,6 @@ export class Versioning {
             properties: this.generationProperties(definition, previous),
         };
         this.revisions.assertValue(definition, after.properties.major_rev);
-        assertActiveContext(context);
-        this.storage.updateItem(definition.name, previous.id, {
-            locked_by_id: null,
-        });
         assertActiveContext(context);
         this.storage.insertItem(after);
         this.trace.record(context, { kind: "mutation", name: "version", before: previous, after });

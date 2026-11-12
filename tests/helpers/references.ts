@@ -33,7 +33,7 @@ ${link("ReferenceHardFloat", "hard_float")}
 ${link("ReferenceNotes", "fixed", "REF_NOTE")}
 </AML>`;
 
-export async function referenceProject(extra = "", fixtures = "") {
+export async function referenceProject(extra = "", fixtures = "", recordFixtures = "") {
     const cwd = await mkdtemp(join(tmpdir(), "harness-references-"));
     await Bun.write(
         join(cwd, ".harness/packages/source.xml"),
@@ -49,7 +49,10 @@ export async function referenceProject(extra = "", fixtures = "") {
         join(cwd, ".harness/fixtures.ts"),
         `export default {
         User: [{ login_name: "reference_owner", created_on: "2026-01-01T00:00:00", created_by_id: { login_name: "reference_owner" } }],
-        ReferenceRecord: [{ name: "Parent" }, { name: "Child" }, { name: "Other parent" }],
+        ReferenceRecord: [
+            { name: "Parent" }, { name: "Child" }, { name: "Other parent" },
+            ${recordFixtures}
+        ],
         ${fixtures}
     };`,
     );

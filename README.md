@@ -418,8 +418,13 @@ Automatic versioning runs before-update before deciding to create a generation. 
 `version="0"` to save in place. When versioning starts, the selected batch uses the original pending
 request and enters update again with new IDs, `oldId` and the automatic `new_version=1` marker.
 Explicit version skips the initial update pass. Version hooks run despite `serverEvents="0"`;
-optional update hooks remain suppressed. Historical-source unlock hooks and replacement interception
-during version reentry remain unimplemented. Native event context profiles are still unverified.
+optional update hooks remain suppressed. Before after-version hooks, versioning releases its historical
+source locks. Every before-unlock hook runs before the batch is cleared; owned dependent Items are
+unlocked before the after hooks. These writes and Method side effects share rollback and world reset.
+Automatic source markers reset to zero; manual markers remain unchanged. Hook contexts containing
+only type and ID are hydrated through Get and retain shared pending values across the unlock batch.
+Administrative lock overrides, native event-data arguments and replacement interception during version
+reentry remain unimplemented. Native event context profiles are still unverified.
 Before-version Methods receive pending request values. Cloning preserves stored business values
 until the subsequent update hooks finish; after-version Methods can query that intermediate clone.
 

@@ -97,6 +97,10 @@ if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") ==
     var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
     Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeUnlock|" + aml);
 }
+if (this.getProperty("note") == "Reject historical unlock")
+{
+    return this.getInnovator().newError("Reference historical unlock rejected");
+}
 return this;
 ]]></method_code>
   </Item>
