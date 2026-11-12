@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -9,6 +9,7 @@ let directory: string;
 
 beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), "innovator-harness-packages-"));
+    directory = await realpath(directory);
 });
 
 afterEach(async () => {
@@ -21,7 +22,7 @@ describe("loadAmlDocuments", () => {
         await mkdir(join(packagePath, "a"), { recursive: true });
         await writeFile(join(directory, "first.xml"), '<Item type="Identity" id="FIRST" />');
         await writeFile(join(packagePath, "b.xml"), '<Item type="Identity" id="B" />');
-        await writeFile(join(packagePath, "A.XML"), '<Item type="Identity" id="A" />');
+        await writeFile(join(packagePath, "A-uppercase.XML"), '<Item type="Identity" id="A" />');
         await writeFile(join(packagePath, "a.xml"), '<Item type="Identity" id="LOWER_A" />');
         await writeFile(
             join(packagePath, "a", "nested.xml"),
@@ -34,7 +35,7 @@ describe("loadAmlDocuments", () => {
         ]);
         expect(documents.map((document) => basename(document.file))).toEqual([
             "first.xml",
-            "A.XML",
+            "A-uppercase.XML",
             "a.xml",
             "nested.xml",
             "b.xml",
@@ -54,6 +55,21 @@ describe("loadAmlDocuments", () => {
         await writeFile(join(packagePath, "one.xml"), '<Item type="Identity" />');
         await writeFile(join(directory, "unrelated.xml"), "broken unrelated document");
         expect(await loadAmlDocuments([{ path: packagePath }])).toHaveLength(1);
+    });
+
+    test("source provenance resolves parent directory aliases to the physical file", async () => {
+        const physical = join(directory, "physical");
+        const alias = join(directory, "alias");
+        await mkdir(physical);
+        const file = join(physical, "source.xml");
+        await writeFile(file, '<Item type="Identity" id="CANONICAL_SOURCE" />');
+        await symlink(physical, alias, "junction");
+
+        const documents = await loadAmlDocuments([{ path: join(alias, "source.xml") }]);
+
+        expect(documents).toHaveLength(1);
+        expect(documents[0]?.file).toBe(file);
+        expect(documents[0]?.items[0]?.source.file).toBe(file);
     });
 
     test("rejects overlapping inputs instead of importing the same XML twice", async () => {

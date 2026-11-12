@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -37,8 +37,9 @@ function method(name: string, code: string, language = "C#"): string {
 }
 
 async function project(source = "", files: Readonly<Record<string, string>> = {}): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), "harness-instrumentation-"));
-    directories.push(directory);
+    const temporary = await mkdtemp(join(tmpdir(), "harness-instrumentation-"));
+    directories.push(temporary);
+    const directory = await realpath(temporary);
     await mkdir(join(directory, ".harness/packages"), { recursive: true });
     await Bun.write(
         join(directory, ".harness/packages/source.xml"),

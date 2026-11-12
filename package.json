@@ -18,6 +18,7 @@
         "src/baseline/data/*.json",
         "README.md",
         "LICENSE",
+        "assets/brand",
         "examples",
         "skills"
     ],
