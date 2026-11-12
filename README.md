@@ -361,6 +361,10 @@ that default. Replacement Methods retain control of their own responses.
 
 For an automatically versioned ItemType, `edit` locks, saves, and unlocks. The first save in a lock cycle creates a new ID, retains `config_id`, increments `generation`, and marks the previous generation as noncurrent. Further `update` calls during that lock cycle reuse the new generation. `version="0"` suppresses automatic versioning; `manual_versioning=1` requires the `version` action. These rules follow the [Aras Programmer's Guide](https://aras.com/wp-content/uploads/2025/06/Aras-Innovator-2025-Release-Programmers-Guide.pdf). Configure `session.user` in `.harness/config.ts` for versionable mutations.
 
+For automatic versioning, `new_version` is `0` before the first save, becomes `1` after that
+save, and returns to `0` on unlock. Locking an already owned Item preserves the marker.
+Manual versioning preserves its stored marker and does not create generations implicitly.
+
 Queries accept native `<and>`, `<or>`, `<not>`, repeated property conditions, comparisons,
 `like`/`not like` (`%` and `_`), `in`/`not in`, `between`/`not between`, and null tests.
 `where` accepts the same property-to-literal predicates with parentheses and qualified identifiers.
@@ -409,6 +413,9 @@ Before-copy hooks can alter copied values while retaining source identity and co
 `Morphae` links supply inherited polymorphic bindings with concrete item contexts. Own and inherited
 bindings share `sort_order`; tied orders within a phase fail explicitly. Required bindings survive
 `serverEvents="0"`. Native release-specific event and clone parity remains unverified.
+Automatic versioning currently runs one before-update pass; native pre-version reentry remains open.
+Before-version Methods receive pending request values. Cloning preserves stored business values
+until the subsequent update hooks finish; after-version Methods can query that intermediate clone.
 
 Replacement Methods can delegate once to their native action through invocation-scoped
 `MethodPorts.serverEvent.applyBase()`. C# `CSharpInOut` Methods receive native input/output XML
@@ -418,6 +425,14 @@ suppression skips optional hooks; `edit serverEvents="0"` still runs its implici
 Unknown Method templates and event argument types fail with explicit diagnostics.
 
 Lifecycle bindings, states, transitions, and pre/post Methods come from imported AML. `add` uses the start state; `promoteItem` validates the transition and updates `state` and `current_state` without creating another generation. Transition roles require the configured authorization policy or the existing explicit `authorization: "unchecked"` setting. Transactional pre/post Methods execute through the same Method dispatcher and configured mocks.
+
+Assigned classifications must be imported leaf paths or the unclassified root. Branches can
+grant Can Add to their descendants. Native authorization checks the target class after before
+hooks; an unchanged class needs no new creation grant. Changing lifecycle maps requires the
+old map's start state, while class changes within the same map retain their current state.
+Resets apply the new state's Permission before nested actions, then update state and owned
+relationship behavior transactionally. Explicit `version` resets a released item before its
+class update; ordinary edit/update validates against the previous lifecycle first.
 
 When the imported schema requires `created_on` or `created_by_id`, normal `add` supplies omitted values from the current time and configured User session. Supplied values and fixture audit data remain intact. This covers required creation defaults; complete audit permission and modification policies remain separate work.
 

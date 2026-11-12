@@ -11,7 +11,7 @@ import type {
 import { ApplicationError, PlatformError } from "./errors.js";
 import type { EventRunners } from "./events/types.js";
 import type { GraphActions } from "./graph-actions.js";
-import type { LifeCycles } from "./lifecycle.js";
+import type { ClassificationChange, LifeCycles } from "./lifecycle.js";
 import type { ItemLocks } from "./locks.js";
 import { projectItem } from "./projection.js";
 import type { DependentDeletion } from "./references/deletion.js";
@@ -23,10 +23,12 @@ import type { Revisions } from "./revisions/policy.js";
 import type { NativeSecurity } from "./security/policy.js";
 import type { PlatformTrace } from "./trace.js";
 import { normalizeProperties } from "./values.js";
+import { manualVersioning } from "./version-policy.js";
 
 const managedProperties = ["config_id", "generation", "is_current", "new_version", "locked_by_id"];
 
 interface PreparedUpdate {
+    readonly before: StoredItem;
     readonly record: StoredItem;
     readonly request: Item;
     readonly copies: Map<string, string>;
@@ -34,6 +36,11 @@ interface PreparedUpdate {
     readonly enabled: boolean;
     readonly unlock: boolean;
     readonly select: string | undefined;
+}
+
+interface GenerationWrite {
+    readonly after: StoredItem;
+    readonly classification: ClassificationChange | undefined;
 }
 
 /** Owns generation creation; business events continue through the ordinary Method pipeline. */
@@ -128,15 +135,7 @@ export class Versioning {
         const result: Item["node"][] = [];
 
         for (const update of prepared) {
-            const response = await this.updateGeneration(
-                definition,
-                this.currentRecord(update.record),
-                update.request,
-                update.select,
-                update.enabled,
-                context,
-                update.copies,
-            );
+            const response = await this.updateGeneration(definition, update, context);
             result.push(...response.payload.items);
         }
 
@@ -164,14 +163,7 @@ export class Versioning {
         const action = request.getAction();
         const enabled = request.getAttribute("serverEvents") !== "0";
 
-        if (action === "edit") {
-            record = await this.locks.apply(definition, record, "lock", context);
-            this.locks.assertOwned(record);
-        } else if (action === "update") {
-            this.locks.assertOwned(record);
-        } else {
-            this.locks.assertAvailable(record);
-        }
+        record = await this.lockForUpdate(definition, record, action, context);
 
         const versioned = this.shouldVersion(definition, record, request);
 
@@ -187,21 +179,14 @@ export class Versioning {
         const update = request.clone();
         this.removeManagedProperties(update, record);
         const copies = new Map<string, string>();
+        const before = this.classificationBaseline(definition, record, action);
 
         if (versioned) {
             const previous = record;
-            record = await this.create(
-                definition,
-                record,
-                enabled,
-                context,
-                copies,
-                update.node.properties.classification,
-            );
+            record = await this.create(definition, record, enabled, context, copies, update);
 
             if (isReleased(previous)) {
                 removeRevisionProperties(update, previous, record);
-                update.setProperty("classification", record.properties.classification ?? null);
             }
         }
 
@@ -211,6 +196,7 @@ export class Versioning {
         update.setAction("update");
 
         return {
+            before,
             record,
             request: update,
             copies,
@@ -221,26 +207,40 @@ export class Versioning {
         };
     }
 
+    private async lockForUpdate(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        action: string,
+        context: ExecutionContext,
+    ): Promise<StoredItem> {
+        if (action === "edit") {
+            const locked = await this.locks.apply(definition, record, "lock", context);
+            this.locks.assertOwned(locked);
+
+            return locked;
+        }
+
+        if (action === "update") {
+            this.locks.assertOwned(record);
+        } else {
+            this.locks.assertAvailable(record);
+        }
+
+        return record;
+    }
+
     private shouldVersion(
         definition: ItemTypeDefinition,
         record: StoredItem,
         request: Item,
     ): boolean {
-        const metadata = this.storage.getCatalogEntry("ItemType", definition.id);
-        const manual = String(metadata?.properties.manual_versioning ?? "0");
-
-        if (!["0", "1"].includes(manual)) {
-            throw new PlatformError(
-                "UnsupportedVersioningPolicy",
-                `Unknown manual_versioning '${manual}' on '${definition.name}'.`,
-            );
-        }
+        const manual = manualVersioning(this.storage, definition);
 
         return (
             request.getAction() === "version" ||
-            (manual === "0" &&
+            (!manual &&
                 request.getAttribute("version", "1") === "1" &&
-                String(record.properties.new_version ?? "1") === "1")
+                String(record.properties.new_version ?? "0") !== "1")
         );
     }
 
@@ -291,13 +291,16 @@ export class Versioning {
 
     private async updateGeneration(
         definition: ItemTypeDefinition,
-        record: StoredItem,
-        update: Item,
-        select: string | undefined,
-        enabled: boolean,
+        prepared: PreparedUpdate,
         context: ExecutionContext,
-        copies: ReadonlyMap<string, string>,
     ): Promise<Item> {
+        const { request: update, select, enabled, copies } = prepared;
+        const record = this.currentRecord(prepared.record);
+
+        if (prepared.versioned && !manualVersioning(this.storage, definition)) {
+            update.setProperty("new_version", 1);
+        }
+
         await this.runners.item(definition, "onBeforeUpdate", update, enabled, context);
         validateRequest(update.node, "update");
 
@@ -312,7 +315,7 @@ export class Versioning {
             );
         }
 
-        this.removeManagedProperties(update, record);
+        this.removeManagedProperties(update, record, prepared.versioned);
         this.revisions.assertValue(definition, update.node.properties.major_rev);
         const locked = this.storage.getItem(definition.name, record.id);
 
@@ -325,16 +328,70 @@ export class Versioning {
 
         this.locks.assertOwned(locked);
         await this.graph.properties(definition, update.node, context);
-        const values = normalizeProperties(this.storage, definition, update.node.properties, {
-            creating: false,
-            current: locked,
+        const written = this.writeGeneration(definition, locked, prepared, context);
+        let after = written.after;
+        await this.deletion.changed(record, after, enabled, context);
+        const children = await this.graph.relationships(
+            definition,
+            update.node,
+            record.id,
+            context,
+            copies,
+        );
+        after = this.lifeCycles.applyClassification(after, written.classification, context);
+        const response = new Item({
+            items: [
+                {
+                    ...projectItem(this.storage, definition, after, select),
+                    relationships: children,
+                },
+            ],
         });
-        this.security.assertAccessChange(definition, locked, values, context);
+        this.security.changed(locked, after, context);
+        await this.runners.item(definition, "onAfterUpdate", response, enabled, context);
+
+        return response;
+    }
+
+    private writeGeneration(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        prepared: PreparedUpdate,
+        context: ExecutionContext,
+    ): GenerationWrite {
+        const values = normalizeProperties(
+            this.storage,
+            definition,
+            prepared.request.node.properties,
+            {
+                creating: false,
+                current: record,
+            },
+        );
+        const classification = this.lifeCycles.classificationChange(
+            definition,
+            record,
+            values,
+            context,
+            prepared.before,
+        );
+        const authorized = this.lifeCycles.authorizeUpdate(
+            definition,
+            record,
+            values,
+            classification,
+            context,
+        );
+
+        if (prepared.versioned && !manualVersioning(this.storage, definition)) {
+            authorized.new_version = 1;
+        }
+
         assertActiveContext(context);
         this.storage.updateItem(
             definition.name,
             record.id,
-            this.security.auditedChanges(locked, values),
+            this.security.auditedChanges(record, authorized),
         );
         const after = this.storage.getItem(definition.name, record.id);
 
@@ -342,25 +399,31 @@ export class Versioning {
             throw new PlatformError("MissingItem", "Updated generation disappeared.");
         }
 
-        this.trace.record(context, { kind: "mutation", name: "update", before: locked, after });
-        await this.deletion.changed(record, after, enabled, context);
-        const response = new Item({
-            items: [projectItem(this.storage, definition, after, select)],
-        });
-        response.node.relationships = await this.graph.relationships(
-            definition,
-            update.node,
-            record.id,
-            context,
-            copies,
-        );
-        this.security.changed(locked, after, context);
-        await this.runners.item(definition, "onAfterUpdate", response, enabled, context);
+        this.trace.record(context, { kind: "mutation", name: "update", before: record, after });
 
-        return response;
+        return { after, classification };
     }
 
-    private removeManagedProperties(request: Item, record: StoredItem): void {
+    private classificationBaseline(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        action: string,
+    ): StoredItem {
+        if (action !== "version" || !isReleased(record)) {
+            return record;
+        }
+
+        // Explicit version resets the released generation before its update phase.
+        return {
+            ...record,
+            properties: {
+                ...record.properties,
+                ...this.lifeCycles.revisionProperties(definition, record),
+            },
+        };
+    }
+
+    private removeManagedProperties(request: Item, record: StoredItem, versioned = false): void {
         for (const name of managedProperties) {
             const value = getOwn(request.node.properties, name);
 
@@ -368,7 +431,9 @@ export class Versioning {
                 continue;
             }
 
-            if (String(value ?? "") !== String(record.properties[name] ?? "")) {
+            const expected = name === "new_version" && versioned ? 1 : record.properties[name];
+
+            if (String(value ?? "") !== String(expected ?? "")) {
                 throw new PlatformError(
                     "ReadOnlyProperty",
                     `Version property '${record.type}.${name}' is managed by platform actions.`,
@@ -385,13 +450,11 @@ export class Versioning {
         enabled: boolean,
         context: ExecutionContext,
         copies: Map<string, string>,
-        classification: StorageValue | undefined,
+        update: Item,
     ): Promise<StoredItem> {
-        const before = new Item({ items: [projectItem(this.storage, definition, previous)] });
-
-        if (classification !== undefined) {
-            before.setProperty("classification", classification);
-        }
+        const before = update.clone();
+        before.setAction("version");
+        before.setProperty("id", previous.id);
 
         await this.runners.item(definition, "onBeforeVersion", before, enabled, context);
 
@@ -403,25 +466,12 @@ export class Versioning {
         }
 
         this.removeManagedProperties(before, previous);
-        const changes = normalizeProperties(this.storage, definition, before.node.properties, {
-            creating: false,
-            current: previous,
-        });
-        this.security.assertAccessChange(definition, previous, changes, context);
+        update.payload.items = structuredClone(before.payload.items);
         const id = this.nextId();
         const after: StoredItem = {
             id,
             type: definition.name,
-            properties: {
-                ...previous.properties,
-                ...this.security.auditedChanges(previous, changes),
-                ...this.revisionProperties(definition, previous, changes),
-                config_id: previous.properties.config_id ?? previous.id,
-                generation: this.nextGeneration(previous),
-                is_current: 1,
-                new_version: 0,
-                locked_by_id: this.locks.owner(),
-            },
+            properties: this.generationProperties(definition, previous),
         };
         this.revisions.assertValue(definition, after.properties.major_rev);
         assertActiveContext(context);
@@ -436,22 +486,31 @@ export class Versioning {
         return await this.finishVersion(definition, previous, after, enabled, context, copies);
     }
 
-    private revisionProperties(
+    private generationProperties(
         definition: ItemTypeDefinition,
         previous: StoredItem,
-        changes: Readonly<Record<string, StorageValue>>,
-    ) {
+    ): Record<string, StorageValue> {
+        const defaultMarker = manualVersioning(this.storage, definition) ? 1 : 0;
+
+        return {
+            ...previous.properties,
+            ...this.revisionProperties(definition, previous),
+            config_id: previous.properties.config_id ?? previous.id,
+            generation: this.nextGeneration(previous),
+            is_current: 1,
+            new_version: previous.properties.new_version ?? defaultMarker,
+            locked_by_id: this.locks.owner(),
+        };
+    }
+
+    private revisionProperties(definition: ItemTypeDefinition, previous: StoredItem) {
         if (!isReleased(previous)) {
             return {};
         }
 
         return {
             major_rev: this.revisions.next(definition, previous),
-            ...this.lifeCycles.revisionProperties(
-                definition,
-                previous,
-                changes.classification ?? previous.properties.classification,
-            ),
+            ...this.lifeCycles.revisionProperties(definition, previous),
         };
     }
 

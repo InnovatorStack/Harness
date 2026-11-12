@@ -1,0 +1,18 @@
+<AML>
+    <Item type="RefClassified" action="add" id="B7600000000000000000000000000001">
+        <item_number>CLASS-START</item_number><name>Start</name>
+        <classification>Technical/Purchased</classification>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <state>Technical draft</state><current_state>A7610000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefClassified" action="add" id="B7600000000000000000000000000002">
+        <item_number>CLASS-ADVANCED</item_number><name>Advanced</name>
+        <classification>Technical/Purchased</classification>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <state>Technical review</state><current_state>A7610000000000000000000000000002</current_state>
+    </Item>
+    <Item type="RefClassified" action="add" id="B7600000000000000000000000000003">
+        <item_number>CLASS-EXISTING-ROOT</item_number><name>Existing root</name>
+        <classification></classification><permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+</AML>

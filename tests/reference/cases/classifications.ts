@@ -61,7 +61,14 @@ export const classificationCases: readonly ReferenceCase[] = [
 
         check(observation) {
             for (const step of observation.steps) {
-                equalContract(step.response.error?.code, "PermissionDenied", "No grant applies.");
+                const code = ["unknown", "case"].includes(step.name)
+                    ? "InvalidClassification"
+                    : "PermissionDenied";
+                equalContract(
+                    step.response.error?.code,
+                    code,
+                    "The class must be valid and permitted.",
+                );
                 equalContract(step.outcome, ExecutionOutcome.RolledBack, "The action rolls back.");
                 equalContract(step.state, observation.initial, "No rejected Item persists.");
             }

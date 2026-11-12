@@ -9,7 +9,8 @@ import type {
     StorageValue,
     StoredItem,
 } from "../storage/types.js";
-import { PlatformError, requireSuccess } from "./errors.js";
+import type { Classifications } from "./classifications.js";
+import { ApplicationError, PlatformError, requireSuccess } from "./errors.js";
 import type { RunEvents } from "./events/types.js";
 import { projectItem } from "./projection.js";
 import type { ReferenceMaintenance } from "./references/maintenance.js";
@@ -19,6 +20,11 @@ import type { PlatformTrace } from "./trace.js";
 interface Lifecycle {
     readonly map: CatalogEntry;
     readonly states: readonly CatalogEntry[];
+}
+
+export interface ClassificationChange {
+    readonly changed: boolean;
+    readonly properties?: Readonly<Record<string, StorageValue>>;
 }
 
 export class LifeCycles {
@@ -33,7 +39,145 @@ export class LifeCycles {
         ) => Promise<Item>,
         private readonly references: ReferenceMaintenance,
         private readonly security: NativeSecurity,
+        private readonly classifications: Classifications,
     ) {}
+
+    classificationChange(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        values: Readonly<Record<string, StorageValue>>,
+        context: ExecutionContext,
+        previous = record,
+    ): ClassificationChange | undefined {
+        let classification = values.classification;
+
+        if (
+            classification === undefined &&
+            previous.properties.classification !== record.properties.classification
+        ) {
+            classification = record.properties.classification ?? null;
+        }
+
+        if (classification === undefined) {
+            return undefined;
+        }
+
+        this.classifications.assertValue(definition, classification, context);
+        const target = this.resolve(definition, classification);
+        const before = this.currentLifecycle(previous);
+        const current = previous === record ? before : this.currentLifecycle(record);
+        const changed =
+            String(previous.properties.classification ?? "") !== String(classification ?? "");
+        const mapChanged = before?.id !== target?.map.id;
+
+        if (
+            mapChanged &&
+            before &&
+            before.properties.start_state !== previous.properties.current_state
+        ) {
+            throw new ApplicationError(
+                Item.error(
+                    `Cannot change '${definition.name}' to class '${classification ?? ""}' outside its lifecycle start state.`,
+                    "ClassificationCannotBeChanged",
+                ),
+            );
+        }
+
+        const reset = current?.id !== target?.map.id;
+
+        if (changed || mapChanged || reset) {
+            this.security.assertCanReclassify(definition, String(classification ?? ""), context);
+        }
+
+        if (!reset) {
+            return { changed };
+        }
+
+        const properties = target
+            ? this.initialProperties(definition, classification)
+            : { state: null, current_state: null, is_released: 0, not_lockable: 0 };
+
+        return { changed, properties };
+    }
+
+    applyClassification(
+        record: StoredItem,
+        change: ClassificationChange | undefined,
+        context: ExecutionContext,
+    ): StoredItem {
+        if (!change?.properties) {
+            return record;
+        }
+
+        assertActiveContext(context);
+        this.storage.updateItem(record.type, record.id, change.properties);
+        const after = this.storage.getItem(record.type, record.id);
+
+        if (!after) {
+            throw new PlatformError("MissingItem", "The lifecycle reset target disappeared.");
+        }
+
+        this.trace.record(context, {
+            kind: "mutation",
+            name: "set-default-lifecycle",
+            before: record,
+            after,
+        });
+        this.references.promoted(after, context);
+
+        return after;
+    }
+
+    authorizeUpdate(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        values: Record<string, StorageValue>,
+        classification: ClassificationChange | undefined,
+        context: ExecutionContext,
+    ): Record<string, StorageValue> {
+        const permission = classification?.properties?.permission_id;
+        const requested = { ...values };
+
+        if (permission !== undefined) {
+            delete requested.permission_id;
+
+            if (!classification?.changed && permission !== record.properties.permission_id) {
+                this.security.assertPermissionChange(definition, record, context);
+            }
+        }
+
+        this.security.assertAccessChange(
+            definition,
+            record,
+            requested,
+            context,
+            classification?.changed,
+        );
+
+        return permission === undefined ? values : { ...values, permission_id: permission };
+    }
+
+    private currentLifecycle(record: StoredItem): CatalogEntry | undefined {
+        const id = record.properties.current_state;
+
+        if (id === undefined || id === null || id === "") {
+            return undefined;
+        }
+
+        const state = this.storage.getCatalogEntry("Life Cycle State", String(id));
+        const map = state
+            ? this.storage.getCatalogEntry("Life Cycle Map", String(state.properties.source_id))
+            : undefined;
+
+        if (!map) {
+            throw new PlatformError(
+                "InvalidLifeCycleState",
+                `Import the lifecycle of '${record.type}:${record.id}' before changing its classification.`,
+            );
+        }
+
+        return map;
+    }
 
     initialProperties(
         definition: ItemTypeDefinition,
@@ -45,6 +189,10 @@ export class LifeCycles {
             return {};
         }
 
+        return this.startProperties(lifecycle);
+    }
+
+    private startProperties(lifecycle: Lifecycle): Readonly<Record<string, StorageValue>> {
         const start = lifecycle.states.find(
             (state) => state.id === lifecycle.map.properties.start_state,
         );
@@ -65,11 +213,10 @@ export class LifeCycles {
     revisionProperties(
         definition: ItemTypeDefinition,
         record: StoredItem,
-        classification: StorageValue | undefined,
     ): Readonly<Record<string, StorageValue>> {
-        const lifecycle = this.resolve(definition, record.properties.classification);
+        const map = this.currentLifecycle(record);
 
-        if (!lifecycle) {
+        if (!map) {
             throw new PlatformError(
                 "MissingLifeCycle",
                 `Import a Life Cycle Map before revising released '${definition.name}'.`,
@@ -77,7 +224,13 @@ export class LifeCycles {
             );
         }
 
-        const current = lifecycle?.states.find(
+        const lifecycle = {
+            map,
+            states: this.storage
+                .listCatalogEntries("Life Cycle State")
+                .filter((state) => state.properties.source_id === map.id),
+        };
+        const current = lifecycle.states.find(
             (state) => state.id === record.properties.current_state,
         );
 
@@ -89,7 +242,7 @@ export class LifeCycles {
             );
         }
 
-        const initial = this.initialProperties(definition, classification);
+        const initial = this.startProperties(lifecycle);
 
         if (typeof initial.current_state !== "string" || initial.current_state.length === 0) {
             throw new PlatformError(

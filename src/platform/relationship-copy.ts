@@ -15,6 +15,7 @@ import { isReleased } from "./revisions/policy.js";
 import type { NativeSecurity } from "./security/policy.js";
 import type { PlatformTrace } from "./trace.js";
 import { normalizeProperties } from "./values.js";
+import { manualVersioning } from "./version-policy.js";
 
 interface CopyGroup {
     readonly definition: ItemTypeDefinition;
@@ -245,7 +246,11 @@ export class RelationshipCopy {
                 config_id: id,
                 generation: 1,
                 is_current: 1,
-                new_version: 1,
+                new_version:
+                    group.definition.isVersionable &&
+                    !manualVersioning(this.storage, group.definition)
+                        ? 0
+                        : 1,
                 locked_by_id: null,
             },
         };

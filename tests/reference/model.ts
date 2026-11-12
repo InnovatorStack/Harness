@@ -101,7 +101,14 @@ export const watchedTypes: readonly WatchedType[] = [
     {
         type: "RefClassified",
         keys: ["item_number"],
-        properties: [...namedProperties, "classification"],
+        properties: [
+            ...namedProperties,
+            "classification",
+            "state",
+            "current_state",
+            "is_released",
+            "not_lockable",
+        ],
     },
     {
         type: "RefClassDefault",
@@ -145,6 +152,9 @@ export const idProperties = new Set([
 ]);
 
 export const fixtureBindings = {
+    "class-start": { type: "RefClassified", item_number: "CLASS-START" },
+    "class-advanced": { type: "RefClassified", item_number: "CLASS-ADVANCED" },
+    "class-root": { type: "RefClassified", item_number: "CLASS-EXISTING-ROOT" },
     "security-denied": { type: "RefSecurityRecord", item_number: "HIDDEN" },
     "security-owner": { type: "RefSecurityRecord", item_number: "OWNER" },
     "access-change": { type: "RefSecurityRecord", item_number: "NO-ACCESS-CHANGE" },

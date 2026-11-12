@@ -44,15 +44,15 @@ function grant(path: string, identity = "SEC_EDITORS", enabled = 1): string {
 }
 
 test.each([
-    { classification: "Technical", permitted: true },
-    { classification: "Technical/Purchased", permitted: true },
-    { classification: "Technical/Manufactured", permitted: true },
-    { classification: "TechnicalExtra", permitted: false },
-    { classification: "Commercial", permitted: false },
-    { classification: "technical/Purchased", permitted: false },
-    { classification: "Technical/Unknown", permitted: false },
-    { classification: "Technical/", permitted: false },
-    { classification: "", permitted: false },
+    { classification: "Technical", code: "InvalidClassification" },
+    { classification: "Technical/Purchased", code: "" },
+    { classification: "Technical/Manufactured", code: "" },
+    { classification: "TechnicalExtra", code: "PermissionDenied" },
+    { classification: "Commercial", code: "PermissionDenied" },
+    { classification: "technical/Purchased", code: "InvalidClassification" },
+    { classification: "Technical/Unknown", code: "InvalidClassification" },
+    { classification: "Technical/", code: "InvalidClassification" },
+    { classification: "", code: "PermissionDenied" },
 ])("class-specific creation checks the exported tree: %s", async (scenario) => {
     const source = model(
         grant("Technical") +
@@ -65,10 +65,10 @@ test.each([
         <name>Classified</name><classification>${scenario.classification}</classification>
     </Item>`);
 
-    expect(result.getErrorCode()).toBe(scenario.permitted ? "" : "PermissionDenied");
-    expect(h.state.get("ClassifiedDocument")).toHaveLength(scenario.permitted ? 1 : 0);
+    expect(result.getErrorCode()).toBe(scenario.code);
+    expect(h.state.get("ClassifiedDocument")).toHaveLength(scenario.code === "" ? 1 : 0);
 
-    if (scenario.permitted) {
+    if (scenario.code === "") {
         expect(h.state.getOne("ClassifiedDocument", {}).properties.classification).toBe(
             scenario.classification,
         );
@@ -90,7 +90,7 @@ test("root grants cover declared classes and the root without authorizing invent
 
     await expect(
         h.add("ClassifiedDocument", { name: "Unknown", classification: "Not declared" }),
-    ).rejects.toThrow("Cannot add");
+    ).rejects.toThrow("Invalid classification");
     expect(h.state.get("ClassifiedDocument")).toHaveLength(5);
 });
 
@@ -119,7 +119,7 @@ test("an ItemType without a class tree only has its unclassified root", async ()
     expect(record.properties.name).toBe("Root");
     await expect(
         h.add("ClassifiedDocument", { classification: "Technical/Purchased" }),
-    ).rejects.toThrow("Cannot add");
+    ).rejects.toThrow("Invalid classification");
     expect(h.state.get("ClassifiedDocument")).toHaveLength(1);
 });
 
@@ -263,11 +263,11 @@ test("cached class paths follow metadata replacement and world reset", async () 
     };
     engine.storage.putCatalogEntry(replacement);
 
-    expect((await engine.applyAML(request)).getErrorCode()).toBe("PermissionDenied");
+    expect((await engine.applyAML(request)).getErrorCode()).toBe("InvalidClassification");
     engine.storage.putCatalogEntry(metadata);
     expect((await engine.applyAML(request)).isError()).toBe(false);
     engine.storage.putCatalogEntry(replacement);
-    expect((await engine.applyAML(request)).getErrorCode()).toBe("PermissionDenied");
+    expect((await engine.applyAML(request)).getErrorCode()).toBe("InvalidClassification");
     engine.reset();
     expect(engine.storage.listItems("ClassifiedDocument")).toEqual([]);
     expect((await engine.applyAML(request)).isError()).toBe(false);
