@@ -1,0 +1,469 @@
+<AML>
+  <Item type="Method" action="add" id="A4000000000000000000000000000001">
+    <name>RefBeforeLock</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeLock|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000002">
+    <name>RefAfterLock</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefAfterLock|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000003">
+    <name>RefBeforeVersion</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeVersion|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000004">
+    <name>RefAfterVersion</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefAfterVersion|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000005">
+    <name>RefBeforeUpdate</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeUpdate|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000006">
+    <name>RefAfterUpdate</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefAfterUpdate|" + aml);
+}
+if (this.getProperty("name") == "Reject")
+{
+    return this.getInnovator().newError("Reference update rejected");
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000007">
+    <name>RefBeforeUnlock</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeUnlock|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000008">
+    <name>RefAfterUnlock</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefAfterUnlock|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000009">
+    <name>RefBeforePromote</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforePromote|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A400000000000000000000000000000A">
+    <name>RefAfterPromote</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefAfterPromote|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A400000000000000000000000000000B">
+    <name>RefPrePromote</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefPrePromote|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A400000000000000000000000000000C">
+    <name>RefPostPromote</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefPostPromote|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A400000000000000000000000000000D">
+    <name>RefRejectPromote</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefRejectPromote|" + aml);
+}
+return this.getInnovator().newError("Reference promotion rejected");
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A400000000000000000000000000000E">
+    <name>RefOptionalUpdate</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefOptionalUpdate|" + aml);
+}
+this.setProperty("note", "Optional hook");
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A400000000000000000000000000000F">
+    <name>RefRequiredUpdate</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefRequiredUpdate|" + aml);
+}
+this.setProperty("required_note", "Required hook");
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000010">
+    <name>RefReplaceGet</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefReplaceGet|" + aml);
+}
+var result = this.getInnovator().newItem("RefReplacement");
+result.setID(this.getID());
+result.setProperty("name", "Replacement response");
+return result;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000011">
+    <name>RefBeforeGet</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeGet|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000012">
+    <name>RefAfterGet</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefAfterGet|" + aml);
+}
+return this;
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000013">
+    <name>RefSubmitRejected</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+var inn = this.getInnovator();
+var edit = inn.newItem("RefDocument", "edit");
+edit.setID(this.getID());
+edit.setProperty("name", "Submitted");
+var saved = edit.apply();
+var promotion = inn.newItem("RefDocument", "promoteItem");
+promotion.setID(saved.getID());
+promotion.setProperty("state", "Blocked");
+return promotion.apply();
+]]></method_code>
+  </Item>
+  <Item type="Method" action="add" id="A4000000000000000000000000000014">
+    <name>RefCatchNestedFailure</name><method_type>C#</method_type>
+    <method_code><![CDATA[
+var inn = this.getInnovator();
+var first = inn.newItem("RefPlain", "edit");
+first.setID(this.getProperty("plain"));
+first.setProperty("name", "Earlier write");
+first.apply();
+try
+{
+    var second = inn.newItem("RefDocument", "edit");
+    second.setID(this.getID());
+    second.setProperty("name", "Reject");
+    second.apply();
+}
+catch (Exception)
+{
+    // A native comparison must determine the owning transaction outcome.
+}
+return inn.newResult("Caught nested failure");
+]]></method_code>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000001">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000001</related_id>
+    <server_event>onBeforeLock</server_event><sort_order>10</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000002">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000002</related_id>
+    <server_event>onAfterLock</server_event><sort_order>20</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000003">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000003</related_id>
+    <server_event>onBeforeVersion</server_event><sort_order>30</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000004">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000004</related_id>
+    <server_event>onAfterVersion</server_event><sort_order>40</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000005">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000005</related_id>
+    <server_event>onBeforeUpdate</server_event><sort_order>50</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000006">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000006</related_id>
+    <server_event>onAfterUpdate</server_event><sort_order>60</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000007">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000007</related_id>
+    <server_event>onBeforeUnlock</server_event><sort_order>70</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000008">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000008</related_id>
+    <server_event>onAfterUnlock</server_event><sort_order>80</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A5000000000000000000000000000009">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A4000000000000000000000000000009</related_id>
+    <server_event>onBeforePromote</server_event><sort_order>90</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A500000000000000000000000000000A">
+    <source_id>A1000000000000000000000000000001</source_id><related_id>A400000000000000000000000000000A</related_id>
+    <server_event>onAfterPromote</server_event><sort_order>100</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A500000000000000000000000000000B">
+    <source_id>A1000000000000000000000000000004</source_id><related_id>A400000000000000000000000000000E</related_id>
+    <server_event>onBeforeUpdate</server_event><sort_order>110</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A500000000000000000000000000000C">
+    <source_id>A1000000000000000000000000000004</source_id><related_id>A400000000000000000000000000000F</related_id>
+    <server_event>onBeforeUpdate</server_event><sort_order>120</sort_order>
+    <is_required>1</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A500000000000000000000000000000D">
+    <source_id>A1000000000000000000000000000005</source_id><related_id>A4000000000000000000000000000010</related_id>
+    <server_event>onGet</server_event><sort_order>130</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A500000000000000000000000000000E">
+    <source_id>A1000000000000000000000000000005</source_id><related_id>A4000000000000000000000000000011</related_id>
+    <server_event>onBeforeGet</server_event><sort_order>140</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+  <Item type="Server Event" action="add" id="A500000000000000000000000000000F">
+    <source_id>A1000000000000000000000000000005</source_id><related_id>A4000000000000000000000000000012</related_id>
+    <server_event>onAfterGet</server_event><sort_order>150</sort_order>
+    <is_required>0</is_required><event_version>version_1</event_version>
+  </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000000">
+        <name>RefBatchAfterAdd</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchAfterAdd|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000009</source_id><related_id>A4100000000000000000000000000000</related_id>
+        <server_event>onAfterAdd</server_event><event_version>version_2</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000001">
+        <name>RefBatchBeforeUpdate</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchBeforeUpdate|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000009</source_id><related_id>A4100000000000000000000000000001</related_id>
+        <server_event>onBeforeUpdate</server_event><event_version>version_1</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000002">
+        <name>RefBatchAfterUpdate</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchAfterUpdate|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000009</source_id><related_id>A4100000000000000000000000000002</related_id>
+        <server_event>onAfterUpdate</server_event><event_version>version_1</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000003">
+        <name>RefBatchAfterVersion</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchAfterVersion|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000009</source_id><related_id>A4100000000000000000000000000003</related_id>
+        <server_event>onAfterVersion</server_event><event_version>version_2</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000004">
+        <name>RefBatchUpdateCollection</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchUpdateCollection|" + aml);
+}
+for (int index = 0; index < this.getItemCount(); index++)
+{
+    if (this.getItemByIndex(index).getProperty("name") == "Reject")
+    {
+        return this.getInnovator().newError("Reference collection rejected");
+    }
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000009</source_id><related_id>A4100000000000000000000000000004</related_id>
+        <server_event>onAfterUpdate</server_event><event_version>version_2</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000005">
+        <name>RefBatchBeforeCopy</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchBeforeCopy|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000010</source_id><related_id>A4100000000000000000000000000005</related_id>
+        <server_event>onBeforeCopy</server_event><event_version>version_2</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4100000000000000000000000000006">
+        <name>RefBatchAfterCopy</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchAfterCopy|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add">
+        <source_id>A1000000000000000000000000000010</source_id><related_id>A4100000000000000000000000000006</related_id>
+        <server_event>onAfterCopy</server_event><event_version>version_2</event_version><sort_order>10</sort_order>
+    </Item>
+    <Item type="Method" action="add" id="A4200000000000000000000000000001">
+        <name>RefRevisionBefore</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefRevisionBefore|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add"><source_id>A1000000000000000000000000000011</source_id><related_id>A4200000000000000000000000000001</related_id><server_event>onBeforeVersion</server_event><sort_order>10</sort_order></Item>
+    <Item type="Method" action="add" id="A4200000000000000000000000000002">
+        <name>RefRevisionAfter</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefRevisionAfter|" + aml);
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add"><source_id>A1000000000000000000000000000011</source_id><related_id>A4200000000000000000000000000002</related_id><server_event>onAfterVersion</server_event><sort_order>10</sort_order></Item>
+    <Item type="Method" action="add" id="A4200000000000000000000000000003">
+        <name>RefRevisionUpdated</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefRevisionUpdated|" + aml);
+}
+if (this.getProperty("name") == "Reject")
+{
+    return this.getInnovator().newError("Reference revision rejected");
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Server Event" action="add"><source_id>A1000000000000000000000000000011</source_id><related_id>A4200000000000000000000000000003</related_id><server_event>onAfterUpdate</server_event><sort_order>10</sort_order></Item>
+</AML>

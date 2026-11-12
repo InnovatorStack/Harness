@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AssemblyName>InnovatorHarness.Managed</AssemblyName>
+        <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+        <ProduceReferenceAssemblyInOutDir>true</ProduceReferenceAssemblyInOutDir>
+        <Optimize>true</Optimize>
+        <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    </ItemGroup>
+    <Target Name="HarnessCompilerInputs" AfterTargets="Build">
+        <WriteLinesToFile File="$(TargetDir)compiler-inputs.txt"
+            Lines="$(MSBuildToolsPath)/Roslyn/bincore/csc.dll;@(ReferencePath->'%(FullPath)')"
+            Overwrite="true" />
+        <WriteLinesToFile File="$(TargetDir)compiler-symbols.txt"
+            Lines="$(DefineConstants)" Overwrite="true" />
+    </Target>
+</Project>

@@ -1,0 +1,23 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using InnovatorHarness.Managed;
+
+namespace InnovatorHarness.Generated;
+
+public sealed class __TYPE_NAME__ : Item, IArasMethod
+{
+    public __TYPE_NAME__(ItemPayload context, Remote remote)
+        : base(context, remote)
+    {
+    }
+
+    public Item Execute()
+    {
+#line __SOURCE_LINE__ "__SOURCE_PATH__"
+__METHOD_CODE__
+#line default
+    }
+
+    ItemPayload IArasMethod.ContextPayload => Payload;
+}

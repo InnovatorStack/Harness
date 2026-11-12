@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2022"],
+        "module": "Preserve",
+        "moduleResolution": "Bundler",
+        "types": ["bun"],
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "verbatimModuleSyntax": true,
+        "skipLibCheck": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "outDir": "dist"
+    },
+    "include": [
+        "*.config.ts",
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "scripts/**/*.ts",
+        ".harness/**/*.ts"
+    ],
+    "exclude": ["tests/results", ".harness/local"]
+}

@@ -1,0 +1,6 @@
+[
+    {
+        "method": "ReadReviewRules",
+        "response": { "json": { "allow_review": true } }
+    }
+]

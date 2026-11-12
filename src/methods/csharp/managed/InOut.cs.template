@@ -1,0 +1,41 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Xml;
+using Aras.IOM;
+using InnovatorHarness.Managed;
+
+namespace InnovatorHarness.Generated;
+
+public sealed class __TYPE_NAME__ : IArasMethod
+{
+    private readonly InOutInvocation invocation;
+
+    public __TYPE_NAME__(ItemPayload context, Remote remote)
+    {
+        invocation = new InOutInvocation(context, remote);
+    }
+
+    ItemPayload IArasMethod.ContextPayload => invocation.ContextPayload;
+
+    public Item Execute()
+    {
+        var eventData = new __EVENT_ARGS_TYPE__(invocation.Remote, invocation.Input);
+        Run(invocation.Connection, invocation.Input, eventData, invocation.Output);
+
+        return invocation.Result();
+    }
+
+    private void Run(
+        IServerConnection InnovatorServerASP,
+        XmlDocument inDom,
+        __EVENT_ARGS_TYPE__ eventData,
+        XmlDocument outDom)
+    {
+        var CCO = invocation.Connection.CCO;
+
+#line __SOURCE_LINE__ "__SOURCE_PATH__"
+__METHOD_CODE__
+#line default
+    }
+}

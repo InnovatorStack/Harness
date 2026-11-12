@@ -1,0 +1,33 @@
+<AML>
+  <Item type="ItemType" action="add">
+    <name>TestNode</name>
+    <is_versionable>0</is_versionable>
+    <Relationships>
+      <Item type="Property" action="add"><name>name</name><data_type>string</data_type><is_required>1</is_required></Item>
+      <Item type="Property" action="add"><name>count</name><data_type>integer</data_type></Item>
+      <Item type="Property" action="add"><name>note</name><data_type>string</data_type></Item>
+      <Item type="Property" action="add"><name>optional</name><data_type>string</data_type></Item>
+      <Item type="Property" action="add"><name>parent</name><data_type>item</data_type><data_source><Item type="ItemType" action="get"><name>TestNode</name></Item></data_source></Item>
+    </Relationships>
+  </Item>
+  <Item type="RelationshipType" action="add">
+    <name>TestLink</name>
+    <source_id><Item type="ItemType" action="get"><name>TestNode</name></Item></source_id>
+    <related_id><Item type="ItemType" action="get"><name>TestNode</name></Item></related_id>
+    <relationship_id>
+      <Item type="ItemType" action="add">
+        <name>TestLink</name>
+        <is_versionable>0</is_versionable>
+        <is_relationship>1</is_relationship>
+        <Relationships>
+          <Item type="Property" action="add">
+            <name>source_name</name><data_type>foreign</data_type>
+            <data_source><Item type="Property" action="get"><name>source_id</name><source_id><Item type="ItemType" action="get"><name>TestLink</name></Item></source_id></Item></data_source>
+            <foreign_property><Item type="Property" action="get"><name>name</name><source_id><Item type="ItemType" action="get"><name>TestNode</name></Item></source_id></Item></foreign_property>
+          </Item>
+          <Item type="Property" action="add"><name>note</name><data_type>string</data_type></Item>
+        </Relationships>
+      </Item>
+    </relationship_id>
+  </Item>
+</AML>

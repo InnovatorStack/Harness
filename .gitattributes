@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep formatting and original source hashes consistent on every host.
+* text=auto eol=lf
+
+# Reference fingerprints use the same original text on native hosts and CI.
+tests/reference/** text eol=lf

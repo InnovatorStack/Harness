@@ -1,0 +1,16 @@
+<AML>
+    <Item type="ItemType" action="add" id="4F4DA622F7A68C6EC87729C237BAD86A">
+        <name>ExampleDocument</name>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>remark</name>
+                <data_type>string</data_type>
+            </Item>
+        </Relationships>
+    </Item>
+</AML>

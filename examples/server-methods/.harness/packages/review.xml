@@ -1,0 +1,69 @@
+<AML>
+    <Item type="ItemType" action="add" id="878D338EDB198A48275F358B66D7D18E">
+        <name>ExampleReview</name>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>remark</name>
+                <data_type>string</data_type>
+            </Item>
+            <Item type="Property" action="add">
+                <name>missing_info</name>
+                <data_type>string</data_type>
+            </Item>
+            <Item type="Property" action="add">
+                <name>approved_on</name>
+                <data_type>date</data_type>
+            </Item>
+            <Item type="Server Event" action="add">
+                <server_event>onBeforeUpdate</server_event>
+                <related_id>20AA2FB54527869C1283EE80FC4F86BD</related_id>
+                <sort_order>10</sort_order>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="Method" action="add" id="20AA2FB54527869C1283EE80FC4F86BD">
+        <name>GuardReview</name>
+        <method_type>C#</method_type>
+        <method_code><![CDATA[
+var query = this.newItem("ExampleReview", "get");
+query.setID(this.getID());
+var original = query.apply();
+
+if (original.isError())
+{
+    return original;
+}
+
+if (!string.IsNullOrEmpty(original.getProperty("missing_info")))
+{
+    this.removeProperty("approved_on");
+}
+
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="F1C6AD0E4C9D5002DB932D5C5332E0F2">
+        <name>SubmitReview</name>
+        <method_type>C#</method_type>
+        <method_code><![CDATA[
+var rules = this.getInnovator().applyMethod("ReadReviewRules", "");
+
+if (rules.isError())
+{
+    return rules;
+}
+
+var update = this.newItem("ExampleReview", "edit");
+update.setID(this.getProperty("review_id"));
+update.setProperty("remark", this.getProperty("remark"));
+update.setProperty("approved_on", this.getProperty("approved_on"));
+
+return update.apply();
+]]></method_code>
+    </Item>
+</AML>
