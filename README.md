@@ -307,14 +307,18 @@ roles check the imported rules. Owner, Manager and Creator resolve against each 
 identity grants pass through the same TypeScript authority and expire when the Method finishes,
 including exceptions and worker timeouts. Effective membership dates use the controlled world clock.
 
+Team roles resolve from each Item's `team_id` and its Team Identity records, including group membership.
+The standard Team role includes every member; custom role Identities use classification `Team`.
+These roles apply to ACL and lifecycle checks for that Item and do not enter the global session.
+
 `AuthorizationMode.Unchecked` (and the existing `"unchecked"` value) selects behavior-only execution.
 Policy callbacks remain supported. Without either choice, restricted operations require a policy.
 Missing native ACL metadata fails explicitly. Relationship reads with `use_src_access="1"` follow
 their stored `source_id` chain and evaluate the source Item's ACL and virtual roles before paging.
 Related Items keep their own permissions. Cycles, missing sources and excessive depth fail explicitly.
 Source ACL changes take effect immediately; historical relationships use their historical owner's ACL.
-Direct source-inherited mutations and team-role resolution remain unavailable; discovery, ABAC/MAC
-and release-specific native parity remain open.
+Direct source-inherited mutations, discovery and ABAC/MAC remain unavailable. Release-specific native
+permission parity remains unverified.
 
 Managed Methods support `Item.isNew()`, `Item.apply(action)`, `Innovator.getNewID()` and scoped
 `CCO.Permissions.GrantIdentity`. New add Items receive an ID from the world's controlled stream before

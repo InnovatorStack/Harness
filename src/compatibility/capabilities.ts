@@ -298,7 +298,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Opt-in Native mode requires a User session and imported ACL, membership and creation metadata. Missing Permissions fail explicitly.",
             "Reads filter before paging; action, Method and transition checks use effective membership and scoped grants. Owner, Manager and Creator resolve per record.",
-            "Relationship reads follow source-inherited ACL chains. Source-inherited mutations and team roles remain unavailable; discovery, ABAC and MAC policies are not implemented.",
+            "Team roles resolve from each Item's team_id and imported Team Identity memberships, including custom roles. Relationship reads follow source-inherited ACL chains.",
+            "Source-inherited mutations remain unavailable; discovery, ABAC and MAC policies are not implemented.",
             "Release-specific native permission parity remains unverified. Callbacks and unchecked execution do not establish native ACL behavior.",
         ],
         tests: [
@@ -306,6 +307,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/security-csharp.test.ts",
             "tests/security-isolation.test.ts",
             "tests/security-source-access.test.ts",
+            "tests/security-teams.test.ts",
         ],
     }),
     descriptor({
@@ -457,6 +459,8 @@ const errorCapabilities: Readonly<Record<string, CapabilityId>> = Object.freeze(
     InvalidSourceAccess: CapabilityId.NativePermissions,
     SourceAccessCycle: CapabilityId.NativePermissions,
     MissingSourceItem: CapabilityId.NativePermissions,
+    MissingTeam: CapabilityId.NativePermissions,
+    InvalidTeamReference: CapabilityId.NativePermissions,
     UnsupportedTeamPermissions: CapabilityId.NativePermissions,
     CSharpUnavailable: CapabilityId.CSharp,
     CSharpBuildFailed: CapabilityId.CSharp,
