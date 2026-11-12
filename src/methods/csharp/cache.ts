@@ -46,6 +46,7 @@ function isPublishRace(error: unknown): boolean {
     return (
         error instanceof Error &&
         "code" in error &&
-        (error.code === "EEXIST" || error.code === "ENOTEMPTY")
+        // Windows reports an existing, in-use destination directory as EPERM.
+        (error.code === "EEXIST" || error.code === "ENOTEMPTY" || error.code === "EPERM")
     );
 }

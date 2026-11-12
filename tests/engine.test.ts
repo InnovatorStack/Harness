@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -64,7 +65,7 @@ describe("createEngine", () => {
     function fixtureFile(): string {
         const directory = mkdtempSync(join(tmpdir(), "innovator-harness-api-"));
         directories.push(directory);
-        const file = join(realpathSync(directory), "fixture.xml");
+        const file = join(directory, "fixture.xml");
         writeFileSync(file, fixtureXml);
 
         return file;
@@ -107,7 +108,7 @@ describe("createEngine", () => {
             count: 0,
         });
         expect(report.documents).toHaveLength(1);
-        expect(report.documents[0]?.path).toBe(file);
+        expect(report.documents[0]?.path).toBe(await realpath(file));
         expect(harness.storage.listDocuments()[0]?.xml).toBe(fixtureXml);
         expect(harness.runtime.trace.at(-1)?.phase).toBe("success");
     });

@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 
 import { checkTypeScriptStyle } from "../scripts/style/typescript.js";
 
@@ -46,7 +46,9 @@ test("the function limit covers library, test, script and setup files", async ()
     const temporary = await project(files);
     const diagnostics = await checkTypeScriptStyle(temporary);
     expect(diagnostics.map((diagnostic) => diagnostic.file).sort()).toEqual(
-        Object.keys(files).sort(),
+        Object.keys(files)
+            .map((file) => normalize(file))
+            .sort(),
     );
     expect(diagnostics.every((diagnostic) => diagnostic.rule === "function-length")).toBe(true);
     expect(diagnostics.every((diagnostic) => diagnostic.message.includes("71 lines"))).toBe(true);
@@ -114,7 +116,7 @@ test("missing project inputs and invalid syntax fail the style check", async () 
     await expect(checkTypeScriptStyle(empty)).rejects.toThrow("no project files");
     const invalid = await project({ "example.ts": "export function broken( {" });
     await expect(checkTypeScriptStyle(invalid)).rejects.toThrow("syntax errors");
-});
+}, 20_000);
 
 test("managed checks reject long functions, long lines, ternaries and missing braces", async () => {
     const temporary = await project({});
@@ -312,5 +314,5 @@ test("owned files excluded from the TypeScript project cannot escape style cover
         "src/hidden.ts": "export const hidden = 2;",
     });
     await Bun.write(join(temporary, "tsconfig.json"), JSON.stringify({ include: ["entry.ts"] }));
-    await expect(checkTypeScriptStyle(temporary)).rejects.toThrow("src/hidden.ts");
+    await expect(checkTypeScriptStyle(temporary)).rejects.toThrow(join("src", "hidden.ts"));
 });

@@ -45,3 +45,51 @@ test("a failed managed build leaves no published or temporary cache and can be r
         expect(await Bun.file(assembly).text()).toBe("Retried output");
     });
 });
+
+test("concurrent managed builds use one complete publication and remove losing staging directories", async () => {
+    await withTemporaryDirectory(join(tmpdir(), "harness-managed-cache-"), async (directory) => {
+        const target = join(directory, "owned");
+        let completedBuilds = 0;
+        let release: (() => void) | undefined;
+        const ready = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const assemblies = await Promise.all(
+            ["First build", "Second build"].map(
+                async (contents) =>
+                    await cachedAssembly(target, "Owned.dll", async (staging) => {
+                        await Bun.write(join(staging, "bin/Owned.dll"), contents);
+                        completedBuilds += 1;
+
+                        if (completedBuilds === 2) {
+                            release?.();
+                        }
+
+                        await ready;
+                    }),
+            ),
+        );
+
+        expect(completedBuilds).toBe(2);
+        expect(assemblies[0]).toBe(assemblies[1]);
+        expect(["First build", "Second build"]).toContain(
+            await Bun.file(join(target, "bin/Owned.dll")).text(),
+        );
+        expect(await readdir(directory)).toEqual(["owned"]);
+    });
+});
+
+test("an unusable cache destination still fails publication and preserves its original contents", async () => {
+    await withTemporaryDirectory(join(tmpdir(), "harness-managed-cache-"), async (directory) => {
+        const target = join(directory, "occupied");
+        await Bun.write(target, "Existing file");
+        await expect(
+            cachedAssembly(target, "Owned.dll", async (staging) => {
+                await Bun.write(join(staging, "bin/Owned.dll"), "Compiled output");
+            }),
+        ).rejects.toThrow();
+
+        expect(await Bun.file(target).text()).toBe("Existing file");
+        expect(await readdir(directory)).toEqual(["occupied"]);
+    });
+});
