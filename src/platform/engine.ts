@@ -1444,14 +1444,20 @@ export class Platform {
         request: ItemNode,
         id: string,
     ): Record<string, StorageValue> {
+        const classification =
+            request.properties.classification === undefined
+                ? definition.properties.find((property) => property.name === "classification")
+                      ?.defaultValue
+                : request.properties.classification;
         const properties: Record<string, StorageValue> = {
             config_id: id,
             generation: 1,
             is_current: 1,
             new_version: 1,
             ...this.revisions.initial(definition, request.properties),
+            ...(classification === undefined ? {} : { classification }),
             ...request.properties,
-            ...this.lifeCycles.initialProperties(definition, request.properties.classification),
+            ...this.lifeCycles.initialProperties(definition, classification),
             ...creationDefaults(definition, request.properties, this.options.userId, this.now),
         };
         this.revisions.assertValue(definition, properties.major_rev);

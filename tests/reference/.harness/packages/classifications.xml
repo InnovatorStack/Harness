@@ -1,0 +1,71 @@
+<AML>
+    <Item type="ItemType" action="add" id="A7000000000000000000000000000004">
+        <name>RefClassified</name><is_versionable>0</is_versionable>
+        <class_structure><![CDATA[
+<class name="Reference classified">
+    <class name="Technical">
+        <class name="Purchased" />
+        <class name="Manufactured" />
+    </class>
+    <class name="TechnicalExtra" />
+    <class name="Commercial" />
+</class>
+]]></class_structure>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Can Add" action="add">
+                <related_id>A7100000000000000000000000000003</related_id><can_add>1</can_add><class_path>Technical</class_path>
+            </Item>
+            <Item type="Can Add" action="add">
+                <related_id>A7100000000000000000000000000003</related_id><can_add>0</can_add><class_path>Technical/Purchased</class_path>
+            </Item>
+            <Item type="Can Add" action="add">
+                <related_id>A7100000000000000000000000000004</related_id><can_add>1</can_add><class_path>Commercial</class_path>
+            </Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+            <Item type="Server Event" action="add">
+                <related_id>A7400000000000000000000000000003</related_id><server_event>onBeforeAdd</server_event>
+                <event_version>version_1</event_version><sort_order>10</sort_order>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A7000000000000000000000000000005">
+        <name>RefClassDefault</name><is_versionable>0</is_versionable>
+        <class_structure><![CDATA[<class><class name="Technical"><class name="Purchased" /></class></class>]]></class_structure>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Property" action="add">
+                <name>classification</name><data_type>string</data_type><default_value>Technical/Purchased</default_value>
+            </Item>
+            <Item type="Can Add" action="add">
+                <related_id>A7100000000000000000000000000003</related_id><can_add>1</can_add><class_path>Technical</class_path>
+            </Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+        </Relationships>
+    </Item>
+    <Item type="Method" action="add" id="A7400000000000000000000000000003">
+        <name>RefClassifyBeforeAdd</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+if (this.getProperty("name") == "Reclassify")
+{
+    this.setProperty("classification", "Commercial");
+}
+return this;
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A7400000000000000000000000000004">
+        <name>RefCreateClassWithGrant</name><method_type>C#</method_type>
+        <method_code><![CDATA[
+var identity = Aras.Server.Security.Identity.GetByName("Reference other alias");
+using (CCO.Permissions.GrantIdentity(identity))
+{
+    var item = this.newItem("RefClassified", "add");
+    item.setProperty("item_number", "CLASS-GRANTED");
+    item.setProperty("classification", "Commercial");
+    return item.apply();
+}
+]]></method_code>
+    </Item>
+</AML>

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { readTextFile } from "../../src/core/files.js";
 import { parseAml } from "../../src/packages/parser.js";
 import { actionCases } from "./cases/actions.js";
+import { classificationCases } from "./cases/classifications.js";
 import { collectionCases } from "./cases/collections.js";
 import { eventCases } from "./cases/events.js";
 import { permissionCases } from "./cases/permissions.js";
@@ -37,6 +38,7 @@ export const cases: readonly ReferenceCase[] = [
     ...stateEventCases,
     ...permissionCases,
     ...teamCases,
+    ...classificationCases,
 ];
 
 export interface Corpus {

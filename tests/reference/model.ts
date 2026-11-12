@@ -89,6 +89,16 @@ export const watchedTypes: readonly WatchedType[] = [
     },
     { type: "RefNoAdd", keys: ["item_number"], properties: ["item_number", ...identityProperties] },
     {
+        type: "RefClassified",
+        keys: ["item_number"],
+        properties: [...namedProperties, "classification"],
+    },
+    {
+        type: "RefClassDefault",
+        keys: ["item_number"],
+        properties: [...namedProperties, "classification"],
+    },
+    {
         type: "Team Identity",
         keys: ["source_id", "related_id"],
         properties: ["source_id", "related_id", "team_role", ...identityProperties],
