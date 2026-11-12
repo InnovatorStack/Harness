@@ -1,0 +1,128 @@
+<AML>
+    <Item type="Alias" action="add" id="B7100000000000000000000000000001">
+        <source_id>B1000000000000000000000000000001</source_id><related_id>A7100000000000000000000000000002</related_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="Alias" action="add" id="B7100000000000000000000000000002">
+        <source_id>B1000000000000000000000000000002</source_id><related_id>A7100000000000000000000000000004</related_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="Member" action="add" id="B7100000000000000000000000000003">
+        <source_id>A7100000000000000000000000000003</source_id><related_id>A7100000000000000000000000000002</related_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="Team" action="add" id="B7200000000000000000000000000001">
+        <name>Reference Alpha</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+    </Item>
+    <Item type="Team" action="add" id="B7200000000000000000000000000002">
+        <name>Reference Beta</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+    </Item>
+    <Item type="Team" action="add" id="B7200000000000000000000000000003">
+        <name>Reference Delta</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+    </Item>
+    <Item type="Team" action="add" id="B7200000000000000000000000000004">
+        <name>Reference Custom</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+    </Item>
+    <Item type="Team Identity" action="add" id="B7300000000000000000000000000001">
+        <source_id>B7200000000000000000000000000001</source_id><related_id>A7100000000000000000000000000003</related_id>
+        <team_role>60EBF9D1BB584921A73FA2F8D74DAF80</team_role>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="Team Identity" action="add" id="B7300000000000000000000000000002">
+        <source_id>B7200000000000000000000000000002</source_id><related_id>A7100000000000000000000000000003</related_id>
+        <team_role>7635594273054F2BA32C1CADB31FD413</team_role>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="Team Identity" action="add" id="B7300000000000000000000000000003">
+        <source_id>B7200000000000000000000000000003</source_id><related_id>A7100000000000000000000000000003</related_id>
+        <team_role is_null="1" />
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="Team Identity" action="add" id="B7300000000000000000000000000004">
+        <source_id>B7200000000000000000000000000004</source_id><related_id>A7100000000000000000000000000003</related_id>
+        <team_role>A7100000000000000000000000000001</team_role>
+        <created_on>2026-01-01T00:00:00</created_on><created_by_id>B1000000000000000000000000000001</created_by_id>
+        <permission_id>A6000000000000000000000000000001</permission_id>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000001">
+        <item_number>PUBLIC</item_number><name>Readable</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000002">
+        <item_number>HIDDEN</item_number><name>Hidden</name><permission_id>A6000000000000000000000000000004</permission_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000003">
+        <item_number>OWNER</item_number><name>Owned</name><permission_id>A6000000000000000000000000000006</permission_id>
+        <owned_by_id>A7100000000000000000000000000002</owned_by_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000004">
+        <item_number>OTHER-OWNER</item_number><name>Other owner</name><permission_id>A6000000000000000000000000000006</permission_id>
+        <owned_by_id>A7100000000000000000000000000004</owned_by_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000005">
+        <item_number>NO-ACCESS-CHANGE</item_number><name>Cannot change access</name><permission_id>A6000000000000000000000000000008</permission_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000006">
+        <item_number>TEAM-01</item_number><name>Denied manager</name><permission_id>A6000000000000000000000000000002</permission_id>
+        <team_id>B7200000000000000000000000000002</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000007">
+        <item_number>TEAM-02</item_number><name>Manager</name><permission_id>A6000000000000000000000000000002</permission_id>
+        <team_id>B7200000000000000000000000000001</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000008">
+        <item_number>TEAM-03</item_number><name>Whole team member</name><permission_id>A6000000000000000000000000000003</permission_id>
+        <team_id>B7200000000000000000000000000002</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B7400000000000000000000000000009">
+        <item_number>TEAM-04</item_number><name>Default team role</name><permission_id>A6000000000000000000000000000003</permission_id>
+        <team_id>B7200000000000000000000000000003</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B740000000000000000000000000000A">
+        <item_number>TEAM-05</item_number><name>Custom team role</name><permission_id>A6000000000000000000000000000005</permission_id>
+        <team_id>B7200000000000000000000000000004</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B740000000000000000000000000000B">
+        <item_number>TEAM-06</item_number><name>No assigned team</name><permission_id>A6000000000000000000000000000002</permission_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B740000000000000000000000000000C">
+        <item_number>TEAM-07</item_number><name>Whole team manager</name><permission_id>A6000000000000000000000000000003</permission_id>
+        <team_id>B7200000000000000000000000000001</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B740000000000000000000000000000D">
+        <item_number>PROMOTE-YES</item_number><name>Can promote</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <team_id>B7200000000000000000000000000001</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B740000000000000000000000000000E">
+        <item_number>PROMOTE-NO</item_number><name>Cannot promote</name><permission_id>A6000000000000000000000000000001</permission_id>
+        <team_id>B7200000000000000000000000000002</team_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityLink" action="add" id="B7500000000000000000000000000001">
+        <source_id>B7400000000000000000000000000007</source_id><related_id>B7400000000000000000000000000002</related_id>
+        <label>Protected related record</label><permission_id>A6000000000000000000000000000004</permission_id>
+        <team_id>B7200000000000000000000000000002</team_id>
+    </Item>
+</AML>

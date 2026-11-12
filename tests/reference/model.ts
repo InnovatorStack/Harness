@@ -1,9 +1,21 @@
+import { AuthorizationMode } from "../../src/index.js";
 import type { WatchedType } from "./types.js";
 
-const identityProperties = ["config_id", "generation", "is_current", "locked_by_id", "new_version"];
+const identityProperties = [
+    "config_id",
+    "generation",
+    "is_current",
+    "locked_by_id",
+    "new_version",
+    "permission_id",
+];
 const documentProperties = ["item_number", "name", "note", ...identityProperties];
+const namedProperties = ["item_number", "name", ...identityProperties];
 
 export const sessionUser = { login_name: "reference_owner" };
+export const authorization = AuthorizationMode.Native;
+export const clock = "2026-01-01T00:00:00Z";
+export const idsSeed = "reference-corpus";
 export const contextProperties = ["plain"];
 export const payloadAttributes = [
     "id",
@@ -36,7 +48,7 @@ export const watchedTypes: readonly WatchedType[] = [
         type: "RefRevision",
         keys: ["item_number", "generation"],
         properties: [
-            ...documentProperties,
+            ...namedProperties,
             "major_rev",
             "state",
             "current_state",
@@ -47,7 +59,7 @@ export const watchedTypes: readonly WatchedType[] = [
             "superseded_date",
         ],
     },
-    { type: "RefBatch", keys: ["item_number", "generation"], properties: documentProperties },
+    { type: "RefBatch", keys: ["item_number", "generation"], properties: namedProperties },
     { type: "RefStateRecord", keys: ["item_number", "generation"], properties: documentProperties },
     {
         type: "RefBatchLink",
@@ -64,6 +76,28 @@ export const watchedTypes: readonly WatchedType[] = [
         type: "RefLink",
         keys: ["source_id", "label"],
         properties: ["source_id", "related_id", "label", "behavior", ...identityProperties],
+    },
+    {
+        type: "RefSecurityRecord",
+        keys: ["item_number"],
+        properties: [...namedProperties, "team_id", "owned_by_id", "state", "current_state"],
+    },
+    {
+        type: "RefSecurityLink",
+        keys: ["source_id", "label"],
+        properties: ["source_id", "related_id", "team_id", "label", ...identityProperties],
+    },
+    { type: "RefNoAdd", keys: ["item_number"], properties: ["item_number", ...identityProperties] },
+    {
+        type: "Team Identity",
+        keys: ["source_id", "related_id"],
+        properties: ["source_id", "related_id", "team_role", ...identityProperties],
+        sourceIds: [
+            "B7200000000000000000000000000001",
+            "B7200000000000000000000000000002",
+            "B7200000000000000000000000000003",
+            "B7200000000000000000000000000004",
+        ],
     },
 ];
 
@@ -82,9 +116,19 @@ export const idProperties = new Set([
     "fixed_ref",
     "float_ref",
     "owned_ref",
+    "permission_id",
+    "owned_by_id",
+    "team_id",
+    "team_role",
 ]);
 
 export const fixtureBindings = {
+    "security-denied": { type: "RefSecurityRecord", item_number: "HIDDEN" },
+    "security-owner": { type: "RefSecurityRecord", item_number: "OWNER" },
+    "access-change": { type: "RefSecurityRecord", item_number: "NO-ACCESS-CHANGE" },
+    "team-manager": { type: "RefSecurityRecord", item_number: "TEAM-02" },
+    "team-promote": { type: "RefSecurityRecord", item_number: "PROMOTE-YES" },
+    "team-reject": { type: "RefSecurityRecord", item_number: "PROMOTE-NO" },
     "state-record": { type: "RefStateRecord", item_number: "STATE-001" },
     revision: { type: "RefRevision", item_number: "REV-001" },
     "last-revision": { type: "RefRevision", item_number: "REV-002" },

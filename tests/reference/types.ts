@@ -5,6 +5,7 @@ export interface WatchedType {
     readonly type: string;
     readonly keys: readonly string[];
     readonly properties: readonly string[];
+    readonly sourceIds?: readonly string[];
 }
 
 export interface ReferenceStep {

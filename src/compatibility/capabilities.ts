@@ -308,6 +308,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/security-isolation.test.ts",
             "tests/security-source-access.test.ts",
             "tests/security-teams.test.ts",
+            "tests/reference.test.ts",
         ],
     }),
     descriptor({

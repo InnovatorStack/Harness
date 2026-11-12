@@ -5,15 +5,20 @@ import { parseAml } from "../../src/packages/parser.js";
 import { actionCases } from "./cases/actions.js";
 import { collectionCases } from "./cases/collections.js";
 import { eventCases } from "./cases/events.js";
+import { permissionCases } from "./cases/permissions.js";
 import { queryCases } from "./cases/queries.js";
 import { referenceCases } from "./cases/references.js";
 import { revisionCases } from "./cases/revisions.js";
 import { stateEventCases } from "./cases/state-events.js";
+import { teamCases } from "./cases/teams.js";
 import { versioningCases } from "./cases/versioning.js";
 import {
+    authorization,
+    clock,
     contextProperties,
     fixtureBindings,
     idProperties,
+    idsSeed,
     payloadAttributes,
     sessionUser,
     watchedTypes,
@@ -30,6 +35,8 @@ export const cases: readonly ReferenceCase[] = [
     ...collectionCases,
     ...revisionCases,
     ...stateEventCases,
+    ...permissionCases,
+    ...teamCases,
 ];
 
 export interface Corpus {
@@ -86,6 +93,9 @@ export async function loadCorpus(): Promise<Corpus> {
                 contextProperties,
                 payloadAttributes,
                 sessionUser,
+                authorization,
+                clock,
+                idsSeed,
                 idProperties: [...idProperties].sort(),
                 id: definition.id,
                 capabilities: definition.capabilities,
@@ -107,6 +117,9 @@ export function inputBundle(corpus: Corpus) {
         contextProperties,
         payloadAttributes,
         sessionUser,
+        authorization,
+        clock,
+        idsSeed,
         cases: cases.map((definition) => ({
             id: definition.id,
             capabilities: definition.capabilities,
