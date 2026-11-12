@@ -59,8 +59,10 @@ test("managed frames preserve fragmented UTF-8 and validate each complete messag
     });
     const messages: Record<string, unknown>[] = [];
     await readMessages(stream, (message) => {
+        expect(stream.locked).toBe(true);
         messages.push(message);
     });
+    expect(stream.locked).toBe(false);
     expect(messages).toEqual([{ kind: "result", id: "1", text: "ø😀" }]);
     expect(Object.isFrozen(messages[0])).toBe(true);
 });
