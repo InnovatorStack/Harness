@@ -106,8 +106,15 @@ export const stateEventCases: readonly ReferenceCase[] = [
             const step = stepAt(observation, 0);
             equalContract(
                 step.events.map((event) => event.method),
-                [...lockEvents, "RefStateBeforeUnlock", "RefStateAfterUnlock", ...unlockEvents],
-                "Update suppression retains edit locks, historical cleanup and final unlock hooks.",
+                [
+                    "RefStateBeforeLock",
+                    "RefStateAfterLock",
+                    "RefStateBeforeUnlock",
+                    "RefStateAfterUnlock",
+                    "RefStateBeforeUnlock",
+                    "RefStateAfterUnlock",
+                ],
+                "Edit locks and cleanup retain ordinary hooks while bypassing replacements.",
             );
             equalContract(
                 step.response.items[0]?.properties.generation,

@@ -431,22 +431,35 @@ bindings share `sort_order`; tied orders within an event version fail explicitly
 Automatic versioning runs before-update before deciding to create a generation. A hook can set
 `version="0"` to save in place. When versioning starts, the selected batch uses the original pending
 request and enters update again with new IDs, `oldId` and the automatic `new_version=1` marker.
-Explicit version skips the initial update pass. Version hooks run despite `serverEvents="0"`;
+Explicit version skips the initial replacement and before-update pass. Version hooks run despite `serverEvents="0"`;
 optional update hooks remain suppressed. Versioning releases historical source locks before
 after-version hooks run. Every before-unlock hook runs before the batch is cleared; owned dependent Items are
 unlocked before the after hooks. These writes and Method side effects share rollback and world reset.
 Automatic source markers reset to zero; manual markers remain unchanged. Hook contexts containing
 only type and ID are hydrated through Get and retain shared pending values across the unlock batch.
-Administrative lock overrides and replacement interception during version
-reentry remain unimplemented. Native event context profiles are still unverified.
+Administrative lock overrides remain unimplemented. Native event context profiles are still unverified.
 Before-version Methods receive pending request values. Cloning preserves stored business values
 until the subsequent update hooks finish; after-version Methods can query that intermediate clone.
+
+Generated updates enter `onUpdate` again with versioning disabled. The replacement can modify pending
+values and delegate, or supply its own result without applying the update. Base delegation retains
+the selected generation IDs and checks every target's permissions before running update hooks.
+Explicit `version` preserves the original ID, ID list or validated WHERE expression in `oldId`;
+automatic versioning uses the selected IDs. Single-ID criteria become `id`; other criteria become
+`idlist`. Copied relationship IDs are remapped before the generated replacement runs. Direct update
+and version delegates retrieve their results before the replacement resumes. The edit wrapper locks
+before replacement, requests minimal update results, then unlocks returned target IDs and performs
+the final Get. Its implicit locks bypass `onLock`/`onUnlock` replacements while retaining ordinary
+hooks. Response-only changes stay transient; source failures roll back the whole request.
+Versionable edit replacements must return target Items; text results fail with a diagnostic.
 
 Replacement Methods can delegate once to their native action through invocation-scoped
 `MethodPorts.serverEvent.applyBase()`. C# `CSharpInOut` Methods receive native input/output XML
 and typed event arguments, including `BaseLockItem`, `BaseUnlockItem` and `BasePromoteItem`.
 Delegation retains authorization, before/after hooks and the owning transaction. Explicit lock/unlock
 suppression skips optional hooks; `edit serverEvents="0"` still runs its implicit lock/unlock hooks.
+Managed base delegates return responses; server-side input DOM rewrites are not yet synchronized
+back into the calling `CSharpInOut` Method's input document.
 Unknown Method templates and event argument types fail with explicit diagnostics.
 
 Lifecycle bindings, states, transitions, and pre/post Methods come from imported AML. `add` uses the start state; `promoteItem` validates the transition and updates `state` and `current_state` without creating another generation. Transition roles require the configured authorization policy or the existing explicit `authorization: "unchecked"` setting. Transactional pre/post Methods execute through the same Method dispatcher and configured mocks.

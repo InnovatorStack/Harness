@@ -69,10 +69,13 @@ test("failure targets include imported event Methods before their mock or execut
     const report = h.executions.at(-1);
     expect(report?.mocks).toEqual([]);
     expect(report?.failures[0]?.source?.file).toEndWith("source.xml");
-    expect(report?.calls[0]?.children.map((call) => call.name)).toEqual([
-        "ControlledDocument.lock",
-        "OnBeforeEdit",
-    ]);
+    expect(report?.calls[0]?.children.map((call) => call.name)).toEqual(["OnBeforeEdit"]);
+    expect(report?.changes).toHaveLength(1);
+    expect(report?.changes[0]).toMatchObject({
+        name: "lock",
+        before: { id: original.id },
+        after: { id: original.id },
+    });
     expect(report?.calls[0]?.children.find((call) => call.name === "OnBeforeEdit")).toMatchObject({
         name: "OnBeforeEdit",
         executed: false,

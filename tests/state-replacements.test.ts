@@ -146,7 +146,7 @@ test("explicit suppression skips optional replacement hooks while required bindi
     ).toBe(true);
 }, 60_000);
 
-test("implicit edit locks use the same replacement chain and unlock the new generation", async () => {
+test("implicit edit locks bypass explicit lock replacements and unlock the new generation", async () => {
     const source =
         stateEvent("onLock", "ReplaceLock", lockDelegate) +
         stateEvent("onUnlock", "ReplaceUnlock", unlockDelegate);
@@ -157,10 +157,7 @@ test("implicit edit locks use the same replacement chain and unlock the new gene
 
     expect(result.id).not.toBe(parent.id);
     expect(result.properties).toMatchObject({ name: "Edited", generation: 2, locked_by_id: null });
-    expect(h.trace.filter((event) => event.kind === "method").map((event) => event.name)).toEqual([
-        "ReplaceLock",
-        "ReplaceUnlock",
-    ]);
+    expect(h.trace.filter((event) => event.kind === "method")).toEqual([]);
 }, 60_000);
 
 test("a retained base port expires and ordinary nested Methods never inherit it", async () => {

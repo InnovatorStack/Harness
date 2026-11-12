@@ -35,6 +35,68 @@ export class ItemLocks {
         await this.unlocks.unlockVersionSources(definition, sources, context);
     }
 
+    async unlockAfterEdit(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<void> {
+        await this.unlocks.unlockVersionSources(definition, records, context, request);
+    }
+
+    async lockForEdit(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<void> {
+        for (const record of records) {
+            this.assertLockable(record);
+        }
+
+        if (records.some((record) => Boolean(record.properties.locked_by_id))) {
+            return;
+        }
+
+        const event = request.clone();
+        delete event.node.attributes.where;
+        delete event.node.attributes.idlist;
+
+        for (const record of records) {
+            event.setProperty("id", record.id);
+            await this.events(definition, "onBeforeLock", event, true, context);
+            this.assertEditContext(definition, request, event, record.id);
+        }
+
+        for (const record of records) {
+            this.write(definition, record, "lock", context);
+        }
+
+        for (const record of records) {
+            event.setProperty("id", record.id);
+            await this.events(definition, "onAfterLock", event, true, context);
+            this.assertEditContext(definition, request, event, record.id);
+        }
+    }
+
+    private assertEditContext(
+        definition: ItemTypeDefinition,
+        request: Item,
+        event: Item,
+        id: string,
+    ): void {
+        if (
+            event.getType() !== definition.name ||
+            event.getAction() !== request.getAction() ||
+            event.getID() !== id
+        ) {
+            throw new PlatformError(
+                "UnsupportedContextChange",
+                "An implicit lock hook must retain its ItemType, action and target ID.",
+            );
+        }
+    }
+
     owner(): string {
         const id = this.userId?.();
 
@@ -66,6 +128,17 @@ export class ItemLocks {
             throw new PlatformError(
                 "LockOwnership",
                 `Record '${record.type}:${record.id}' is locked by another User.`,
+            );
+        }
+    }
+
+    private assertLockable(record: StoredItem): void {
+        this.assertAvailable(record);
+
+        if (String(record.properties.not_lockable ?? "0") === "1") {
+            throw new PlatformError(
+                "NotLockable",
+                `Record '${record.type}:${record.id}' cannot be locked in its current state.`,
             );
         }
     }
@@ -102,7 +175,7 @@ export class ItemLocks {
         context: ExecutionContext,
         request: Item,
     ): Promise<Item> {
-        const owner = this.owner();
+        this.owner();
         const currentOwner = String(record.properties.locked_by_id ?? "");
         this.assertAvailable(record);
 
@@ -141,10 +214,24 @@ export class ItemLocks {
             );
         }
 
-        assertActiveContext(context);
+        const after = this.write(definition, record, action, context);
+        const response = new Item({
+            items: [projectItem(this.storage, definition, after, request.node.attributes.select)],
+        });
+        await this.events(definition, `onAfter${verb}`, response, enabled, context);
 
+        return response;
+    }
+
+    private write(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        action: "lock" | "unlock",
+        context: ExecutionContext,
+    ): StoredItem {
+        assertActiveContext(context);
         this.storage.updateItem(definition.name, record.id, {
-            locked_by_id: action === "lock" ? owner : null,
+            locked_by_id: action === "lock" ? this.owner() : null,
             ...(action === "unlock" &&
             definition.isVersionable &&
             !manualVersioning(this.storage, definition)
@@ -158,11 +245,7 @@ export class ItemLocks {
         }
 
         this.trace.record(context, { kind: "mutation", name: action, before: record, after });
-        const response = new Item({
-            items: [projectItem(this.storage, definition, after, request.node.attributes.select)],
-        });
-        await this.events(definition, `onAfter${verb}`, response, enabled, context);
 
-        return response;
+        return after;
     }
 }

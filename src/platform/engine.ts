@@ -29,8 +29,9 @@ import { ApplicationError, PlatformError, requireSuccess } from "./errors.js";
 import { AfterEvents } from "./events/after.js";
 import { afterAddFrames, afterUpdateFrames } from "./events/data.js";
 import { EventReplacements } from "./events/replacement.js";
+import type { ApplyEventBase } from "./events/replacement.js";
 import { ServerEventVersion } from "./events/types.js";
-import type { EventBinding, EventRunners } from "./events/types.js";
+import type { ApplyUpdateBase, EventBinding, EventRunners } from "./events/types.js";
 import { GraphActions } from "./graph-actions.js";
 import { LifeCycles } from "./lifecycle.js";
 import type { ClassificationChange } from "./lifecycle.js";
@@ -85,11 +86,13 @@ interface MutationResult {
     readonly replaced: boolean;
 }
 
+interface BaseItemCall {
+    readonly item: Item;
+    readonly event: string;
+}
+
 export const applyItemOperation = defineOperation<Item, Item>("platform.apply");
-const applyBaseItemOperation = defineOperation<
-    { readonly item: Item; readonly event: string },
-    Item
->("platform.event-base");
+const applyBaseItemOperation = defineOperation<BaseItemCall, Item>("platform.event-base");
 export const callMethodOperation = defineOperation<MethodCall, Item>("platform.method");
 export const seedOperation = defineOperation<SeedCall, ItemReference>("platform.seed");
 export const seedRecordsOperation = defineOperation<readonly SeedRecord[], void>(
@@ -139,6 +142,7 @@ export class Platform {
     private readonly responses: ActionResponses;
     private readonly replacements = new EventReplacements();
     private readonly boundMethods = new WeakSet<MethodCall>();
+    private readonly baseOverrides = new WeakMap<BaseItemCall, ApplyEventBase>();
     private readonly afterEvents: AfterEvents;
 
     constructor(
@@ -254,6 +258,9 @@ export class Platform {
 
             after: (definition, name, items, enabled, context) =>
                 this.afterEvents.run(definition, name, items, enabled, context),
+
+            update: (definition, request, context, applyBase) =>
+                this.updateEvent(definition, request, context, applyBase),
         };
     }
 
@@ -862,6 +869,11 @@ export class Platform {
         baseEvent?: string,
     ): Promise<Item> {
         const action = item.getAction();
+
+        if (definition.isVersionable && ["edit", "update", "version"].includes(action)) {
+            return await this.applyVersionedUpdate(definition, item, context);
+        }
+
         const targetId = item.node.attributes.id;
         const replacement = await this.replaceAction(
             definition,
@@ -874,10 +886,6 @@ export class Platform {
 
         if (replacement) {
             return replacement;
-        }
-
-        if (definition.isVersionable && ["edit", "update", "version"].includes(action)) {
-            return await this.applyVersionedUpdate(definition, item, context);
         }
 
         const responseRequest = { ...item.node, attributes: { ...item.node.attributes } };
@@ -1197,9 +1205,7 @@ export class Platform {
 
         this.registerSeedOperations(registrar);
         registrar.handleAsync(applyBaseItemOperation, (input, context) =>
-            this.references.sessions.run(context, () =>
-                this.apply(input.item.clone(), context, input.event),
-            ),
+            this.references.sessions.run(context, () => this.applyBaseItem(input, context)),
         );
         registrar.handleAsync(applyItemOperation, (item, context) =>
             this.references.sessions.run(context, () => this.apply(item.clone(), context)),
@@ -1340,6 +1346,7 @@ export class Platform {
         enabled: boolean,
         context: ExecutionContext,
         baseEvent?: string,
+        applyBase?: ApplyEventBase,
     ): Promise<Item | undefined> {
         if (baseEvent === `on${verb}`) {
             return undefined;
@@ -1372,13 +1379,86 @@ export class Platform {
                 `on${verb}`,
                 item,
                 context,
-                (request, nested) =>
-                    nested.execute(applyBaseItemOperation, { item: request, event: `on${verb}` }),
+                (request, nested) => this.delegateBase(request, `on${verb}`, nested, applyBase),
                 () => this.callBoundMethod({ name: binding.methodId, context: item }, context),
             );
         }
 
         return undefined;
+    }
+
+    private async delegateBase(
+        item: Item,
+        event: string,
+        context: ExecutionContext,
+        applyBase?: ApplyEventBase,
+    ): Promise<Item> {
+        const input = { item, event };
+
+        if (applyBase) {
+            this.baseOverrides.set(input, applyBase);
+        }
+
+        try {
+            return await context.execute(applyBaseItemOperation, input);
+        } finally {
+            this.baseOverrides.delete(input);
+        }
+    }
+
+    private applyBaseItem(input: BaseItemCall, context: ExecutionContext): Promise<Item> {
+        const applyBase = this.baseOverrides.get(input);
+        const request = input.item.clone();
+
+        if (applyBase) {
+            return applyBase(request, context);
+        }
+
+        return this.apply(request, context, input.event);
+    }
+
+    private async updateEvent(
+        definition: ItemTypeDefinition,
+        request: Item,
+        context: ExecutionContext,
+        applyBase: ApplyUpdateBase,
+    ): Promise<Item> {
+        await this.authorizeAction(definition, request.getAction(), request, context);
+        const attributes = { ...request.node.attributes };
+        const complete: ApplyEventBase = async (item, nested) => {
+            // Native delegates capture these flags before the replacement mutates its DOM.
+            for (const name of ["serverEvents", "doGetItem"]) {
+                delete item.node.attributes[name];
+
+                if (attributes[name] !== undefined) {
+                    item.node.attributes[name] = attributes[name];
+                }
+            }
+
+            const result = await applyBase(item, nested);
+
+            if (result.completed) {
+                return result.response;
+            }
+
+            const responseRequest = {
+                ...item.node,
+                attributes: { ...item.node.attributes, action: "update" },
+            };
+
+            return await this.responses.complete(responseRequest, result.response, nested);
+        };
+        const replacement = await this.replaceAction(
+            definition,
+            request,
+            "Update",
+            request.getAttribute("serverEvents") !== "0",
+            context,
+            undefined,
+            complete,
+        );
+
+        return replacement ?? (await complete(request, context));
     }
 
     private async applyVersionedUpdate(
@@ -1399,9 +1479,13 @@ export class Platform {
             );
         }
 
-        const response = await this.versioning.applyBatch(definition, records, item, context);
+        const result = await this.versioning.applyBatch(definition, records, item, context);
 
-        return await this.responses.complete(request, response, context);
+        if (result.completed) {
+            return result.response;
+        }
+
+        return await this.responses.complete(request, result.response, context);
     }
 
     private async get(

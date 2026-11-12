@@ -11,6 +11,7 @@
             <Item type="Server Event" action="add"><related_id>A4020000000000000000000000000024</related_id><server_event>onAfterLock</server_event></Item>
             <Item type="Server Event" action="add"><related_id>A4020000000000000000000000000025</related_id><server_event>onBeforeUnlock</server_event></Item>
             <Item type="Server Event" action="add"><related_id>A4020000000000000000000000000026</related_id><server_event>onAfterUnlock</server_event></Item>
+            <Item type="Server Event" action="add"><related_id>A4020000000000000000000000000027</related_id><server_event>onUpdate</server_event></Item>
         </Relationships>
     </Item>
     <Item type="Method" action="add" id="A4020000000000000000000000000021">
@@ -75,6 +76,41 @@ if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") ==
     Console.WriteLine("HARNESS_REFERENCE_EVENT|RefStateAfterUnlock|" + aml);
 }
 return this;
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A4020000000000000000000000000027">
+        <name>RefStateUpdate</name><method_type>C#</method_type><method_code><![CDATA[//MethodTemplateName=CSharpInOut;
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(inDom.OuterXml));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefStateUpdate|" + aml);
+}
+var input = inDom.DocumentElement ?? throw new Exception("Missing update context");
+bool generated = !String.IsNullOrEmpty(input.GetAttribute("oldId"));
+string name = input.SelectSingleNode("name")?.InnerText ?? "";
+if (generated && name == "Skip generated")
+{
+    outDom.LoadXml("<Result>Generated update replaced</Result>");
+    return;
+}
+if (generated && name == "Change generated")
+{
+    input.SelectSingleNode("name").InnerText = "Changed by generated replacement";
+}
+eventData.BaseUpdateItem(outDom);
+if (generated && name == "Reject generated replacement")
+{
+    throw new Exception("Reference generated replacement rejected");
+}
+if (generated)
+{
+    var item = outDom.SelectSingleNode("//Result/Item");
+    if (item != null)
+    {
+        var note = item.SelectSingleNode("note") ?? item.AppendChild(outDom.CreateElement("note"));
+        note.InnerText = "Generated response";
+    }
+}
 ]]></method_code>
     </Item>
 </AML>
