@@ -410,10 +410,16 @@ Server Events use their exported `event_version`. Version-1 hooks run per item. 
 `onAfterAdd`, `onAfterUpdate` and `onAfterVersion` hooks receive the action collection;
 `onBeforeCopy` and `onAfterCopy` receive relationship collections during parent versioning.
 Before-copy hooks can alter copied values while retaining source identity and collection size.
+Native suppression of business copy hooks during parent versioning remains unimplemented.
 `Morphae` links supply inherited polymorphic bindings with concrete item contexts. Own and inherited
 bindings share `sort_order`; tied orders within a phase fail explicitly. Required bindings survive
 `serverEvents="0"`. Native release-specific event and clone parity remains unverified.
-Automatic versioning currently runs one before-update pass; native pre-version reentry remains open.
+Automatic versioning runs before-update before deciding to create a generation. A hook can set
+`version="0"` to save in place. When versioning starts, the selected batch uses the original pending
+request and enters update again with new IDs, `oldId` and the automatic `new_version=1` marker.
+Explicit version skips the initial update pass. Version hooks run despite `serverEvents="0"`;
+optional update hooks remain suppressed. Historical-source unlock hooks and replacement interception
+during version reentry remain unimplemented. Native event context profiles are still unverified.
 Before-version Methods receive pending request values. Cloning preserves stored business values
 until the subsequent update hooks finish; after-version Methods can query that intermediate clone.
 

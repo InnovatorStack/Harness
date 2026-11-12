@@ -49,14 +49,7 @@ export class LifeCycles {
         context: ExecutionContext,
         previous = record,
     ): ClassificationChange | undefined {
-        let classification = values.classification;
-
-        if (
-            classification === undefined &&
-            previous.properties.classification !== record.properties.classification
-        ) {
-            classification = record.properties.classification ?? null;
-        }
+        const classification = values.classification;
 
         if (classification === undefined) {
             return undefined;

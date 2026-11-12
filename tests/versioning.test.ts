@@ -258,7 +258,12 @@ describe("versionable actions", () => {
                 }
 
                 if (name === "onBeforeUpdate") {
-                    expect(item.getID()).toBe(newId);
+                    expect(item.getAction()).toBe(newId ? "version" : "edit");
+
+                    if (newId) {
+                        expect(item.getID()).toBe(newId);
+                    }
+
                     item.setProperty("note", "Set by the native update hook");
                 }
 
@@ -274,7 +279,17 @@ describe("versionable actions", () => {
 
         const original = await add(engine);
         const updated = await engine.apply(request("edit", original.getID(), "Changed"));
-        expect(calls).toEqual(names);
+        expect(calls).toEqual([
+            "onBeforeLock",
+            "onAfterLock",
+            "onBeforeUpdate",
+            "onBeforeVersion",
+            "onAfterVersion",
+            "onBeforeUpdate",
+            "onAfterUpdate",
+            "onBeforeUnlock",
+            "onAfterUnlock",
+        ]);
         expect(engine.storage.getItem("VersionedRecord", updated.getID())?.properties.note).toBe(
             "Set by the native update hook",
         );
@@ -355,7 +370,7 @@ describe("versionable actions", () => {
         ).toBeNull();
     });
 
-    test("serverEvents=0 retains required version hooks and all edit lock hooks", async () => {
+    test("serverEvents=0 retains version hooks and all edit lock hooks", async () => {
         const calls: string[] = [];
         const engine = setup({
             required: (item) => {
@@ -383,7 +398,7 @@ describe("versionable actions", () => {
         const edit = request("edit", original.getID(), "Changed");
         edit.setAttribute("serverEvents", "0");
         expect((await engine.apply(edit)).node.properties.generation).toBe(2);
-        expect(calls).toEqual(["lock", "required"]);
+        expect(calls).toEqual(["lock", "required", "optional"]);
     });
 
     test("delete removes every generation atomically and rejects referenced history", async () => {

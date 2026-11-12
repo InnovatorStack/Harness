@@ -19,6 +19,7 @@ export const eventCases: readonly ReferenceCase[] = [
                 [
                     "onBeforeLock",
                     "onAfterLock",
+                    "onBeforeUpdate",
                     "onBeforeVersion",
                     "onAfterVersion",
                     "onBeforeUpdate",

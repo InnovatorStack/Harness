@@ -51,6 +51,26 @@ if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") ==
     var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
     Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBeforeUpdate|" + aml);
 }
+if (this.getProperty("name") == "Suppress in hook")
+{
+    this.setAttribute("version", "0");
+    this.setProperty("note", "Suppressed by source");
+}
+if (this.getProperty("name") == "Temporary preflight" &&
+    String.IsNullOrEmpty(this.getAttribute("oldId")))
+{
+    this.setProperty("name", "Preflight only");
+}
+if (this.getProperty("name") == "Reject preflight" &&
+    String.IsNullOrEmpty(this.getAttribute("oldId")))
+{
+    return this.getInnovator().newError("Reference preflight rejected");
+}
+if (this.getProperty("name") == "Reject reentry" &&
+    !String.IsNullOrEmpty(this.getAttribute("oldId")))
+{
+    return this.getInnovator().newError("Reference reentry rejected");
+}
 return this;
 ]]></method_code>
   </Item>

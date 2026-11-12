@@ -236,7 +236,7 @@ test.each(["onBeforeVersion", "onBeforeUpdate"])(
         const original = h.state.getOne("ClassificationRecord", { name: "Start" });
         const result = await h.applyAML(
             `<Item type="ClassificationRecord" action="edit" id="${original.id}">
-            <classification>Restricted</classification><name>Permitted update</name>
+            <classification>Operations</classification><name>Permitted update</name>
         </Item>`,
         );
 

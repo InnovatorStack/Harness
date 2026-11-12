@@ -35,6 +35,7 @@ export const actionResponseCases: readonly ReferenceCase[] = [
                 [
                     "onBeforeLock",
                     "onAfterLock",
+                    "onBeforeUpdate",
                     "onBeforeVersion",
                     "onAfterVersion",
                     "onBeforeUpdate",

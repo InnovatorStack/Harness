@@ -47,16 +47,18 @@ export const collectionCases: readonly ReferenceCase[] = [
             equalContract(
                 step.events.map((event) => event.method),
                 [
+                    "RefBatchBeforeUpdate",
                     "RefBatchAfterVersion",
                     "RefBatchBeforeUpdate",
-                    "RefBatchAfterUpdate",
                     "RefBatchBeforeUpdate",
+                    "RefBatchAfterUpdate",
                     "RefBatchAfterUpdate",
                     "RefBatchUpdateCollection",
                 ],
                 "Collection phases enclose the individual update phases.",
             );
-            const version = step.events[0]?.context.items;
+            const version = step.events.find((event) => event.method === "RefBatchAfterVersion")
+                ?.context.items;
             requireContract(version?.length === 2, "After-version receives both generations.");
             requireContract(
                 version.every(

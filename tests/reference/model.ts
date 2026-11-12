@@ -21,6 +21,7 @@ export const payloadAttributes = [
     "id",
     "action",
     "version",
+    "oldId",
     "serverEvents",
     "doGetItem",
     "select",
@@ -131,6 +132,7 @@ export const watchedTypes: readonly WatchedType[] = [
 /** Only declared identity fields are normalized. ID-shaped business text remains literal. */
 export const idProperties = new Set([
     "id",
+    "oldId",
     "config_id",
     "source_id",
     "related_id",
