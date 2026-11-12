@@ -37,8 +37,21 @@ export type RunAfterEvents = (
     context: ExecutionContext,
 ) => Promise<void>;
 
+export interface UpdateResult {
+    readonly response: Item;
+    readonly completed: boolean;
+}
+
+export type ApplyUpdateBase = (request: Item, context: ExecutionContext) => Promise<UpdateResult>;
+
 export interface EventRunners {
     readonly item: RunEvents;
     readonly collection: RunEvents;
     readonly after: RunAfterEvents;
+    readonly update: (
+        definition: ItemTypeDefinition,
+        request: Item,
+        context: ExecutionContext,
+        applyBase: ApplyUpdateBase,
+    ) => Promise<Item>;
 }

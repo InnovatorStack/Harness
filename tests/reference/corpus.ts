@@ -8,6 +8,7 @@ import { boundPermissionCases } from "./cases/bound-permissions.js";
 import { classificationCases } from "./cases/classifications.js";
 import { collectionCases } from "./cases/collections.js";
 import { eventCases } from "./cases/events.js";
+import { generatedUpdateCases } from "./cases/generated-updates.js";
 import { historicalUnlockCases } from "./cases/historical-unlocks.js";
 import { permissionCases } from "./cases/permissions.js";
 import { queryCases } from "./cases/queries.js";
@@ -38,6 +39,7 @@ export const cases: readonly ReferenceCase[] = [
     ...actionResponseCases,
     ...versioningCases,
     ...updateReentryCases,
+    ...generatedUpdateCases,
     ...eventCases,
     ...historicalUnlockCases,
     ...queryCases,

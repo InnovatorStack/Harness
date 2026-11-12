@@ -5,7 +5,7 @@ import type { MethodServerEvent } from "../../methods/types.js";
 import { PlatformError } from "../errors.js";
 import type { EventBinding } from "./types.js";
 
-type ApplyBase = (request: Item, context: ExecutionContext) => Promise<Item>;
+export type ApplyEventBase = (request: Item, context: ExecutionContext) => Promise<Item>;
 
 interface Frame {
     readonly owner: ExecutionContext;
@@ -13,7 +13,7 @@ interface Frame {
     readonly name: string;
     readonly type: string;
     readonly action: string;
-    readonly apply: ApplyBase;
+    readonly apply: ApplyEventBase;
 }
 
 /** A base delegate belongs to one replacement invocation, never to nested ordinary Methods. */
@@ -25,7 +25,7 @@ export class EventReplacements {
         name: string,
         item: Item,
         context: ExecutionContext,
-        apply: ApplyBase,
+        apply: ApplyEventBase,
         execute: () => Promise<Item>,
     ): Promise<Item> {
         const key = this.key(context.requestId, context.executionId);

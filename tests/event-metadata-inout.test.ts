@@ -107,7 +107,7 @@ test.each([ServerEventVersion.Item, ServerEventVersion.Collection])(
         const parent = h.state.getOne("ReferenceRecord", { name: "Parent" });
         const baseline = h.state.get("ReferenceRecord");
         const result = await h.applyAML(
-            `<Item type="ReferenceRecord" action="version" id="${parent.id}" />`,
+            `<Item type="ReferenceRecord" action="version" id="${parent.id}" doGetItem="0" />`,
         );
 
         if (version === ServerEventVersion.Item) {
@@ -122,3 +122,35 @@ test.each([ServerEventVersion.Item, ServerEventVersion.Collection])(
     },
     60_000,
 );
+
+test("a rejected explicit-version return Get rolls back after metadata-only version hooks", async () => {
+    const source =
+        referenceMethod(
+            "RejectReturnGet",
+            'return this.getInnovator().newError("Return Get rejected");',
+        ) +
+        referenceEvent("REF_RECORD", "onBeforeGet", "RejectReturnGet") +
+        referenceMethod("BeforeReturnGet", "return this;") +
+        referenceEvent("REF_RECORD", "onAfterVersion", "BeforeReturnGet", {
+            version: ServerEventVersion.Collection,
+        });
+    await using project = await metadataProject(source, false);
+    using h = await createHarness({ cwd: project.cwd, csharp: {} });
+    const parent = h.state.getOne("ReferenceRecord", { name: "Parent" });
+    const baseline = h.state.get("ReferenceRecord");
+    const result = await h.applyAML(
+        `<Item type="ReferenceRecord" action="version" id="${parent.id}" />`,
+    );
+
+    expect(result.getErrorString()).toBe("Return Get rejected");
+    expect(h.state.get("ReferenceRecord")).toEqual(baseline);
+    expect(h.state.get("MetadataAudit")).toEqual([]);
+    expect(h.trace.filter((event) => event.kind === "method").map((event) => event.name)).toEqual([
+        "BeforeReturnGet",
+        "MetadataBeforeUpdate",
+        "RejectReturnGet",
+    ]);
+    expect(h.executions.at(-1)?.changes.filter((change) => change.name === "version")).toHaveLength(
+        1,
+    );
+}, 60_000);

@@ -11,7 +11,7 @@ import type {
 } from "../storage/types.js";
 import { ApplicationError, PlatformError } from "./errors.js";
 import { afterUpdateFrames, afterVersionFrames } from "./events/data.js";
-import type { EventRunners } from "./events/types.js";
+import type { EventRunners, UpdateResult } from "./events/types.js";
 import type { GraphActions } from "./graph-actions.js";
 import type { ClassificationChange, LifeCycles } from "./lifecycle.js";
 import type { ItemLocks } from "./locks.js";
@@ -20,21 +20,25 @@ import type { DependentDeletion } from "./references/deletion.js";
 import type { ReferenceMaintenance } from "./references/maintenance.js";
 import { RelationshipCopy } from "./relationship-copy.js";
 import { validateRequest } from "./request.js";
-import { isReleased, removeRevisionProperties } from "./revisions/policy.js";
+import { isReleased } from "./revisions/policy.js";
 import type { Revisions } from "./revisions/policy.js";
 import type { NativeSecurity } from "./security/policy.js";
 import type { PlatformTrace } from "./trace.js";
 import { normalizeProperties } from "./values.js";
 import { manualVersioning } from "./version-policy.js";
+import { remapVersionRelationships, versionedRequest } from "./versioned-request.js";
 
 const managedProperties = ["config_id", "generation", "is_current", "new_version", "locked_by_id"];
 
-interface PreparedUpdate {
+interface PreparedVersion {
     readonly record: StoredItem;
-    readonly request: Item;
     readonly copies: Map<string, string>;
-    readonly versioned: boolean;
     readonly enabled: boolean;
+}
+
+interface PreparedUpdate extends PreparedVersion {
+    readonly request: Item;
+    readonly versioned: boolean;
     readonly select: string | undefined;
     readonly idList: readonly string[];
 }
@@ -42,11 +46,6 @@ interface PreparedUpdate {
 interface GenerationWrite {
     readonly after: StoredItem;
     readonly classification: ClassificationChange | undefined;
-}
-
-interface BatchResult {
-    readonly response: Item;
-    readonly targets: readonly StoredItem[];
 }
 
 /** Owns generation creation; business events continue through the ordinary Method pipeline. */
@@ -114,20 +113,89 @@ export class Versioning {
         records: readonly StoredItem[],
         request: Item,
         context: ExecutionContext,
-    ): Promise<Item> {
-        const targets = await this.prepareTargets(definition, records, request, context);
-        const result =
-            request.getAction() === "version"
-                ? await this.versionBatch(definition, targets, request, context)
-                : await this.updateBatch(definition, targets, request, context);
+    ): Promise<UpdateResult> {
+        const targets = this.orderedTargets(records, request);
 
-        if (request.getAction() === "edit") {
-            for (const record of result.targets) {
-                await this.unlockAfterEdit(definition, record.id, result.response, context);
-            }
+        if (request.getAction() === "version") {
+            const prepared = await this.prepareTargets(definition, targets, request, context);
+
+            return await this.versionBatch(definition, prepared, request, context);
         }
 
-        return result.response;
+        if (request.getAction() === "edit") {
+            return await this.editBatch(definition, targets, request, context);
+        }
+
+        return {
+            response: await this.updateEvent(definition, targets, request, context),
+            completed: true,
+        };
+    }
+
+    private async updateEvent(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<Item> {
+        return await this.runners.update(definition, request, context, async (pending, nested) => {
+            const targets = records.map((record) => this.currentRecord(record));
+            this.authorizeTargets(definition, targets, "update", nested);
+
+            const result = await this.updateBatch(definition, targets, pending, nested);
+            request.payload.items = pending.clone().payload.items;
+
+            return result;
+        });
+    }
+
+    private async editBatch(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<UpdateResult> {
+        const pending = request.clone();
+        pending.setAttribute("doGetItem", "0");
+        const targets = await this.prepareTargets(definition, records, pending, context);
+        const response = await this.updateEvent(definition, targets, pending, context);
+
+        if (response.isError()) {
+            return { response, completed: true };
+        }
+
+        if (response.payload.result !== undefined || response.getItemCount() === 0) {
+            throw new PlatformError(
+                "UnsupportedEditResult",
+                "A versionable edit replacement must return its target Items; use update or version for text results.",
+            );
+        }
+
+        const completed: StoredItem[] = [];
+
+        for (const node of response.payload.items) {
+            if (node.type.toLowerCase() !== definition.name.toLowerCase() || !node.attributes.id) {
+                throw new PlatformError(
+                    "InvalidActionResult",
+                    "An edit must return its target IDs.",
+                );
+            }
+
+            const record = this.storage.getItem(definition.name, node.attributes.id);
+
+            if (!record) {
+                throw new PlatformError(
+                    "MissingItem",
+                    "The edited target disappeared before unlock.",
+                );
+            }
+
+            completed.push(record);
+        }
+
+        await this.locks.unlockAfterEdit(definition, completed, pending, context);
+
+        return { response, completed: false };
     }
 
     private async prepareTargets(
@@ -138,17 +206,14 @@ export class Versioning {
     ): Promise<readonly StoredItem[]> {
         const ordered = this.orderedTargets(records, request);
         this.authorizeTargets(definition, ordered, request.getAction(), context);
-        const targets: StoredItem[] = [];
+        const targets = ordered.map((record) => this.currentRecord(record));
 
-        for (const record of ordered) {
-            targets.push(
-                await this.lockForUpdate(
-                    definition,
-                    this.currentRecord(record),
-                    request.getAction(),
-                    context,
-                ),
-            );
+        if (request.getAction() === "edit") {
+            await this.locks.lockForEdit(definition, targets, request, context);
+        } else if (request.getAction() === "version") {
+            for (const target of targets) {
+                this.locks.assertAvailable(target);
+            }
         }
 
         this.authorizeTargets(definition, targets, request.getAction(), context);
@@ -199,7 +264,7 @@ export class Versioning {
         records: readonly StoredItem[],
         request: Item,
         context: ExecutionContext,
-    ): Promise<BatchResult> {
+    ): Promise<UpdateResult> {
         const result: Item["node"][] = [];
         const enabled = request.getAttribute("serverEvents") !== "0";
         const ids = records.map((record) => record.id);
@@ -210,7 +275,9 @@ export class Versioning {
 
             if (this.shouldVersion(definition, record, prepared.request)) {
                 // Native update restarts the selected batch from its original request.
-                return await this.versionBatch(definition, records, request, context);
+                request.setAction("version");
+
+                return await this.versionBatch(definition, records, request, context, true);
             }
 
             this.assertUnreleased(definition, record);
@@ -226,7 +293,7 @@ export class Versioning {
                 enabled,
                 context,
             ),
-            targets: records,
+            completed: false,
         };
     }
 
@@ -235,32 +302,59 @@ export class Versioning {
         records: readonly StoredItem[],
         request: Item,
         context: ExecutionContext,
-    ): Promise<BatchResult> {
+        fromUpdate = false,
+    ): Promise<UpdateResult> {
         this.authorizeTargets(definition, records, "version", context);
         const sources = records.map((record) => this.currentRecord(record));
         const update = await this.beforeVersions(definition, sources, request, context);
-        const prepared: PreparedUpdate[] = [];
-        const oldIds = sources.map((source) => source.id).join(",");
-        const newIds: string[] = [];
+        const prepared: PreparedVersion[] = [];
+        const enabled = update.getAttribute("serverEvents") !== "0";
 
         for (const source of sources) {
-            const record = this.create(definition, source, context);
-            newIds.push(record.id);
-            const target = this.updateRequest(record, update, true, newIds);
-            target.request.setAttribute("oldId", oldIds);
-
-            if (isReleased(source)) {
-                removeRevisionProperties(target.request, source, record);
-            }
-
-            prepared.push(target);
+            prepared.push({
+                record: this.create(definition, source, context),
+                copies: new Map<string, string>(),
+                enabled,
+            });
         }
 
         await this.locks.unlockVersionSources(definition, sources, context);
         await this.finishVersions(definition, sources, prepared, context);
+        const generated = versionedRequest(
+            request,
+            update,
+            sources,
+            prepared,
+            !manualVersioning(this.storage, definition),
+            fromUpdate,
+        );
+        const copies = new Map(prepared.flatMap((target) => [...target.copies]));
+        remapVersionRelationships(this.storage, generated, copies, context);
+        request.payload.items = generated.payload.items;
+        const response = await this.runners.update(
+            definition,
+            generated,
+            context,
+            async (pending, nested) => ({
+                response: await this.updateVersions(definition, sources, prepared, pending, nested),
+                completed: false,
+            }),
+        );
+
+        return { response, completed: true };
+    }
+
+    private async updateVersions(
+        definition: ItemTypeDefinition,
+        sources: readonly StoredItem[],
+        prepared: readonly PreparedVersion[],
+        pending: Item,
+        context: ExecutionContext,
+    ): Promise<Item> {
+        const ids = prepared.map((target) => target.record.id);
         const updates = prepared.map((target) => ({
-            ...target,
-            record: this.currentRecord(target.record),
+            ...this.updateRequest(this.currentRecord(target.record), pending, true, ids),
+            copies: target.copies,
         }));
         const targets = updates.map((target) => target.record);
         this.authorizeTargets(definition, targets, "update", context);
@@ -272,16 +366,15 @@ export class Versioning {
             result.push(...response.payload.items);
         }
 
-        return {
-            response: await this.afterUpdates(
-                definition,
-                result,
-                this.generationMap(sources, targets),
-                update.getAttribute("serverEvents") !== "0",
-                context,
-            ),
-            targets,
-        };
+        const response = await this.afterUpdates(
+            definition,
+            result,
+            this.generationMap(sources, targets),
+            pending.getAttribute("serverEvents") !== "0",
+            context,
+        );
+
+        return response;
     }
 
     private async beforeVersions(
@@ -415,26 +508,6 @@ export class Versioning {
         }
     }
 
-    private async lockForUpdate(
-        definition: ItemTypeDefinition,
-        record: StoredItem,
-        action: string,
-        context: ExecutionContext,
-    ): Promise<StoredItem> {
-        if (action === "edit") {
-            const locked = await this.locks.apply(definition, record, "lock", context);
-            this.locks.assertOwned(locked);
-
-            return locked;
-        }
-
-        if (action === "version") {
-            this.locks.assertAvailable(record);
-        }
-
-        return record;
-    }
-
     private shouldVersion(
         definition: ItemTypeDefinition,
         record: StoredItem,
@@ -460,38 +533,6 @@ export class Versioning {
         }
 
         return current;
-    }
-
-    private async unlockAfterEdit(
-        definition: ItemTypeDefinition,
-        id: string,
-        response: Item,
-        context: ExecutionContext,
-    ): Promise<void> {
-        const latest = this.storage.getItem(definition.name, id);
-
-        if (!latest) {
-            throw new PlatformError("MissingItem", "Updated generation disappeared before unlock.");
-        }
-
-        const unlocked = await this.locks.apply(definition, latest, "unlock", context);
-
-        for (const node of response.payload.items) {
-            if (
-                node.type.toLowerCase() !== definition.name.toLowerCase() ||
-                node.attributes.id?.toLowerCase() !== id.toLowerCase()
-            ) {
-                continue;
-            }
-
-            if (node.properties.locked_by_id !== undefined) {
-                node.properties.locked_by_id = unlocked.properties.locked_by_id ?? null;
-            }
-
-            if (node.properties.new_version !== undefined) {
-                node.properties.new_version = unlocked.properties.new_version ?? null;
-            }
-        }
     }
 
     private async updateGeneration(
@@ -660,7 +701,7 @@ export class Versioning {
     private async finishVersions(
         definition: ItemTypeDefinition,
         sources: readonly StoredItem[],
-        targets: readonly PreparedUpdate[],
+        targets: readonly PreparedVersion[],
         context: ExecutionContext,
     ): Promise<void> {
         for (const [index, target] of targets.entries()) {

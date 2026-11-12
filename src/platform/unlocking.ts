@@ -33,7 +33,7 @@ type UnlockTask =
           readonly depth: number;
       };
 
-/** Internal version cleanup bypasses replacement actions, while retaining native unlock hooks. */
+/** Internal version/edit cleanup bypasses replacements while retaining native unlock hooks. */
 export class ItemUnlocks {
     constructor(
         private readonly storage: HarnessStorage,
@@ -48,6 +48,7 @@ export class ItemUnlocks {
         definition: ItemTypeDefinition,
         sources: readonly StoredItem[],
         context: ExecutionContext,
+        request?: Item,
     ): Promise<void> {
         const records = sources.filter((record) => Boolean(record.properties.locked_by_id));
 
@@ -57,10 +58,13 @@ export class ItemUnlocks {
 
         const outgoing = this.relationships(context);
         const active = new Set<string>();
+        const event = request?.clone() ?? Item.create(definition.name);
+        delete event.node.attributes.where;
+        delete event.node.attributes.idlist;
         const pending: UnlockTask[] = [
             {
                 kind: "enter",
-                batch: { definition, records, event: Item.create(definition.name), depth: 0 },
+                batch: { definition, records, event, depth: 0 },
             },
         ];
         let visited = 0;
