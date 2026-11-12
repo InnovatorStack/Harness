@@ -1,4 +1,4 @@
-import { mkdir, readdir, rename, rm } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { withTemporaryDirectory } from "../../core/resources.js";
@@ -9,6 +9,7 @@ export async function cachedAssembly(
     filename: string,
     build: (staging: string) => Promise<void>,
 ): Promise<string> {
+    await assertCacheDirectory(directory);
     const assembly = join(directory, "bin", filename);
 
     if (await Bun.file(assembly).exists()) {
@@ -40,6 +41,20 @@ export async function cachedAssembly(
 
         return assembly;
     });
+}
+
+async function assertCacheDirectory(directory: string): Promise<void> {
+    try {
+        const metadata = await stat(directory);
+
+        if (!metadata.isDirectory()) {
+            throw new Error("The managed cache destination must be a directory.");
+        }
+    } catch (error) {
+        if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
+            throw error;
+        }
+    }
 }
 
 function isPublishRace(error: unknown): boolean {

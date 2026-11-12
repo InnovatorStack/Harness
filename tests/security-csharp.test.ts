@@ -107,7 +107,15 @@ test("forgotten grants are removed after both successful returns and C# exceptio
     await h.callMethod("ForgetGrant");
 
     expect((await h.callMethod("PublisherOnly")).getErrorCode()).toBe("PermissionDenied");
-    await expect(h.callMethod("FailWithGrant")).rejects.toThrow("Source failed");
+
+    try {
+        await expect(h.callMethod("FailWithGrant")).rejects.toThrow("Source failed");
+    } catch (error) {
+        console.error(JSON.stringify(h.executions.at(-1), null, 4));
+
+        throw error;
+    }
+
     expect((await h.callMethod("PublisherOnly")).getErrorCode()).toBe("PermissionDenied");
     h.reset();
     expect((await h.callMethod("PublisherOnly")).getErrorCode()).toBe("PermissionDenied");
