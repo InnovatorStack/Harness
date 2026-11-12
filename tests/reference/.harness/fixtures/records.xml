@@ -1,0 +1,107 @@
+<AML>
+    <Item type="User" action="add" id="B1000000000000000000000000000001">
+        <login_name>reference_owner</login_name>
+        <first_name>Reference</first_name>
+        <last_name>User</last_name>
+        <created_on>2026-01-01T00:00:00</created_on>
+        <created_by_id>B1000000000000000000000000000001</created_by_id>
+    </Item>
+    <Item type="User" action="add" id="B1000000000000000000000000000002">
+        <login_name>reference_other</login_name>
+        <first_name>Reference</first_name>
+        <last_name>User</last_name>
+        <created_on>2026-01-01T00:00:00</created_on>
+        <created_by_id>B1000000000000000000000000000001</created_by_id>
+    </Item>
+    <Item type="RefDocument" action="add" id="B2000000000000000000000000000001">
+        <state>Draft</state>
+        <current_state>A3010000000000000000000000000001</current_state>
+        <item_number>DOC-001</item_number>
+        <name>Original</name>
+        <note>Original note</note>
+        <config_id>B2000000000000000000000000000001</config_id>
+        <generation>1</generation>
+        <is_current>1</is_current>
+        <locked_by_id is_null="1" />
+        <new_version>1</new_version>
+    </Item>
+    <Item type="RefDocument" action="add" id="B2000000000000000000000000000002">
+        <state>Draft</state>
+        <current_state>A3010000000000000000000000000001</current_state>
+        <item_number>LOCKED-001</item_number>
+        <name>Original</name>
+        <note>Original note</note>
+        <config_id>B2000000000000000000000000000002</config_id>
+        <generation>1</generation>
+        <is_current>1</is_current>
+        <locked_by_id>B1000000000000000000000000000002</locked_by_id>
+        <new_version>1</new_version>
+    </Item>
+    <Item type="RefManual" action="add" id="B2000000000000000000000000000003">
+        <item_number>MANUAL-001</item_number>
+        <name>Original</name>
+        <note>Original note</note>
+        <config_id>B2000000000000000000000000000003</config_id>
+        <generation>1</generation>
+        <is_current>1</is_current>
+        <locked_by_id is_null="1" />
+        <new_version>1</new_version>
+    </Item>
+    <Item type="RefPlain" action="add" id="B2000000000000000000000000000004">
+        <item_number>PLAIN-001</item_number>
+        <name>Original</name>
+        <note>Original note</note>
+        <config_id>B2000000000000000000000000000004</config_id>
+        <generation>1</generation>
+        <is_current>1</is_current>
+        <locked_by_id is_null="1" />
+        <new_version>1</new_version>
+    </Item>
+    <Item type="RefRequired" action="add" id="B2000000000000000000000000000005">
+        <item_number>REQUIRED-001</item_number>
+        <name>Original</name>
+        <note>Original note</note>
+        <config_id>B2000000000000000000000000000005</config_id>
+        <generation>1</generation>
+        <is_current>1</is_current>
+        <locked_by_id is_null="1" />
+        <new_version>1</new_version>
+    </Item>
+    <Item type="RefReplacement" action="add" id="B2000000000000000000000000000006">
+        <item_number>REPLACEMENT-001</item_number>
+        <name>Original</name>
+        <note>Original note</note>
+        <config_id>B2000000000000000000000000000006</config_id>
+        <generation>1</generation>
+        <is_current>1</is_current>
+        <locked_by_id is_null="1" />
+        <new_version>1</new_version>
+    </Item>
+    <Item type="RefLink" action="add" id="B3000000000000000000000000000001">
+        <source_id>B2000000000000000000000000000001</source_id>
+        <related_id>B2000000000000000000000000000002</related_id>
+        <label>Owned link</label>
+    </Item>
+    <Item type="RefBatch" action="add" id="B2000000000000000000000000000011">
+        <item_number>BATCH-001</item_number><name>Original</name>
+        <generation>1</generation><is_current>1</is_current><new_version>1</new_version>
+    </Item>
+    <Item type="RefBatch" action="add" id="B2000000000000000000000000000012">
+        <item_number>BATCH-002</item_number><name>Original</name>
+        <generation>1</generation><is_current>1</is_current><new_version>1</new_version>
+    </Item>
+    <Item type="RefRevision" action="add" id="B2000000000000000000000000000014">
+        <item_number>REV-001</item_number><name>Released source</name><major_rev>A</major_rev>
+        <state>Released</state><current_state>A3010000000000000000000000000005</current_state><is_released>1</is_released><not_lockable>1</not_lockable>
+        <release_date>2026-01-02T00:00:00</release_date><generation>1</generation><is_current>1</is_current><new_version>1</new_version>
+    </Item>
+    <Item type="RefRevision" action="add" id="B2000000000000000000000000000015">
+        <item_number>REV-002</item_number><name>Released source</name><major_rev>E</major_rev>
+        <state>Released</state><current_state>A3010000000000000000000000000005</current_state><is_released>1</is_released><not_lockable>1</not_lockable>
+        <release_date>2026-01-02T00:00:00</release_date><generation>1</generation><is_current>1</is_current><new_version>1</new_version>
+    </Item>
+    <Item type="RefStateRecord" action="add" id="B2000000000000000000000000000021">
+        <item_number>STATE-001</item_number><name>Original</name>
+        <generation>1</generation><is_current>1</is_current><new_version>1</new_version>
+    </Item>
+</AML>

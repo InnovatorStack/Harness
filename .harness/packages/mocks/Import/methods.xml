@@ -1,0 +1,63 @@
+<AML>
+  <Item type="Method" action="add">
+    <name>Test_RealMethod</name>
+    <method_type>C#</method_type>
+    <method_code><![CDATA[
+return this.getInnovator().newResult("Executed original source");
+    ]]></method_code>
+  </Item>
+  <Item type="Method" action="add">
+    <name>Test_UpdateFromLookup</name>
+    <method_type>C#</method_type>
+    <method_code><![CDATA[
+var innovator = this.getInnovator();
+var query = innovator.newItem("TestNode", "get");
+query.setProperty("name", "Parent");
+var record = query.apply();
+
+record.setAction("edit");
+record.setProperty("count", "25");
+record = record.apply();
+
+var lookup = innovator.newItem("Method", "RecordedLookup");
+lookup.setProperty("name", "Parent");
+var response = lookup.apply();
+if (response.isError()) return response;
+
+record.setAction("edit");
+record.setProperty("note", response.getProperty("note"));
+return record.apply();
+    ]]></method_code>
+  </Item>
+  <Item type="Method" action="add">
+    <name>Test_InlineSql</name>
+    <method_type>C#</method_type>
+    <method_code><![CDATA[
+return this.getInnovator().applySQL("SELECT name FROM TestNode");
+    ]]></method_code>
+  </Item>
+  <Item type="Method" action="add">
+    <name>Test_Procedure</name>
+    <method_type>C#</method_type>
+    <method_code><![CDATA[
+var request = this.getInnovator().newItem("SQL", "SQL Process");
+request.setProperty("name", "RecordedProcedure");
+request.setProperty("ARG1", "Parent");
+return request.apply();
+    ]]></method_code>
+  </Item>
+  <Item type="Method" action="add">
+    <name>Test_ParameterizedSql</name>
+    <method_type>C#</method_type>
+    <method_code><![CDATA[
+var innovator = this.getInnovator();
+var record = innovator.getItemById("TestNode", this.getProperty("record_id"));
+if (record.isError()) return record;
+
+var result = innovator.applySQLWithParameters(this.getProperty("query"), this.getProperty("parameters"));
+if (result.isError()) return result;
+
+return record;
+    ]]></method_code>
+  </Item>
+</AML>

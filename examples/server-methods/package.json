@@ -1,0 +1,12 @@
+{
+    "name": "harness-server-methods-example",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "bun test"
+    },
+    "devDependencies": {
+        "@innovatorstack/harness": "^0.1.0",
+        "@types/bun": "^1.4.4"
+    }
+}

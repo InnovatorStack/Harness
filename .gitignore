@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.tgz
+.DS_Store
+.harness/local/
+**/.harness/cache/
+src/**/managed/bin/
+src/**/managed/obj/
+tests/results/
+/workspaces/

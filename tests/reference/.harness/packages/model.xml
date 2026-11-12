@@ -1,0 +1,218 @@
+<AML>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000001">
+        <name>RefDocument</name>
+        <is_versionable>1</is_versionable>
+        <manual_versioning>0</manual_versioning>
+        <is_relationship>0</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>item_number</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>note</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add"><name>fixed_ref</name><data_type>item</data_type><data_source>A1000000000000000000000000000001</data_source><item_behavior>fixed</item_behavior></Item>
+            <Item type="Property" action="add"><name>float_ref</name><data_type>item</data_type><data_source>A1000000000000000000000000000001</data_source><item_behavior>float</item_behavior></Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000002">
+        <name>RefManual</name>
+        <is_versionable>1</is_versionable>
+        <manual_versioning>1</manual_versioning>
+        <is_relationship>0</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>item_number</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>note</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000003">
+        <name>RefPlain</name>
+        <is_versionable>0</is_versionable>
+        <manual_versioning>0</manual_versioning>
+        <is_relationship>0</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>item_number</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>note</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add"><name>owned_ref</name><data_type>item</data_type><data_source>A1000000000000000000000000000008</data_source><item_behavior>fixed</item_behavior></Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000004">
+        <name>RefRequired</name>
+        <is_versionable>0</is_versionable>
+        <manual_versioning>0</manual_versioning>
+        <is_relationship>0</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>item_number</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>note</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>required_note</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000005">
+        <name>RefReplacement</name>
+        <is_versionable>0</is_versionable>
+        <manual_versioning>0</manual_versioning>
+        <is_relationship>0</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>item_number</name>
+                <data_type>string</data_type>
+                <is_required>1</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>name</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+            <Item type="Property" action="add">
+                <name>note</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000006">
+        <name>RefLink</name>
+        <is_versionable>0</is_versionable>
+        <manual_versioning>0</manual_versioning>
+        <is_relationship>1</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add">
+                <name>label</name>
+                <data_type>string</data_type>
+                <is_required>0</is_required>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="RelationshipType" action="add" id="A2000000000000000000000000000001">
+        <name>RefLink</name>
+        <relationship_id>A1000000000000000000000000000006</relationship_id>
+        <source_id>A1000000000000000000000000000001</source_id>
+        <related_id>A1000000000000000000000000000001</related_id>
+    </Item>
+    <Item type="Life Cycle Map" action="add" id="A3000000000000000000000000000001">
+        <name>Reference lifecycle</name>
+        <start_state>A3010000000000000000000000000001</start_state>
+        <Relationships>
+            <Item type="Life Cycle State" action="add" id="A3010000000000000000000000000001">
+                <name>Draft</name>
+            </Item>
+            <Item type="Life Cycle State" action="add" id="A3010000000000000000000000000002">
+                <name>Review</name>
+            </Item>
+            <Item type="Life Cycle State" action="add" id="A3010000000000000000000000000003">
+                <name>Blocked</name>
+            </Item>
+            <Item type="Life Cycle Transition" action="add" id="A3020000000000000000000000000001">
+                <from_state>A3010000000000000000000000000001</from_state>
+                <to_state>A3010000000000000000000000000002</to_state>
+                <pre_action>A400000000000000000000000000000B</pre_action>
+                <post_action>A400000000000000000000000000000C</post_action>
+                <execute_post_in_main_txn>1</execute_post_in_main_txn>
+            </Item>
+            <Item type="Life Cycle Transition" action="add" id="A3020000000000000000000000000002">
+                <from_state>A3010000000000000000000000000001</from_state>
+                <to_state>A3010000000000000000000000000003</to_state>
+                <pre_action>A400000000000000000000000000000D</pre_action>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType Life Cycle" action="add" id="A3030000000000000000000000000001">
+        <source_id>A1000000000000000000000000000001</source_id>
+        <related_id>A3000000000000000000000000000001</related_id>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000008">
+        <name>RefDependent</name><is_dependent>1</is_dependent><Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Property" action="add"><name>note</name><data_type>string</data_type></Item>
+        </Relationships>
+    </Item>
+
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000009">
+        <name>RefBatch</name><is_versionable>1</is_versionable>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000010">
+        <name>RefBatchLink</name><is_versionable>1</is_versionable><is_relationship>1</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add"><name>label</name><data_type>string</data_type></Item>
+        </Relationships>
+    </Item>
+    <Item type="RelationshipType" action="add" id="A2000000000000000000000000000010">
+        <name>RefBatchLink</name><relationship_id>A1000000000000000000000000000010</relationship_id>
+        <source_id>A1000000000000000000000000000009</source_id><related_id>A1000000000000000000000000000009</related_id><behavior>fixed</behavior>
+    </Item>
+
+    <Item type="Revision" action="add" id="A5000000000000000000000000000001"><name>Reference revisions</name><revision>A C E</revision></Item>
+    <Item type="ItemType" action="add" id="A1000000000000000000000000000011">
+        <name>RefRevision</name><is_versionable>1</is_versionable><revisions>A5000000000000000000000000000001</revisions>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+        </Relationships>
+    </Item>
+    <Item type="Life Cycle Map" action="add" id="A3000000000000000000000000000002">
+        <name>Reference revision lifecycle</name><start_state>A3010000000000000000000000000004</start_state>
+        <Relationships>
+            <Item type="Life Cycle State" action="add" id="A3010000000000000000000000000004"><name>Draft</name></Item>
+            <Item type="Life Cycle State" action="add" id="A3010000000000000000000000000005"><name>Released</name><set_is_released>1</set_is_released><set_not_lockable>1</set_not_lockable></Item>
+            <Item type="Life Cycle Transition" action="add" id="A3020000000000000000000000000003"><from_state>A3010000000000000000000000000004</from_state><to_state>A3010000000000000000000000000005</to_state></Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType Life Cycle" action="add"><source_id>A1000000000000000000000000000011</source_id><related_id>A3000000000000000000000000000002</related_id></Item>
+</AML>
