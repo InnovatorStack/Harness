@@ -65,7 +65,7 @@
         "typecheck": "bun --bun run tsc --noEmit",
         "format": "bun run scripts/style/format.ts --write",
         "format:check": "bun run scripts/style/format.ts",
-        "test": "bun test --parallel=4"
+        "test": "bun run scripts/run-tests.ts"
     },
     "dependencies": {
         "es-module-lexer": "3.0.4",

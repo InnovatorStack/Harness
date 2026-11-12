@@ -11,8 +11,8 @@ const checks = [
     {
         name: "Tests",
         arguments: [
+            "run",
             "test",
-            "--parallel=4",
             "--reporter=junit",
             "--reporter-outfile=tests/results/tests.xml",
         ],
