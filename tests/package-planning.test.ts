@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -13,6 +13,7 @@ let directory: string;
 
 beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), "harness-import-plan-"));
+    directory = await realpath(directory);
 });
 
 afterEach(async () => {

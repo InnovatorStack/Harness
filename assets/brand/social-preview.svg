@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+    <title>Harness — Instrumentable tests for Innovator solutions</title>
+    <rect width="1280" height="640" fill="#111114" />
+    <text x="72" y="322" fill="#f5f5f4" font-family="Inter, Arial, sans-serif"
+        font-size="106" font-weight="650" letter-spacing="-5">Harness</text>
+    <text x="76" y="382" fill="#a4a4ad" font-family="Inter, Arial, sans-serif"
+        font-size="26">Instrumentable tests for Innovator solutions.</text>
+    <g transform="translate(856 152) scale(.328125)">
+        <path fill="#f5f5f4" d="M64 715 228 309 960 136 685 396 380 509 320 678 203 623Z" />
+        <path fill="#f5f5f4" d="M104 887 598 663 685 396 955 791Z" />
+        <path fill="#ff4b1a" d="M685 396 960 136 785 542Z" />
+    </g>
+</svg>

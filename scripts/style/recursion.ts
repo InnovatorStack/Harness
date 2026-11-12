@@ -1,4 +1,4 @@
-import { relative, resolve } from "node:path";
+import { join, relative } from "node:path";
 
 import * as syntax from "typescript/unstable/ast";
 import { SymbolFlags } from "typescript/unstable/async";
@@ -225,7 +225,8 @@ async function isImportTask(
 
     return (
         declaration.name?.text === "ImportTask" &&
-        declaration.getSourceFile().fileName === resolve(directory, "src/packages/evaluation.ts")
+        relative(directory, declaration.getSourceFile().fileName) ===
+            join("src", "packages", "evaluation.ts")
     );
 }
 

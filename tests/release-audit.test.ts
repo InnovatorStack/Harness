@@ -108,6 +108,8 @@ test("including framework source does not admit local managed outputs or unrelat
     for (const path of [
         "package/src/methods/csharp/managed/obj/project.assets.json",
         "package/src/local-settings.json",
+        "package/assets/unreviewed.png",
+        "package/assets/brand/local-settings.json",
     ]) {
         const files = publicFiles();
         files.set(path, new Blob(["{}"]));

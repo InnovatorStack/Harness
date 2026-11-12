@@ -1,4 +1,7 @@
 interface:
     display_name: "Harness"
     short_description: "Write source-backed Bun tests with Harness"
+    icon_small: "./assets/icon-small.png"
+    icon_large: "./assets/icon.png"
+    brand_color: "#FF4B1A"
     default_prompt: "Use $innovator-harness to test this solution through its original Methods and inspect the stored result."

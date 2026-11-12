@@ -5,8 +5,16 @@ import { auditSourceMaps } from "./sourcemaps.js";
 import type { SourceMapEvidence } from "./sourcemaps.js";
 
 const archiveBytesMax = 64 * 1024 * 1024;
-const allowedRoots = new Set(["dist", "examples", "skills", "src"]);
+const allowedRoots = new Set(["assets", "dist", "examples", "skills", "src"]);
 const allowedFiles = new Set(["README.md", "LICENSE", "package.json"]);
+const brandAssets = new Set([
+    "package/assets/brand/mark.svg",
+    "package/assets/brand/mark-on-dark.svg",
+    "package/assets/brand/icon.png",
+    "package/assets/brand/icon-on-dark.png",
+    "package/assets/brand/social-preview.svg",
+    "package/assets/brand/social-preview.png",
+]);
 const privateSegments = new Set([
     "node_modules",
     "workspaces",
@@ -70,7 +78,8 @@ function assertPublicPath(path: string): void {
         (!allowedRoots.has(root) && !allowedFiles.has(root)) ||
         parts.some((part) => part === ".." || part === "." || privateSegments.has(part)) ||
         /\.(?:sqlite|tgz|dll|pdb|bak|log)$/iu.test(path) ||
-        (root === "src" && !isFrameworkSource(path))
+        (root === "src" && !isFrameworkSource(path)) ||
+        (root === "assets" && !brandAssets.has(path))
     ) {
         throw new Error(`Unexpected distribution path '${path}'.`);
     }

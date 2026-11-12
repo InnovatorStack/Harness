@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -26,8 +26,9 @@ afterEach(async () => {
 });
 
 async function project(files: Readonly<Record<string, string | Uint8Array>>): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), "harness-verification-"));
-    directories.push(directory);
+    const temporary = await mkdtemp(join(tmpdir(), "harness-verification-"));
+    directories.push(temporary);
+    const directory = await realpath(temporary);
     await mkdir(join(directory, ".harness/packages"), { recursive: true });
 
     for (const [path, contents] of Object.entries(files)) {

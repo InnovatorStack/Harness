@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -9,8 +9,9 @@ const directory = Bun.fileURLToPath(new URL("..", import.meta.url));
 const temporaryDirectories: string[] = [];
 
 async function project(files: Readonly<Record<string, string>>): Promise<string> {
-    const temporary = await mkdtemp(join(tmpdir(), "harness-style-test-"));
-    temporaryDirectories.push(temporary);
+    const created = await mkdtemp(join(tmpdir(), "harness-style-test-"));
+    temporaryDirectories.push(created);
+    const temporary = await realpath(created);
     await Bun.write(
         join(temporary, "tsconfig.json"),
         JSON.stringify({
@@ -242,6 +243,34 @@ class Construct {
     const diagnostics = await checkTypeScriptStyle(temporary);
     expect(diagnostics.filter((entry) => entry.rule === "recursion")).toHaveLength(3);
 });
+
+test.each([true, false])(
+    "only the owned ImportTask boundary defers generator execution: %s",
+    async (owned) => {
+        const module = owned ? "evaluation" : "untrusted";
+        const temporary = await project({
+            [`src/packages/${module}.ts`]: `
+export class ImportTask {
+    constructor(readonly iterator: Generator<ImportTask, void, unknown>) {}
+}
+`,
+            "example.ts": `
+import { ImportTask } from "./src/packages/${module}";
+export function* first(): Generator<ImportTask, void, unknown> {
+    yield new ImportTask(second());
+}
+export function* second(): Generator<ImportTask, void, unknown> {
+    yield new ImportTask(first());
+}
+`,
+        });
+        const diagnostics = await checkTypeScriptStyle(temporary);
+
+        expect(diagnostics.filter((entry) => entry.rule === "recursion")).toHaveLength(
+            owned ? 0 : 2,
+        );
+    },
+);
 
 test("Ultracite retains type-aware Promise checks and the cognitive complexity limit", async () => {
     const nested = `${"if (enabled) {\n".repeat(10)}return 1;\n${"}\n".repeat(10)}`;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -64,7 +64,7 @@ describe("createEngine", () => {
     function fixtureFile(): string {
         const directory = mkdtempSync(join(tmpdir(), "innovator-harness-api-"));
         directories.push(directory);
-        const file = join(directory, "fixture.xml");
+        const file = join(realpathSync(directory), "fixture.xml");
         writeFileSync(file, fixtureXml);
 
         return file;

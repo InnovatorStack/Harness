@@ -1,3 +1,8 @@
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/brand/mark-on-dark.svg">
+    <img src="./assets/brand/mark.svg" width="96" height="96" alt="Harness">
+</picture>
+
 # Harness
 
 A Bun and TypeScript library for testing applications against a local, instrumentable Innovator environment. Packages define the model and business logic. Fixtures supply starting data. Tests use an isolated SQLite database.
