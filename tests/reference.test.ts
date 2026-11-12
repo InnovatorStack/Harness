@@ -35,7 +35,7 @@ test("reference corpus covers required boundaries with unique cases and source-q
 
     expect(corpus.hash(first)).toMatch(/^[a-f\d]{64}$/u);
     expect(corpus.hash({ ...first, steps: [] })).not.toBe(corpus.hash(first));
-    expect(corpus.files).toHaveLength(6);
+    expect(corpus.files).toHaveLength(7);
     expect(corpus.anchors.size).toBeGreaterThan(20);
     expect(inputBundle(corpus).authorization).toBe(AuthorizationMode.Native);
 });

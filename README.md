@@ -311,6 +311,12 @@ Team roles resolve from each Item's `team_id` and its Team Identity records, inc
 The standard Team role includes every member; custom role Identities use classification `Team`.
 These roles apply to ACL and lifecycle checks for that Item and do not enter the global session.
 
+Creation checks use the imported `class_structure` and Can Add `class_path`. A grant includes its
+declared descendants; a blank path covers the tree. Paths match names and case exactly. Classification
+defaults and changes made by `onBeforeAdd` participate in the check. Unknown classes cannot authorize
+creation, and malformed trees fail with a source diagnostic. Classifier APIs and native comparisons
+remain separate work.
+
 `AuthorizationMode.Unchecked` (and the existing `"unchecked"` value) selects behavior-only execution.
 Policy callbacks remain supported. Without either choice, restricted operations require a policy.
 Missing native ACL metadata fails explicitly. Relationship reads with `use_src_access="1"` follow

@@ -8,6 +8,7 @@ import type {
     StoredItem,
 } from "../../storage/types.js";
 import { ApplicationError, PlatformError } from "../errors.js";
+import { Classifications } from "./classifications.js";
 import type { IdentityGrants } from "./grants.js";
 import type { Identities } from "./identities.js";
 import { SourceAccess } from "./source-access.js";
@@ -30,6 +31,7 @@ interface Actor {
 
 export class ItemPermissions {
     private readonly sources: SourceAccess;
+    private readonly classifications: Classifications;
 
     constructor(
         private readonly storage: HarnessStorage,
@@ -38,6 +40,7 @@ export class ItemPermissions {
         private readonly now: () => Date,
     ) {
         this.sources = new SourceAccess(storage);
+        this.classifications = new Classifications(storage);
     }
 
     readable(
@@ -76,25 +79,7 @@ export class ItemPermissions {
     ): Readonly<Record<string, StorageValue>> {
         const actor = this.actor(context);
         this.assertSourcePolicy(definition);
-        const rules = this.storage.listItems("Can Add");
-        spendContext(context, rules.length);
-        const permitted = rules.some((record) => {
-            const enabled = record.properties.can_add;
-
-            return (
-                (enabled === undefined || String(enabled) === "1") &&
-                String(record.properties.source_id).toLowerCase() === definition.id.toLowerCase() &&
-                effective(record, this.now()) &&
-                actor.identities.has(String(record.properties.related_id).toLowerCase())
-            );
-        });
-
-        if (!permitted) {
-            throw new ApplicationError(
-                Item.error(`Cannot add '${definition.name}' for this User.`, "PermissionDenied"),
-            );
-        }
-
+        this.assertCanAdd(definition, String(values.classification ?? ""), actor, context);
         const permission = values.permission_id ?? this.defaultPermission(definition, context);
 
         if (typeof permission !== "string" || !this.storage.getItem("Permission", permission)) {
@@ -111,6 +96,41 @@ export class ItemPermissions {
             created_by_id: actor.user.id,
             created_on: this.now().toISOString(),
         };
+    }
+
+    private assertCanAdd(
+        definition: ItemTypeDefinition,
+        classification: string,
+        actor: Actor,
+        context: ExecutionContext,
+    ): void {
+        const paths = this.classifications.paths(definition, context);
+        const rules = this.storage.listItems("Can Add");
+        spendContext(context, rules.length);
+        const permitted =
+            paths.has(classification) &&
+            rules.some((record) => {
+                const enabled = record.properties.can_add;
+                const path = String(record.properties.class_path ?? "");
+
+                return (
+                    (enabled === undefined || String(enabled) === "1") &&
+                    String(record.properties.source_id).toLowerCase() ===
+                        definition.id.toLowerCase() &&
+                    paths.has(path) &&
+                    (path === "" ||
+                        classification === path ||
+                        classification.startsWith(`${path}/`)) &&
+                    effective(record, this.now()) &&
+                    actor.identities.has(String(record.properties.related_id).toLowerCase())
+                );
+            });
+
+        if (!permitted) {
+            throw new ApplicationError(
+                Item.error(`Cannot add '${definition.name}' for this User.`, "PermissionDenied"),
+            );
+        }
     }
 
     private actor(context: ExecutionContext): Actor {
