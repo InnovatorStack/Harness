@@ -8,7 +8,7 @@ const collection = { version: ServerEventVersion.Collection };
 
 const versionedLink = `<Item type="ItemType" action="edit" id="ReferenceFixed"><is_versionable>1</is_versionable></Item>`;
 
-test("parent versioning copies a relationship collection with real before/after Methods", async () => {
+test("parent versions preserve stored relationship values without running copy Methods", async () => {
     const source =
         referenceMethod(
             "BeforeCopy",
@@ -51,8 +51,9 @@ test("parent versioning copies a relationship collection with real before/after 
     expect(
         h.state
             .get("ReferenceFixed", { source_id: next.id })
-            .every((record) => record.properties.sort_order === 99),
-    ).toBe(true);
+            .map((record) => record.properties.sort_order)
+            .sort((left, right) => Number(left) - Number(right)),
+    ).toEqual([1, 2]);
     expect(
         h.state
             .get("ReferenceFixed", { source_id: parent.id })
@@ -64,15 +65,27 @@ test("parent versioning copies a relationship collection with real before/after 
             .slice(start)
             .filter((event) => event.kind === "method")
             .map((event) => event.name),
-    ).toEqual(["BeforeCopy", "AfterCopy"]);
+    ).toEqual([]);
+    expect(h.executions.at(-1)?.mocks).toEqual([]);
 }, 60_000);
 
-test("a rejected after-copy collection restores parent identity, relationship values and locks", async () => {
+test("a rejecting after-version Method rolls back completed relationship copies and nested writes", async () => {
     const source =
         referenceMethod(
-            "RejectCopy",
-            'return this.getInnovator().newError("Reject copied collection");',
-        ) + referenceEvent("ReferenceFixed", "onAfterCopy", "RejectCopy", collection);
+            "RejectCopiedVersion",
+            `
+            var links = this.newItem("ReferenceFixed", "get");
+            links.setProperty("source_id", eventData.NewItemId);
+            if (links.apply().getItemCount() != 1) {
+                throw new Exception("Version hooks ran before relationship copies existed");
+            }
+            var audit = this.newItem("ReferenceHolder", "add");
+            audit.setProperty("name", "Must roll back");
+            var result = audit.apply();
+            if (result.isError()) { return result; }
+            return this.getInnovator().newError("Reject copied version");
+        `,
+        ) + referenceEvent("REF_RECORD", "onAfterVersion", "RejectCopiedVersion");
     await using project = await referenceProject(source);
     using h = await createHarness({ cwd: project.cwd, csharp: {} });
     const parent = await h.getOne("ReferenceRecord", { name: "Parent" });
@@ -80,12 +93,12 @@ test("a rejected after-copy collection restores parent identity, relationship va
     await h.add("ReferenceFixed", { source_id: parent.id, related_id: child.id });
     const records = h.state.get("ReferenceRecord");
     const links = h.state.get("ReferenceFixed");
-    await expect(h.update(parent, { name: "Rejected" })).rejects.toThrow(
-        "Reject copied collection",
-    );
+    await expect(h.update(parent, { name: "Rejected" })).rejects.toThrow("Reject copied version");
 
     expect(h.state.get("ReferenceRecord")).toEqual(records);
     expect(h.state.get("ReferenceFixed")).toEqual(links);
+    expect(h.state.get("ReferenceHolder")).toEqual([]);
+    expect(h.executions.at(-1)?.changes.filter((change) => change.name === "copy")).toHaveLength(1);
     expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
 }, 60_000);
 
@@ -140,7 +153,7 @@ test("nested edits follow copied relationship generations in XML declaration ord
     expect(h.state.getOne("ReferenceFixed", { id: link.id }).properties.sort_order).toBe(1);
 });
 
-test("nested owned records exist before the parent's after-copy Method and retain a valid dependency owner", async () => {
+test("nested owned records exist before after-version and retain valid dependency owners", async () => {
     const schema = `<Item type="ItemType" action="add" id="OWNED_DETAIL"><name>OwnedDetail</name><is_relationship>1</is_relationship><is_dependent>1</is_dependent><Relationships>
         <Item type="Property" action="add"><name>value</name><data_type>string</data_type></Item>
     </Relationships></Item><Item type="RelationshipType" action="add"><name>OwnedDetail</name>
@@ -148,17 +161,21 @@ test("nested owned records exist before the parent's after-copy Method and retai
     </Item>`;
     const source =
         referenceMethod(
-            "CheckNestedCopy",
+            "CheckNestedVersion",
             `
-        for (int index = 0; index < this.getItemCount(); index++) {
+        var links = this.newItem("ReferenceFixed", "get");
+        links.setProperty("source_id", eventData.NewItemId);
+        var copied = links.apply();
+        if (copied.getItemCount() != 1) throw new Exception("Missing copied relationship");
+        for (int index = 0; index < copied.getItemCount(); index++) {
             var nested = this.newItem("OwnedDetail", "get");
-            nested.setProperty("source_id", this.getItemByIndex(index).getID());
+            nested.setProperty("source_id", copied.getItemByIndex(index).getID());
             var result = nested.apply();
             if (result.getItemCount() != 1 || result.getProperty("value") != "Nested") throw new Exception("Owned records are missing");
         }
         return this;
     `,
-        ) + referenceEvent("ReferenceFixed", "onAfterCopy", "CheckNestedCopy", collection);
+        ) + referenceEvent("REF_RECORD", "onAfterVersion", "CheckNestedVersion");
     await using project = await referenceProject(schema + source);
     using h = await createHarness({ cwd: project.cwd, csharp: {} });
     const child = await h.getOne("ReferenceRecord", { name: "Child" });
@@ -175,7 +192,7 @@ test("nested owned records exist before the parent's after-copy Method and retai
     expect(h.state.getOne("OwnedDetail", { source_id: link.id }).properties.value).toBe("Nested");
 }, 60_000);
 
-test("before-copy identity changes fail explicitly and restore every source record", async () => {
+test("suppressed copy Methods cannot rewrite the copied system identities", async () => {
     const source =
         referenceMethod(
             "ChangeCopyIdentity",
@@ -189,16 +206,24 @@ test("before-copy identity changes fail explicitly and restore every source reco
     const parent = await h.getOne("ReferenceRecord", { name: "Parent" });
     const child = await h.getOne("ReferenceRecord", { name: "Child" });
     await h.add("ReferenceFixed", { source_id: parent.id, related_id: child.id });
-    const records = h.state.get("ReferenceRecord");
     const links = h.state.get("ReferenceFixed");
+    const saved = await h.update(parent, { name: "Saved" });
+    const copied = h.state.getOne("ReferenceFixed", { source_id: saved.id });
 
-    await expect(h.update(parent, { name: "Rejected" })).rejects.toThrow("managed by the platform");
-    expect(h.state.get("ReferenceRecord")).toEqual(records);
-    expect(h.state.get("ReferenceFixed")).toEqual(links);
-    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
+    expect(copied.properties).toMatchObject({ config_id: copied.id, generation: 1 });
+
+    for (const link of links) {
+        expect(h.state.getOne("ReferenceFixed", { id: link.id })).toEqual({
+            ...link,
+            properties: { ...link.properties, behavior: "hard_fixed" },
+        });
+    }
+
+    expect(h.trace.some((event) => event.name === "ChangeCopyIdentity")).toBe(false);
+    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.Committed);
 }, 60_000);
 
-test("required copy hooks run with serverEvents=0 and optional copy hooks remain suppressed", async () => {
+test("required and optional business copy hooks are skipped even with serverEvents=0", async () => {
     const source =
         referenceMethod("OptionalCopy", 'throw new Exception("Optional copy ran");') +
         referenceEvent("ReferenceFixed", "onBeforeCopy", "OptionalCopy", collection) +
@@ -223,5 +248,5 @@ test("required copy hooks run with serverEvents=0 and optional copy hooks remain
             .slice(start)
             .filter((event) => event.kind === "method")
             .map((event) => event.name),
-    ).toEqual(["RequiredCopy"]);
+    ).toEqual([]);
 }, 60_000);

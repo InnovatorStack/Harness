@@ -66,6 +66,11 @@ independent runtimes, rollback, abandoned callbacks and reset. This changes no c
 
 The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, class paths and defaults, hook reclassification, Method execution identities, scoped C# grants, inherited relationship reads and mutations, copied ACL propagation and rollback, parent-authorized owned deletion, per-item Team roles, membership changes and lifecycle roles.
 
+Parent-version copy cases verify stored values, fresh configurations and suppressed business copy hooks.
+Unit tests cover both event versions, required/optional flags, inherited bindings, all versioning entry
+actions, unused mocks/executors, nested records, later source rejection, foreign values and explicit
+diagnostics for native file-container copies and released relationship resets.
+
 Run it outside the test runner:
 
 ```sh

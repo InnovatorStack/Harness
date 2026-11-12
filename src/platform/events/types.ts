@@ -46,7 +46,6 @@ export type ApplyUpdateBase = (request: Item, context: ExecutionContext) => Prom
 
 export interface EventRunners {
     readonly item: RunEvents;
-    readonly collection: RunEvents;
     readonly after: RunAfterEvents;
     readonly update: (
         definition: ItemTypeDefinition,

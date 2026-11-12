@@ -246,16 +246,6 @@ export class Platform {
                     data,
                 ),
 
-            collection: (definition, name, item, enabled, context) =>
-                this.events(
-                    definition,
-                    name,
-                    item,
-                    enabled,
-                    context,
-                    ServerEventVersion.Collection,
-                ),
-
             after: (definition, name, items, enabled, context) =>
                 this.afterEvents.run(definition, name, items, enabled, context),
 
