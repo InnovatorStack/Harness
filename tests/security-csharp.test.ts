@@ -214,6 +214,7 @@ return this;`;
     });
     await expect(h.callMethod("TimeoutGrant")).rejects.toMatchObject({ code: "MethodTimeout" });
 
+    expect(h.executions.at(-1)?.calls[0]?.executed).toBe(true);
     expect((await h.callMethod("PublisherOnly")).getErrorCode()).toBe("PermissionDenied");
     h.reset();
     expect((await h.callMethod("PublisherOnly")).getErrorCode()).toBe("PermissionDenied");

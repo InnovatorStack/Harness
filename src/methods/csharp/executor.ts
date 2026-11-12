@@ -78,8 +78,8 @@ export class CSharpExecutor implements MethodExecutor {
             this.pending.set(id, {
                 context,
                 ports,
-                resolve,
-                reject,
+                resolve: deferNativeCompletion(resolve),
+                reject: deferNativeCompletion(reject),
                 timer,
                 received: false,
                 started: false,
@@ -438,4 +438,17 @@ export class CSharpExecutor implements MethodExecutor {
 
 export function csharp(options: CSharpOptions = {}): MethodExecutor {
     return new CSharpExecutor(options);
+}
+
+/** Settle outside the Windows pipe callback so Bun's native matchers can reenter its loop. */
+function deferNativeCompletion<Value>(complete: (value: Value) => void): (value: Value) => void {
+    if (process.platform !== "win32") {
+        return complete;
+    }
+
+    return (value) => {
+        setTimeout(() => {
+            complete(value);
+        }, 0);
+    };
 }
