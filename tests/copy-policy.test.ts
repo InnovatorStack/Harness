@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { realpath } from "node:fs/promises";
 import { join } from "node:path";
 
 import { CapabilityId, createHarness, ExecutionOutcome } from "../src/index.js";
@@ -32,11 +33,12 @@ test.each([
         const parent = await h.getOne("ReferenceRecord", { name: "Parent" });
         const records = h.state.get("ReferenceRecord");
         const links = h.state.get("ReferenceFixed");
+        const sourceFile = await realpath(join(project.cwd, ".harness/packages/source.xml"));
 
         await expect(h.update(parent, { name: "Rejected" })).rejects.toMatchObject({
             code: "UnsupportedFileCopy",
             capability: CapabilityId.Vault,
-            source: { file: join(project.cwd, ".harness/packages/source.xml") },
+            source: { file: sourceFile },
         });
         expect(h.state.get("ReferenceRecord")).toEqual(records);
         expect(h.state.get("ReferenceFixed")).toEqual(links);
