@@ -253,7 +253,7 @@ test("source ACL changes are visible immediately and remain isolated across worl
     const source = await h.getOne("SecurityDocument", { name: "Editable" });
     const hidden = h.state.getOne("Permission", { name: "SEC_HIDDEN" });
     await h.applyAML(`
-        <Item type="SecurityDocument" action="edit" version="0" id="${source.id}">
+        <Item type="SecurityDocument" action="edit" version="0" id="${source.id}" doGetItem="0">
             <permission_id>${hidden.id}</permission_id>
         </Item>`);
 
@@ -277,7 +277,7 @@ test("rolling back a source permission change restores inherited reads", async (
         error: new Error("Reject the permission change"),
     });
     await expect(
-        h.applyAML(`<Item type="SecurityDocument" action="edit" version="0" id="${source.id}">
+        h.applyAML(`<Item type="SecurityDocument" action="edit" version="0" id="${source.id}" doGetItem="0">
             <permission_id>${hidden.id}</permission_id></Item>`),
     ).rejects.toThrow("Reject the permission change");
 

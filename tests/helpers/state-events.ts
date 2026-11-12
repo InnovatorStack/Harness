@@ -9,8 +9,16 @@ export function stateEvent(name: string, method: string, source: string, require
 export const lockDelegate = `//MethodTemplateName=CSharpInOut;
 ValidateInput(inDom, eventData);
 eventData.BaseLockItem(outDom);
-var item = outDom.SelectSingleNode("//Result/Item")
-    ?? throw new Exception("The native lock returned no Item");
+var item = outDom.SelectSingleNode("//Result/Item");
+if (item == null)
+{
+    if (inDom.DocumentElement.GetAttribute("doGetItem") != "0" ||
+        outDom.SelectSingleNode("//Result")?.InnerText != "Ok.")
+    {
+        throw new Exception("The native lock returned neither an Item nor its acknowledgement");
+    }
+    return;
+}
 var property = outDom.CreateElement("replacement_marker");
 property.InnerText = "source";
 item.AppendChild(property);

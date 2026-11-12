@@ -2,6 +2,7 @@ import { join } from "node:path";
 
 import { readTextFile } from "../../src/core/files.js";
 import { parseAml } from "../../src/packages/parser.js";
+import { actionResponseCases } from "./cases/action-responses.js";
 import { actionCases } from "./cases/actions.js";
 import { classificationCases } from "./cases/classifications.js";
 import { collectionCases } from "./cases/collections.js";
@@ -30,6 +31,7 @@ import type { ReferenceCase } from "./types.js";
 export const corpusDirectory = import.meta.dir;
 export const cases: readonly ReferenceCase[] = [
     ...actionCases,
+    ...actionResponseCases,
     ...versioningCases,
     ...eventCases,
     ...queryCases,

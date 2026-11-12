@@ -73,9 +73,12 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Copy, clone, merge, purge and recursive platform actions are unavailable.",
             "Owned relationships and orphaned dependent Items are deleted transactionally; external references block deletion.",
+            "Collection replacements returning text require separate calls; they fail explicitly rather than dropping their results.",
         ],
         tests: [
             "tests/actions.test.ts",
+            "tests/action-responses.test.ts",
+            "tests/action-response-security.test.ts",
             "tests/creation.test.ts",
             "tests/dependent-deletion.test.ts",
         ],
@@ -303,6 +306,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Inherited creation checks source Update access; direct edits and deletes use copied Update rights. ACL propagation, lifecycle changes, clones and owned deletion share their caller's transaction.",
             "Moving inherited relationships and for_all source resolution remain unavailable; discovery, ABAC and MAC policies are not implemented.",
             "Release-specific native permission parity remains unverified. Callbacks and unchecked execution do not establish native ACL behavior.",
+            "The native Get bypass for dependent inherited relationships is not implemented.",
         ],
         tests: [
             "tests/security.test.ts",
@@ -433,6 +437,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
 
 const errorCapabilities: Readonly<Record<string, CapabilityId>> = Object.freeze({
     UnsupportedAction: CapabilityId.ItemActions,
+    InvalidActionResult: CapabilityId.ItemActions,
+    UnsupportedBatchResult: CapabilityId.ItemActions,
     UnsupportedReferencedDelete: CapabilityId.ItemActions,
     UnsupportedAttribute: CapabilityId.Queries,
     UnsupportedCondition: CapabilityId.Queries,

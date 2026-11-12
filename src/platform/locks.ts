@@ -61,6 +61,7 @@ export class ItemLocks {
     ): Promise<StoredItem> {
         const request = Item.create(definition.name, action);
         request.setProperty("id", record.id);
+        request.setAttribute("doGetItem", "0");
 
         if (!enabled) {
             request.setAttribute("serverEvents", "0");

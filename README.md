@@ -351,6 +351,14 @@ Low-level APIs have separate entry points:
 
 Implemented: atomic AML imports; TypeScript/AML fixtures; get/add/edit/update/delete; automatic and manual generations; User-owned locks; metadata-driven lifecycle promotion; logical AML and literal-only WHERE queries; paging and exact decimal/date ordering; nested item selectors and relationship reads/actions; nested select projections; foreign properties; after-get hydration of federated response fields; version-1 before/after/replacement events; required hooks; nested transactions, rollback, traces, and managed reentry.
 
+For add/edit/update, native AML `doGetItem="0"` returns type-and-ID Items after saving and running
+mutation hooks. Full responses run Get after those hooks; its calculated properties, permissions
+and failures participate in the same transaction. Fetch relationships explicitly when needed.
+Lock/unlock with `doGetItem="0"` return the message `Ok.`; delete returns `Ok`. These messages
+contain no Items. The flag does not suppress ordinary Get requests. Nested mutations default to
+minimal responses unless their ItemType declares an after-mutation handler; explicit flags override
+that default. Replacement Methods retain control of their own responses.
+
 For an automatically versioned ItemType, `edit` locks, saves, and unlocks. The first save in a lock cycle creates a new ID, retains `config_id`, increments `generation`, and marks the previous generation as noncurrent. Further `update` calls during that lock cycle reuse the new generation. `version="0"` suppresses automatic versioning; `manual_versioning=1` requires the `version` action. These rules follow the [Aras Programmer's Guide](https://aras.com/wp-content/uploads/2025/06/Aras-Innovator-2025-Release-Programmers-Guide.pdf). Configure `session.user` in `.harness/config.ts` for versionable mutations.
 
 Queries accept native `<and>`, `<or>`, `<not>`, repeated property conditions, comparisons,
