@@ -344,6 +344,10 @@ return inn.newResult("Caught nested failure");
     <Item type="Method" action="add" id="A4100000000000000000000000000000">
         <name>RefBatchAfterAdd</name><method_type>C#</method_type>
         <method_code><![CDATA[
+if (this.getType() != "" || eventData.IdList.Single() != eventData.Id)
+{
+    throw new Exception("Reference after-add metadata is invalid");
+}
 if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
 {
     var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
@@ -389,6 +393,10 @@ return this;
     <Item type="Method" action="add" id="A4100000000000000000000000000003">
         <name>RefBatchAfterVersion</name><method_type>C#</method_type>
         <method_code><![CDATA[
+if (this.getType() != "" || eventData.NewItemsIds.Count() != eventData.OldIdsNewIdsMap.Count)
+{
+    throw new Exception("Reference after-version metadata is invalid");
+}
 if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
 {
     var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
@@ -409,9 +417,13 @@ if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") ==
     var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
     Console.WriteLine("HARNESS_REFERENCE_EVENT|RefBatchUpdateCollection|" + aml);
 }
-for (int index = 0; index < this.getItemCount(); index++)
+foreach (string id in eventData.NewItemsIds)
 {
-    if (this.getItemByIndex(index).getProperty("name") == "Reject")
+    var query = this.newItem("RefBatch", "get");
+    query.setID(id);
+    var current = query.apply();
+    if (current.isError()) { return current; }
+    if (current.getProperty("name") == "Reject")
     {
         return this.getInnovator().newError("Reference collection rejected");
     }

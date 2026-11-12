@@ -128,7 +128,7 @@ test("version reentry validates lifecycle changes made after the clone was inser
             "AdvanceGeneratedState",
             `
             var promotion = this.newItem(this.getType(), "promoteItem");
-            promotion.setID(this.getID());
+            promotion.setID(eventData.NewItemId);
             promotion.setProperty("state", "Design review");
             var promoted = promotion.apply();
             if (promoted.isError()) { return promoted; }
@@ -164,7 +164,7 @@ test("version hooks that remove Update rights prevent reentry and roll back the 
             "RestrictVersion",
             `
             var promotion = this.newItem(this.getType(), "promoteItem");
-            promotion.setID(this.getID());
+            promotion.setID(eventData.NewItemId);
             promotion.setProperty("state", "Design review");
             var promoted = promotion.apply();
             if (promoted.isError()) { return promoted; }

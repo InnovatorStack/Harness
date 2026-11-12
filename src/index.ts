@@ -74,3 +74,11 @@ export { ObserverError } from "./controls/observers.js";
 export type { ExecutionObserver, Observation } from "./controls/observers.js";
 export type { StateReader } from "./controls/state.js";
 export { ItemAction } from "./platform/actions.js";
+export { MethodEventDataKind } from "./methods/event-data.js";
+export type {
+    MethodEventData,
+    BeforeUpdateEventData,
+    AfterAddEventData,
+    AfterUpdateEventData,
+    AfterVersionEventData,
+} from "./methods/event-data.js";

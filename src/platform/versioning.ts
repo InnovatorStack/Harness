@@ -2,6 +2,7 @@ import { assertActiveContext } from "../core/context.js";
 import { getOwn } from "../core/data.js";
 import type { ExecutionContext } from "../core/types.js";
 import { Item } from "../items/item.js";
+import { MethodEventDataKind } from "../methods/event-data.js";
 import type {
     HarnessStorage,
     ItemTypeDefinition,
@@ -9,6 +10,7 @@ import type {
     StoredItem,
 } from "../storage/types.js";
 import { ApplicationError, PlatformError } from "./errors.js";
+import { afterUpdateFrames, afterVersionFrames } from "./events/data.js";
 import type { EventRunners } from "./events/types.js";
 import type { GraphActions } from "./graph-actions.js";
 import type { ClassificationChange, LifeCycles } from "./lifecycle.js";
@@ -34,6 +36,7 @@ interface PreparedUpdate {
     readonly versioned: boolean;
     readonly enabled: boolean;
     readonly select: string | undefined;
+    readonly idList: readonly string[];
 }
 
 interface GenerationWrite {
@@ -199,9 +202,10 @@ export class Versioning {
     ): Promise<BatchResult> {
         const result: Item["node"][] = [];
         const enabled = request.getAttribute("serverEvents") !== "0";
+        const ids = records.map((record) => record.id);
 
         for (const record of records) {
-            const prepared = this.updateRequest(record, request, false);
+            const prepared = this.updateRequest(record, request, false, ids);
             await this.beforeUpdate(definition, prepared, context);
 
             if (this.shouldVersion(definition, record, prepared.request)) {
@@ -215,7 +219,13 @@ export class Versioning {
         }
 
         return {
-            response: await this.afterUpdates(definition, result, enabled, context),
+            response: await this.afterUpdates(
+                definition,
+                result,
+                this.generationMap(records, records),
+                enabled,
+                context,
+            ),
             targets: records,
         };
     }
@@ -231,10 +241,12 @@ export class Versioning {
         const update = await this.beforeVersions(definition, sources, request, context);
         const prepared: PreparedUpdate[] = [];
         const oldIds = sources.map((source) => source.id).join(",");
+        const newIds: string[] = [];
 
         for (const source of sources) {
             const record = this.create(definition, source, context);
-            const target = this.updateRequest(record, update, true);
+            newIds.push(record.id);
+            const target = this.updateRequest(record, update, true, newIds);
             target.request.setAttribute("oldId", oldIds);
 
             if (isReleased(source)) {
@@ -264,6 +276,7 @@ export class Versioning {
             response: await this.afterUpdates(
                 definition,
                 result,
+                this.generationMap(sources, targets),
                 update.getAttribute("serverEvents") !== "0",
                 context,
             ),
@@ -315,24 +328,27 @@ export class Versioning {
     private async afterUpdates(
         definition: ItemTypeDefinition,
         nodes: readonly Item["node"][],
+        oldIdsNewIdsMap: Readonly<Record<string, string>>,
         enabled: boolean,
         context: ExecutionContext,
     ): Promise<Item> {
-        const results: Item["node"][] = [];
+        await this.runners.after(
+            definition,
+            "onAfterUpdate",
+            afterUpdateFrames(definition.id, oldIdsNewIdsMap),
+            enabled,
+            context,
+        );
 
-        for (const node of nodes) {
-            const item = new Item({ items: [node] });
-            await this.runners.item(definition, "onAfterUpdate", item, enabled, context);
-            results.push(...item.payload.items);
-        }
-
-        const response = new Item({ items: results });
-        await this.runners.collection(definition, "onAfterUpdate", response, enabled, context);
-
-        return response;
+        return new Item({ items: [...nodes] });
     }
 
-    private updateRequest(record: StoredItem, request: Item, versioned: boolean): PreparedUpdate {
+    private updateRequest(
+        record: StoredItem,
+        request: Item,
+        versioned: boolean,
+        idList: readonly string[],
+    ): PreparedUpdate {
         const update = request.clone();
         update.setProperty("id", record.id);
         delete update.node.attributes.where;
@@ -345,6 +361,7 @@ export class Versioning {
             versioned,
             enabled: request.getAttribute("serverEvents") !== "0",
             select: request.node.attributes.select,
+            idList,
         };
     }
 
@@ -361,7 +378,11 @@ export class Versioning {
             request.setProperty("new_version", 1);
         }
 
-        await this.runners.item(definition, "onBeforeUpdate", request, enabled, context);
+        await this.runners.item(definition, "onBeforeUpdate", request, enabled, context, {
+            kind: MethodEventDataKind.BeforeUpdate,
+            id: record.id,
+            idList: prepared.idList,
+        });
         const attributes = { ...request.node.attributes };
         delete attributes.oldId;
         validateRequest({ ...request.node, attributes }, "update");
@@ -654,19 +675,34 @@ export class Versioning {
             this.security.changed(previous, this.currentRecord(target.record), context);
         }
 
-        for (const target of targets) {
-            const item = new Item({
-                items: [projectItem(this.storage, definition, this.currentRecord(target.record))],
-            });
-            await this.runners.item(definition, "onAfterVersion", item, true, context);
-        }
+        const mapping = this.generationMap(
+            sources,
+            targets.map((target) => target.record),
+        );
+        await this.runners.after(
+            definition,
+            "onAfterVersion",
+            afterVersionFrames(definition.id, mapping),
+            true,
+            context,
+        );
+    }
 
-        const result = new Item({
-            items: targets.map((target) =>
-                projectItem(this.storage, definition, this.currentRecord(target.record)),
-            ),
-        });
-        await this.runners.collection(definition, "onAfterVersion", result, true, context);
+    private generationMap(
+        sources: readonly StoredItem[],
+        targets: readonly StoredItem[],
+    ): Readonly<Record<string, string>> {
+        return Object.fromEntries(
+            sources.map((source, index) => {
+                const target = targets[index];
+
+                if (!target) {
+                    throw new PlatformError("InvalidGeneration", "A generation target is missing.");
+                }
+
+                return [source.id, target.id];
+            }),
+        );
     }
 
     private nextGeneration(record: StoredItem): number {

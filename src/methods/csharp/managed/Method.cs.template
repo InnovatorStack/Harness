@@ -14,6 +14,8 @@ public sealed class __TYPE_NAME__ : Item, IArasMethod
 
     public Item Execute()
     {
+        var eventData = __EVENT_ARGS_CONSTRUCTOR__;
+
 #line __SOURCE_LINE__ "__SOURCE_PATH__"
 __METHOD_CODE__
 #line default

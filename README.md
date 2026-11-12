@@ -406,24 +406,32 @@ and recalculates copied relationship behavior. Sequence exhaustion rejects the r
 An explicit `version="0"` cannot save a released generation. Native release-specific comparisons remain
 pending; change-management applications and released relationship cloning remain separate work.
 
-Server Events use their exported `event_version`. Version-1 hooks run per item. Version-2
-`onAfterAdd`, `onAfterUpdate` and `onAfterVersion` hooks receive the action collection;
-`onBeforeCopy` and `onAfterCopy` receive relationship collections during parent versioning.
+Server Events use their exported `event_version`. Version-1 after hooks load each stored Item through
+Get, independently of the caller's `select`. After-version receives the historical Item; its native
+`eventData.NewItemId` identifies the new generation. Version-2 before-update and after-add/update/version
+hooks receive an empty Item with native event metadata. After hooks run once per completed batch;
+before-update runs for each update invocation. `OldIdsNewIdsMap` and `NewItemsIds` identify the batch.
+Without item handlers, the after-version scalar ID is empty and the after-update scalar ID is null.
+Custom executors receive immutable `MethodPorts.eventData`, discriminated by `MethodEventDataKind`.
+Nested ordinary Methods receive no inherited event metadata. Both C# templates expose the corresponding
+native argument classes. Hook writes, errors and metadata snapshots retain transaction/reset isolation.
+
+`onBeforeCopy` and `onAfterCopy` still receive relationship collections during parent versioning.
 Before-copy hooks can alter copied values while retaining source identity and collection size.
 Native suppression of business copy hooks during parent versioning remains unimplemented.
 `Morphae` links supply inherited polymorphic bindings with concrete item contexts. Own and inherited
-bindings share `sort_order`; tied orders within a phase fail explicitly. Required bindings survive
+bindings share `sort_order`; tied orders within an event version fail explicitly. Required bindings survive
 `serverEvents="0"`. Native release-specific event and clone parity remains unverified.
 Automatic versioning runs before-update before deciding to create a generation. A hook can set
 `version="0"` to save in place. When versioning starts, the selected batch uses the original pending
 request and enters update again with new IDs, `oldId` and the automatic `new_version=1` marker.
 Explicit version skips the initial update pass. Version hooks run despite `serverEvents="0"`;
-optional update hooks remain suppressed. Before after-version hooks, versioning releases its historical
-source locks. Every before-unlock hook runs before the batch is cleared; owned dependent Items are
+optional update hooks remain suppressed. Versioning releases historical source locks before
+after-version hooks run. Every before-unlock hook runs before the batch is cleared; owned dependent Items are
 unlocked before the after hooks. These writes and Method side effects share rollback and world reset.
 Automatic source markers reset to zero; manual markers remain unchanged. Hook contexts containing
 only type and ID are hydrated through Get and retain shared pending values across the unlock batch.
-Administrative lock overrides, native event-data arguments and replacement interception during version
+Administrative lock overrides and replacement interception during version
 reentry remain unimplemented. Native event context profiles are still unverified.
 Before-version Methods receive pending request values. Cloning preserves stored business values
 until the subsequent update hooks finish; after-version Methods can query that intermediate clone.

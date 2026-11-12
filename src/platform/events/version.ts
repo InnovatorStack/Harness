@@ -4,6 +4,7 @@ import { PlatformError } from "../errors.js";
 import { ServerEventVersion } from "./types.js";
 
 const collectionEvents = new Set([
+    "onbeforeupdate",
     "onafteradd",
     "onafterupdate",
     "onafterversion",

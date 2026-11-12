@@ -38,6 +38,7 @@ public sealed record Invocation(
     string? Assembly,
     string? TypeName,
     ItemPayload? Context,
+    EventMetadata? EventData,
     JsonElement Payload,
     string? Error);
 
@@ -145,7 +146,7 @@ public sealed class Protocol
     }
 }
 
-public sealed record Remote(Protocol Protocol, string InvocationId)
+public sealed record Remote(Protocol Protocol, string InvocationId, EventMetadata? EventData = null)
 {
     public ItemPayload Call(string operation, object payload)
         => Protocol.Call(InvocationId, operation, payload);

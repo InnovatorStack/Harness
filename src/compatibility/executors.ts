@@ -5,7 +5,6 @@ import { readProcessOutput } from "../core/process.js";
 import type { PackageConfiguration } from "../harness/configuration.js";
 import { resolveCSharpOptions } from "../harness/configuration.js";
 import { CSharpCompiler } from "../methods/csharp/compiler.js";
-import { methodTemplate } from "../methods/csharp/templates.js";
 import type { MethodDefinition } from "../methods/types.js";
 import { PlatformError } from "../platform/errors.js";
 import type { CatalogEntry } from "../storage/types.js";
@@ -152,10 +151,6 @@ export class ExecutorInspection {
     }
 
     private eventContexts(method: MethodDefinition): readonly (string | undefined)[] {
-        if (methodTemplate(method.code) !== "InOut.cs.template") {
-            return [undefined];
-        }
-
         const supported = new Set([
             "onget",
             "onadd",
@@ -164,6 +159,10 @@ export class ExecutorInspection {
             "onlock",
             "onunlock",
             "onpromote",
+            "onbeforeupdate",
+            "onafteradd",
+            "onafterupdate",
+            "onafterversion",
         ]);
         const contexts = new Set<string | undefined>();
 

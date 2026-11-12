@@ -261,7 +261,7 @@ test("after-version source reads the clone before the pending business values ar
             "ReadVersionClone",
             `
         var query = this.newItem(this.getType(), "get");
-        query.setID(this.getID());
+        query.setID(eventData.NewItemId);
         var stored = query.apply();
         if (stored.isError()) { return stored; }
         if (stored.getProperty("name") != "Start" ||

@@ -32,10 +32,10 @@ test("polymorphic base events run in metadata order with concrete item and colle
         referenceMethod(
             "InheritedCollection",
             `
-        if (this.getItemCount() != 2) throw new Exception("Wrong inherited collection size");
-        for (int index = 0; index < this.getItemCount(); index++) {
-            if (this.getItemByIndex(index).getType() != "ReferenceHolder") throw new Exception("Polymorphic record leaked into context");
-        }
+        if (this.getType() != "" || eventData.NewItemsIds.Count() != 2) throw new Exception("Wrong inherited batch metadata");
+        var type = this.newItem("ItemType", "get");
+        type.setID(eventData.TypeId);
+        if (type.apply().getProperty("name") != "ReferenceHolder") throw new Exception("Polymorphic type leaked into metadata");
         return this;
     `,
         ) +

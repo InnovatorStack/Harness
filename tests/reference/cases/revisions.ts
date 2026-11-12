@@ -82,8 +82,8 @@ export const revisionCases: readonly ReferenceCase[] = [
             );
             equalContract(
                 events[1]?.context.items[0]?.properties.state,
-                "Draft",
-                "After-version sees the reset.",
+                "Released",
+                "After-version retains the historical source state.",
             );
         },
     },

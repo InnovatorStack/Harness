@@ -1,5 +1,15 @@
 import type { SourceLocation } from "../diagnostics/source-location.js";
 import type { Item } from "../items/item.js";
+import type { MethodEventData } from "./event-data.js";
+
+export { MethodEventDataKind } from "./event-data.js";
+export type {
+    MethodEventData,
+    BeforeUpdateEventData,
+    AfterAddEventData,
+    AfterUpdateEventData,
+    AfterVersionEventData,
+} from "./event-data.js";
 
 export interface MethodDefinition {
     readonly id: string;
@@ -21,6 +31,7 @@ export interface MethodPorts {
     applySQL?(query: string, parameters?: string): Promise<Item>;
     readonly security?: MethodSecurity;
     readonly serverEvent?: MethodServerEvent;
+    readonly eventData?: MethodEventData;
     fail(message: string): never;
 }
 

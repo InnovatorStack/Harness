@@ -186,8 +186,11 @@ test("a source hook rejection rolls back revised identities, reset flags, cloned
         referenceMethod(
             "RejectRevision",
             `
-        if (this.getProperty("major_rev") != "C" || this.getProperty("state") != "Draft")
-            throw new Exception("The after-version context did not reset");
+        var query = this.newItem(this.getType(), "get");
+        query.setID(eventData.NewItemId);
+        var generated = query.apply();
+        if (generated.getProperty("major_rev") != "C" || generated.getProperty("state") != "Draft")
+            throw new Exception("The generated revision did not reset");
         var audit = this.newItem("ReferenceHolder", "add");
         audit.setProperty("name", "Must roll back");
         audit.apply();

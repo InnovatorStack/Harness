@@ -14,7 +14,12 @@ function audit(name: string, event: string, count: number, version: ServerEventV
     const source = referenceMethod(
         name,
         `
-        if (this.getItemCount() != ${count}) throw new Exception("Wrong event context count");
+        if (this.getItemCount() != 1) throw new Exception("Wrong event context count");
+        ${
+            version === ServerEventVersion.Collection
+                ? `if (this.getType() != "" || eventData.OldIdsNewIdsMap.Count != ${count}) throw new Exception("Wrong batch metadata");`
+                : ""
+        }
         var audit = this.newItem("EventAudit", "add");
         audit.setProperty("phase", "${name}");
         audit.setProperty("count", this.getItemCount().ToString());
@@ -26,7 +31,7 @@ function audit(name: string, event: string, count: number, version: ServerEventV
     return source + referenceEvent("REF_HOLDER", event, name, { version });
 }
 
-test("bulk updates run item hooks per record and one collection hook with every result", async () => {
+test("bulk updates run item hooks per record and one batch hook with complete metadata", async () => {
     const source =
         auditSchema +
         audit("Before", "onBeforeUpdate", 1, ServerEventVersion.Item) +
@@ -42,8 +47,8 @@ test("bulk updates run item hooks per record and one collection hook with every 
     expect(run?.outcome).toBe(ExecutionOutcome.Committed);
     expect(h.trace.filter((event) => event.kind === "method").map((event) => event.name)).toEqual([
         "Before",
-        "After",
         "Before",
+        "After",
         "After",
         "Collection",
     ]);
@@ -57,9 +62,11 @@ test("versioned bulk edits expose all new generations before update and unlock a
         referenceMethod(
             "VersionCollection",
             `
-        if (this.getItemCount() != 2) throw new Exception("Missing version results");
-        for (int index = 0; index < this.getItemCount(); index++) {
-            var item = this.getItemByIndex(index);
+        if (this.getType() != "" || eventData.NewItemsIds.Count() != 2) throw new Exception("Missing version metadata");
+        foreach (string id in eventData.NewItemsIds) {
+            var query = this.newItem("ReferenceRecord", "get");
+            query.setID(id);
+            var item = query.apply();
             if (item.getProperty("generation") != "2") throw new Exception("Wrong generation");
             if (item.getProperty("name") == "Changed") throw new Exception("Update ran before version collection");
         }
@@ -72,9 +79,11 @@ test("versioned bulk edits expose all new generations before update and unlock a
         referenceMethod(
             "UpdateCollection",
             `
-        if (this.getItemCount() != 2) throw new Exception("Missing update results");
-        for (int index = 0; index < this.getItemCount(); index++) {
-            var item = this.getItemByIndex(index);
+        if (this.getType() != "" || eventData.NewItemsIds.Count() != 2) throw new Exception("Missing update metadata");
+        foreach (string id in eventData.NewItemsIds) {
+            var query = this.newItem("ReferenceRecord", "get");
+            query.setID(id);
+            var item = query.apply();
             if (item.getProperty("name") != "Changed") throw new Exception("Missing updates");
             if (item.getProperty("locked_by_id") != this.getInnovator().getUserID()) throw new Exception("Unlocked before collection hook");
         }
@@ -145,7 +154,7 @@ test("required collection events survive serverEvents=0 while optional events st
         referenceMethod(
             "RequiredCollection",
             `
-            if (this.getItemCount() != 2) throw new Exception("Required hook lost its collection");
+            if (this.getType() != "" || eventData.NewItemsIds.Count() != 2) throw new Exception("Required hook lost its metadata");
             return this;
         `,
         ) +
@@ -180,7 +189,8 @@ test("unconditional collection mocks bypass the original executor through the no
     const result = await h.applyAML(`<Item type="ReferenceHolder" action="update"
         where="name IN ('First', 'Second')"><name>Changed</name></Item>`);
 
-    expect(result.getResult()).toBe("Mocked collection");
+    expect(result.getResult()).toBe("");
+    expect(result.getItemCount()).toBe(2);
     expect(h.state.get("ReferenceHolder", { name: "Changed" })).toHaveLength(2);
     expect(h.executions.at(-1)?.mocks).toHaveLength(1);
     expect(h.executions.at(-1)?.calls[0]?.children[0]?.executed).toBe(false);
@@ -193,7 +203,7 @@ test("after-add collections see persisted relationships and a rejection removes 
             `
         if (this.getItemCount() != 1) throw new Exception("Wrong add context");
         var query = this.newItem("ReferenceFixed", "get");
-        query.setProperty("source_id", this.getID());
+        query.setProperty("source_id", eventData.Id);
         if (query.apply().getItemCount() != 1) throw new Exception("Nested relationship is missing");
         return this.getInnovator().newError("Reject added graph");
     `,
