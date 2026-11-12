@@ -72,12 +72,7 @@ export class CSharpExecutor implements MethodExecutor {
 
         return await new Promise<Item>((resolve, reject) => {
             const timer = setTimeout(() => {
-                this.stop(
-                    new PlatformError(
-                        "MethodTimeout",
-                        `Method '${method.name}' exceeded ${this.compiler.timeoutMs}ms.`,
-                    ),
-                );
+                this.timeout(id, method.name);
             }, this.compiler.timeoutMs);
             this.pending.set(id, {
                 context,
@@ -96,6 +91,25 @@ export class CSharpExecutor implements MethodExecutor {
                 this.stop(error);
             }
         });
+    }
+
+    private timeout(id: string, method: string): void {
+        const invocation = this.pending.get(id);
+        this.stop(
+            new PlatformError(
+                "MethodTimeout",
+                `Method '${method}' exceeded ${this.compiler.timeoutMs}ms.`,
+                {
+                    cause: {
+                        sourceStarted: invocation?.started ?? false,
+                        callbacks: invocation?.callbackCount ?? 0,
+                        pendingCallbacks: this.callbacks.size,
+                        queuedBytes: this.queuedBytes,
+                        workerExitCode: this.worker?.exitCode ?? null,
+                    },
+                },
+            ),
+        );
     }
 
     reset(): void {
