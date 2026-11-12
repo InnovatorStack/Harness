@@ -143,6 +143,13 @@
             </Item>
         </Relationships>
     </Item>
+    <Item type="Permission" action="add" id="A6000000000000000000000000000009">
+        <name>Reference delete without update</name>
+        <Relationships><Item type="Access" action="add">
+            <related_id>A7100000000000000000000000000003</related_id>
+            <can_get>1</can_get><can_delete>1</can_delete>
+        </Item></Relationships>
+    </Item>
     <Item type="ItemType" action="add" id="A7000000000000000000000000000001">
         <name>RefSecurityRecord</name><is_versionable>0</is_versionable>
         <Relationships>

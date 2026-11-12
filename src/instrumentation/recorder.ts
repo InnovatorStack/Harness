@@ -2,7 +2,7 @@ import type { ExecutionInjection } from "../controls/failure-types.js";
 import type { InjectionDetails } from "../controls/targets.js";
 import type { RuntimeExecution, RuntimeObserver, TransactionOutcome } from "../core/types.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
-import { Item } from "../items/item.js";
+import { appliedItem } from "../platform/request.js";
 import type { PlatformTraceEvent } from "../platform/trace.js";
 import { describeFailure } from "./failures.js";
 import { Snapshots } from "./snapshots.js";
@@ -490,7 +490,7 @@ function operationKind(operation: string): ExecutionKind {
         return ExecutionKind.Method;
     }
 
-    if (operation === "platform.apply") {
+    if (operation === "platform.apply" || operation === "platform.event-base") {
         return ExecutionKind.Action;
     }
 
@@ -506,8 +506,10 @@ function operationKind(operation: string): ExecutionKind {
 }
 
 function operationName(operation: string, input: unknown): string {
-    if (operation === "platform.apply" && input instanceof Item) {
-        const node = input.payload.items[0];
+    const item = appliedItem(operation, input);
+
+    if (item) {
+        const node = item.payload.items[0];
 
         if (node) {
             return `${node.type}.${node.attributes.action ?? "get"}`;

@@ -60,6 +60,7 @@ export class Versioning {
             references,
             graph,
             runners.collection,
+            security,
         );
     }
 
@@ -353,6 +354,7 @@ export class Versioning {
             context,
             copies,
         );
+        this.security.changed(locked, after, context);
         await this.runners.item(definition, "onAfterUpdate", response, enabled, context);
 
         return response;
@@ -473,6 +475,7 @@ export class Versioning {
         }
 
         const result = new Item({ items: [projectItem(this.storage, definition, current)] });
+        this.security.changed(previous, current, context);
         await this.runners.item(definition, "onAfterVersion", result, enabled, context);
         const latest = this.storage.getItem(definition.name, after.id);
 

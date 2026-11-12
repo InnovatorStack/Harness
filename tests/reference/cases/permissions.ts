@@ -219,7 +219,7 @@ export const permissionCases: readonly ReferenceCase[] = [
         steps: [
             {
                 name: "relationship",
-                aml: '<Item type="RefSecurityLink" action="get" select="source_id(item_number),related_id(item_number),label" />',
+                aml: '<Item type="RefSecurityLink" action="get" select="source_id(item_number),related_id(item_number),label"><label>Protected related record</label></Item>',
             },
         ],
 

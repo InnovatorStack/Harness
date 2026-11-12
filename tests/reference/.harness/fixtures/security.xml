@@ -122,7 +122,18 @@
     </Item>
     <Item type="RefSecurityLink" action="add" id="B7500000000000000000000000000001">
         <source_id>B7400000000000000000000000000007</source_id><related_id>B7400000000000000000000000000002</related_id>
-        <label>Protected related record</label><permission_id>A6000000000000000000000000000004</permission_id>
-        <team_id>B7200000000000000000000000000002</team_id>
+        <label>Protected related record</label><permission_id>A6000000000000000000000000000002</permission_id>
+        <team_id>B7200000000000000000000000000001</team_id>
+        <created_by_id>B1000000000000000000000000000002</created_by_id>
+    </Item>
+    <Item type="RefSecurityRecord" action="add" id="B740000000000000000000000000000F">
+        <item_number>DELETE-PARENT</item_number><name>Can delete without update</name>
+        <permission_id>A6000000000000000000000000000009</permission_id>
+        <state>Draft</state><current_state>A7310000000000000000000000000001</current_state>
+    </Item>
+    <Item type="RefSecurityLink" action="add" id="B7500000000000000000000000000002">
+        <source_id>B740000000000000000000000000000F</source_id><label>Owned deletion</label>
+        <permission_id>A6000000000000000000000000000009</permission_id>
+        <created_by_id>B1000000000000000000000000000001</created_by_id>
     </Item>
 </AML>

@@ -63,7 +63,7 @@ export const teamCases: readonly ReferenceCase[] = [
             },
             {
                 name: "source-denied",
-                aml: '<Item type="RefSecurityLink" action="get" />',
+                aml: '<Item type="RefSecurityLink" action="get"><label>Protected related record</label></Item>',
             },
             {
                 name: "whole-team",

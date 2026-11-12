@@ -15,6 +15,12 @@ export class DependentDeletion {
         private readonly catalog: ReferenceCatalog,
         private readonly sessions: ReferenceSessions,
         private readonly apply: ApplyQueryItem,
+        private readonly removeOwned: (
+            parent: StoredItem,
+            child: StoredItem,
+            enabled: boolean,
+            context: ExecutionContext,
+        ) => Promise<Item>,
     ) {}
 
     prepare(records: readonly StoredItem[], context: ExecutionContext): void {
@@ -44,7 +50,7 @@ export class DependentDeletion {
     async children(record: StoredItem, enabled: boolean, context: ExecutionContext): Promise<void> {
         for (const child of this.catalog.owned(record, context)) {
             if (this.storage.getItem(child.type, child.id)) {
-                await this.remove(child, enabled, context);
+                requireSuccess(await this.removeOwned(record, child, enabled, context));
             }
         }
     }

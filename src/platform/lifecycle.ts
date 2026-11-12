@@ -13,6 +13,7 @@ import { PlatformError, requireSuccess } from "./errors.js";
 import type { RunEvents } from "./events/types.js";
 import { projectItem } from "./projection.js";
 import type { ReferenceMaintenance } from "./references/maintenance.js";
+import type { NativeSecurity } from "./security/policy.js";
 import type { PlatformTrace } from "./trace.js";
 
 interface Lifecycle {
@@ -31,6 +32,7 @@ export class LifeCycles {
             context: ExecutionContext,
         ) => Promise<Item>,
         private readonly references: ReferenceMaintenance,
+        private readonly security: NativeSecurity,
     ) {}
 
     initialProperties(
@@ -162,6 +164,7 @@ export class LifeCycles {
             after,
             source: transition.source,
         });
+        this.security.changed(record, after, context);
         this.references.promoted(after, context);
         const result = new Item({
             items: [projectItem(this.storage, definition, after, request.node.attributes.select)],

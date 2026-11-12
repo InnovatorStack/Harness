@@ -12,6 +12,7 @@ import { Classifications } from "./classifications.js";
 import type { IdentityGrants } from "./grants.js";
 import type { Identities } from "./identities.js";
 import { SourceAccess } from "./source-access.js";
+import { inheritedSecurity } from "./source-inheritance.js";
 import { systemIdentity } from "./system-identities.js";
 import { TeamRoles } from "./teams.js";
 import { effective } from "./time.js";
@@ -78,8 +79,29 @@ export class ItemPermissions {
         context: ExecutionContext,
     ): Readonly<Record<string, StorageValue>> {
         const actor = this.actor(context);
-        this.assertSourcePolicy(definition);
-        this.assertCanAdd(definition, String(values.classification ?? ""), actor, context);
+        const audit = { created_by_id: actor.user.id, created_on: this.now().toISOString() };
+        const classification = String(values.classification ?? "");
+
+        if (this.sources.inherited(definition)) {
+            if (!this.classifications.paths(definition, context).has(classification)) {
+                throw new ApplicationError(
+                    Item.error(
+                        `Cannot add unknown class '${classification}' on '${definition.name}'.`,
+                        "PermissionDenied",
+                    ),
+                );
+            }
+
+            const source = this.sources.owner(definition, values, context);
+            this.assert(source.definition, source.record, AccessRight.Update, context);
+
+            return {
+                ...this.sourceProperties(source.definition, source.record, context),
+                ...audit,
+            };
+        }
+
+        this.assertCanAdd(definition, classification, actor, context);
         const permission = values.permission_id ?? this.defaultPermission(definition, context);
 
         if (typeof permission !== "string" || !this.storage.getItem("Permission", permission)) {
@@ -93,8 +115,18 @@ export class ItemPermissions {
 
         return {
             permission_id: permission,
-            created_by_id: actor.user.id,
-            created_on: this.now().toISOString(),
+            ...audit,
+        };
+    }
+
+    sourceProperties(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        context: ExecutionContext,
+    ): Readonly<Record<string, StorageValue>> {
+        return {
+            ...inheritedSecurity(record),
+            permission_id: this.permissionId(definition, record, context),
         };
     }
 
@@ -152,31 +184,24 @@ export class ItemPermissions {
     ): boolean {
         spendContext(context);
 
-        const source =
-            right === AccessRight.Get
-                ? this.sources.resolve(definition, record, context)
-                : { definition, record };
-        this.assertSourcePolicy(source.definition);
+        const inherited = this.sources.inherited(definition);
 
-        const id =
-            source.record.properties.permission_id ??
-            this.defaultPermission(source.definition, context);
-
-        if (typeof id !== "string" || !this.storage.getItem("Permission", id)) {
-            throw new PlatformError(
-                "MissingPermission",
-                `Import Permission metadata for '${source.record.type}:${source.record.id}'.`,
-            );
+        if (inherited) {
+            this.sources.resolve(definition, record, context);
         }
+
+        const required = inherited && right === AccessRight.Delete ? AccessRight.Update : right;
+
+        const id = this.permissionId(definition, record, context);
 
         for (const access of this.storage.listItems("Access")) {
             spendContext(context);
 
             if (
-                String(access.properties[right] ?? "0") !== "1" ||
+                String(access.properties[required] ?? "0") !== "1" ||
                 String(access.properties.source_id).toLowerCase() !== id.toLowerCase() ||
                 !effective(access, this.now()) ||
-                !this.matches(String(access.properties.related_id), source.record, actor)
+                !this.matches(String(access.properties.related_id), record, actor)
             ) {
                 continue;
             }
@@ -185,6 +210,23 @@ export class ItemPermissions {
         }
 
         return false;
+    }
+
+    private permissionId(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        context: ExecutionContext,
+    ): string {
+        const id = record.properties.permission_id ?? this.defaultPermission(definition, context);
+
+        if (typeof id !== "string" || !this.storage.getItem("Permission", id)) {
+            throw new PlatformError(
+                "MissingPermission",
+                `Import Permission metadata for '${record.type}:${record.id}'.`,
+            );
+        }
+
+        return id;
     }
 
     private matches(id: string, record: StoredItem, actor: Actor): boolean {
@@ -258,15 +300,6 @@ export class ItemPermissions {
                     `Permission '${id}' is not allowed for '${definition.name}'.`,
                     "PermissionDenied",
                 ),
-            );
-        }
-    }
-
-    private assertSourcePolicy(definition: ItemTypeDefinition): void {
-        if (this.sources.inherited(definition)) {
-            throw new PlatformError(
-                "UnsupportedSourceAccess",
-                "Source-inherited relationship mutations require their own permission policy. Reads use the source Item's permissions.",
             );
         }
     }

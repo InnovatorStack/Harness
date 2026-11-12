@@ -31,7 +31,7 @@ export function inspectSecurity(
     const issues: CompatibilityIssue[] = [];
 
     for (const entry of entries) {
-        const sourceAccess = inspectSourceAccess(entry);
+        const sourceAccess = inspectSourceAccess(entry, entries);
 
         if (sourceAccess) {
             issues.push(sourceAccess);
@@ -41,7 +41,10 @@ export function inspectSecurity(
     return issues;
 }
 
-function inspectSourceAccess(entry: CatalogEntry): CompatibilityIssue | undefined {
+function inspectSourceAccess(
+    entry: CatalogEntry,
+    entries: readonly CatalogEntry[],
+): CompatibilityIssue | undefined {
     if (entry.type !== "ItemType") {
         return undefined;
     }
@@ -78,12 +81,22 @@ function inspectSourceAccess(entry: CatalogEntry): CompatibilityIssue | undefine
         });
     }
 
-    return Object.freeze({
-        code: CompatibilityIssueCode.UnsupportedCapability,
-        severity: IssueSeverity.Warning,
-        capability: CapabilityId.NativePermissions,
-        causeCode: "UnsupportedSourceAccess",
-        message: `ItemType '${entry.properties.name}' uses source-inherited access. Relationship reads resolve its source ACL; direct mutations remain unavailable.`,
-        source: entry.source,
-    });
+    const relationship = entries.find(
+        (candidate) =>
+            candidate.type === "RelationshipType" &&
+            String(candidate.properties.relationship_id).toLowerCase() === entry.id.toLowerCase(),
+    );
+
+    if (relationship && String(relationship.properties.source_id ?? "") === "") {
+        return Object.freeze({
+            code: CompatibilityIssueCode.UnsupportedCapability,
+            severity: IssueSeverity.Warning,
+            capability: CapabilityId.NativePermissions,
+            causeCode: "UnsupportedSourceAccess",
+            message: `Source access on '${entry.properties.name}' requires for_all source-type resolution, which is not implemented.`,
+            source: entry.source,
+        });
+    }
+
+    return undefined;
 }

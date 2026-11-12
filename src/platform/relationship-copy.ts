@@ -12,6 +12,7 @@ import { projectItem } from "./projection.js";
 import { recordKey } from "./references/catalog.js";
 import type { ReferenceMaintenance } from "./references/maintenance.js";
 import { isReleased } from "./revisions/policy.js";
+import type { NativeSecurity } from "./security/policy.js";
 import type { PlatformTrace } from "./trace.js";
 import { normalizeProperties } from "./values.js";
 
@@ -52,6 +53,7 @@ export class RelationshipCopy {
         private readonly references: ReferenceMaintenance,
         private readonly graph: GraphActions,
         private readonly events: RunEvents,
+        private readonly security: NativeSecurity,
     ) {}
 
     async copy(
@@ -228,16 +230,18 @@ export class RelationshipCopy {
             current: source,
         });
         const id = this.nextId();
+        const properties = this.references.copied(
+            group.definition,
+            { ...source, properties: { ...source.properties, ...changes } },
+            group.parentId,
+            group.resetBehavior,
+        );
         const record: StoredItem = {
             type: group.definition.name,
             id,
             properties: {
-                ...this.references.copied(
-                    group.definition,
-                    { ...source, properties: { ...source.properties, ...changes } },
-                    group.parentId,
-                    group.resetBehavior,
-                ),
+                ...properties,
+                ...this.security.copied(group.definition, properties, context),
                 config_id: id,
                 generation: 1,
                 is_current: 1,

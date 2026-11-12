@@ -205,7 +205,7 @@ test("malformed team_id data cannot become membership or an ordinary permission 
     expect(h.state.getOne("SecurityDocument", { name: "Invalid team" }).properties.team_id).toBe(1);
 });
 
-test("source-inherited relationship permissions use the source Team and protect related Items", async () => {
+test("source-inherited relationship permissions use the copied Team and protect related Items", async () => {
     const relationship = `<Item type="ItemType" action="add" id="TEAM_LINK">
         <name>TeamLink</name><is_relationship>1</is_relationship><use_src_access>1</use_src_access>
         <Relationships>
@@ -225,7 +225,7 @@ test("source-inherited relationship permissions use the source Team and protect 
     </Item>`;
     const data = `${fixtures} TeamLink: [{
         source_id: { name: "B managed" }, related_id: { name: "A denied manager" },
-        team_id: { name: "Beta" }, permission_id: { name: "SEC_HIDDEN" },
+        team_id: { name: "Alpha" }, permission_id: { name: "Team managers" },
     }],`;
     await using project = await securityProject(schema + relationship, data);
     using h = await createHarness({ cwd: project.cwd, authorization: AuthorizationMode.Native });
@@ -236,7 +236,7 @@ test("source-inherited relationship permissions use the source Team and protect 
     expect(result.getItemCount()).toBe(1);
     expect(result.node.propertyItems.source_id?.properties.name).toBe("B managed");
     expect(result.node.propertyItems.related_id).toBeUndefined();
-    expect(result.getProperty("team_id")).toBe(h.state.getOne("Team", { name: "Beta" }).id);
+    expect(result.getProperty("team_id")).toBe(h.state.getOne("Team", { name: "Alpha" }).id);
 });
 
 test("membership changes take effect in the next action and remain isolated across worlds and reset", async () => {

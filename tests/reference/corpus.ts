@@ -10,6 +10,7 @@ import { permissionCases } from "./cases/permissions.js";
 import { queryCases } from "./cases/queries.js";
 import { referenceCases } from "./cases/references.js";
 import { revisionCases } from "./cases/revisions.js";
+import { sourceAccessCases } from "./cases/source-access.js";
 import { stateEventCases } from "./cases/state-events.js";
 import { teamCases } from "./cases/teams.js";
 import { versioningCases } from "./cases/versioning.js";
@@ -39,6 +40,7 @@ export const cases: readonly ReferenceCase[] = [
     ...permissionCases,
     ...teamCases,
     ...classificationCases,
+    ...sourceAccessCases,
 ];
 
 export interface Corpus {
