@@ -192,6 +192,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Parent versioning clones current owned relationships with fresh config_id, generation one and nested owned graphs.",
             "Collection copy hooks run through normal Methods; released relationship revision/reset policies remain unavailable.",
+            "Native suppression of business copy hooks during parent versioning remains unimplemented.",
             "Release-specific native copy contexts and configuration parity remain unverified.",
         ],
         tests: ["tests/relationship-copy.test.ts"],
@@ -221,13 +222,17 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Own and inherited Morphae bindings share sort_order; tied orders within the same event version are rejected.",
             "Required bindings survive serverEvents=0. Native release-specific ordering remains unverified.",
-            "Automatic versioning currently runs one before-update pass; native pre-version before-update reentry remains unimplemented.",
+            "Automatic versioning runs before-update before its version decision, then reenters update for the generated batch. Version hooks run despite serverEvents=0.",
+            "Historical-source unlock hooks and replacement interception during version reentry remain unimplemented; native event context profiles are unverified.",
         ],
         tests: [
             "tests/actions.test.ts",
             "tests/csharp.test.ts",
             "tests/inherited-events.test.ts",
             "tests/classification-updates.test.ts",
+            "tests/update-reentry.test.ts",
+            "tests/update-reentry-batch.test.ts",
+            "tests/update-reentry-security.test.ts",
         ],
     }),
     descriptor({

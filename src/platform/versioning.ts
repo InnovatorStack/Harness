@@ -28,19 +28,22 @@ import { manualVersioning } from "./version-policy.js";
 const managedProperties = ["config_id", "generation", "is_current", "new_version", "locked_by_id"];
 
 interface PreparedUpdate {
-    readonly before: StoredItem;
     readonly record: StoredItem;
     readonly request: Item;
     readonly copies: Map<string, string>;
     readonly versioned: boolean;
     readonly enabled: boolean;
-    readonly unlock: boolean;
     readonly select: string | undefined;
 }
 
 interface GenerationWrite {
     readonly after: StoredItem;
     readonly classification: ClassificationChange | undefined;
+}
+
+interface BatchResult {
+    readonly response: Item;
+    readonly targets: readonly StoredItem[];
 }
 
 /** Owns generation creation; business events continue through the ordinary Method pipeline. */
@@ -109,65 +112,275 @@ export class Versioning {
         request: Item,
         context: ExecutionContext,
     ): Promise<Item> {
-        const prepared: PreparedUpdate[] = [];
+        const targets = await this.prepareTargets(definition, records, request, context);
+        const result =
+            request.getAction() === "version"
+                ? await this.versionBatch(definition, targets, request, context)
+                : await this.updateBatch(definition, targets, request, context);
 
-        for (const record of records) {
-            prepared.push(await this.prepare(definition, record, request, context));
+        if (request.getAction() === "edit") {
+            for (const record of result.targets) {
+                await this.unlockAfterEdit(definition, record.id, result.response, context);
+            }
         }
 
-        const versioned = prepared
-            .filter((update) => update.versioned)
-            .map((update) =>
-                projectItem(this.storage, definition, this.currentRecord(update.record)),
+        return result.response;
+    }
+
+    private async prepareTargets(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<readonly StoredItem[]> {
+        const ordered = this.orderedTargets(records, request);
+        this.authorizeTargets(definition, ordered, request.getAction(), context);
+        const targets: StoredItem[] = [];
+
+        for (const record of ordered) {
+            targets.push(
+                await this.lockForUpdate(
+                    definition,
+                    this.currentRecord(record),
+                    request.getAction(),
+                    context,
+                ),
             );
+        }
+
+        this.authorizeTargets(definition, targets, request.getAction(), context);
+
+        return targets.map((record) => this.currentRecord(record));
+    }
+
+    private orderedTargets(records: readonly StoredItem[], request: Item): readonly StoredItem[] {
+        const selector = request.getAttribute("idlist");
+
+        if (!selector || request.getID()) {
+            return records;
+        }
+
+        const ids = selector.split(",").map((id) => id.trim().toLowerCase());
+
+        if (new Set(ids).size !== ids.length) {
+            throw new PlatformError(
+                "InvalidSelector",
+                "Versioned actions require unique idlist IDs.",
+            );
+        }
+
+        const available = new Map(records.map((record) => [record.id.toLowerCase(), record]));
+
+        return ids.flatMap((id) => {
+            const record = available.get(id);
+
+            return record ? [record] : [];
+        });
+    }
+
+    private authorizeTargets(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        action: string,
+        context: ExecutionContext,
+    ): void {
+        for (const record of records) {
+            const current = this.currentRecord(record);
+            this.security.assertMutation(definition, current, action, context);
+            this.assertCurrent(current);
+        }
+    }
+
+    private async updateBatch(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<BatchResult> {
+        const result: Item["node"][] = [];
         const enabled = request.getAttribute("serverEvents") !== "0";
 
-        if (versioned.length > 0) {
-            await this.runners.collection(
-                definition,
-                "onAfterVersion",
-                new Item({ items: versioned }),
-                enabled,
-                context,
-            );
-        }
+        for (const record of records) {
+            const prepared = this.updateRequest(record, request, false);
+            await this.beforeUpdate(definition, prepared, context);
 
-        const result: Item["node"][] = [];
+            if (this.shouldVersion(definition, record, prepared.request)) {
+                // Native update restarts the selected batch from its original request.
+                return await this.versionBatch(definition, records, request, context);
+            }
 
-        for (const update of prepared) {
-            const response = await this.updateGeneration(definition, update, context);
+            this.assertUnreleased(definition, record);
+            const response = await this.updateGeneration(definition, prepared, context);
             result.push(...response.payload.items);
         }
 
-        const response = new Item({ items: result });
-        await this.runners.collection(definition, "onAfterUpdate", response, enabled, context);
+        return {
+            response: await this.afterUpdates(definition, result, enabled, context),
+            targets: records,
+        };
+    }
 
-        for (const update of prepared) {
-            if (update.unlock) {
-                await this.unlockAfterEdit(definition, update.record.id, response, context);
+    private async versionBatch(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<BatchResult> {
+        this.authorizeTargets(definition, records, "version", context);
+        const sources = records.map((record) => this.currentRecord(record));
+        const update = await this.beforeVersions(definition, sources, request, context);
+        const prepared: PreparedUpdate[] = [];
+        const oldIds = sources.map((source) => source.id).join(",");
+
+        for (const source of sources) {
+            const record = this.create(definition, source, context);
+            const target = this.updateRequest(record, update, true);
+            target.request.setAttribute("oldId", oldIds);
+
+            if (isReleased(source)) {
+                removeRevisionProperties(target.request, source, record);
             }
+
+            prepared.push(target);
         }
+
+        await this.finishVersions(definition, sources, prepared, context);
+        const updates = prepared.map((target) => ({
+            ...target,
+            record: this.currentRecord(target.record),
+        }));
+        const targets = updates.map((target) => target.record);
+        this.authorizeTargets(definition, targets, "update", context);
+        const result: Item["node"][] = [];
+
+        for (const target of updates) {
+            await this.beforeUpdate(definition, target, context);
+            const response = await this.updateGeneration(definition, target, context);
+            result.push(...response.payload.items);
+        }
+
+        return {
+            response: await this.afterUpdates(
+                definition,
+                result,
+                update.getAttribute("serverEvents") !== "0",
+                context,
+            ),
+            targets,
+        };
+    }
+
+    private async beforeVersions(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        request: Item,
+        context: ExecutionContext,
+    ): Promise<Item> {
+        for (const record of records) {
+            assertActiveContext(context);
+            this.storage.updateItem(definition.name, record.id, { is_current: 0 });
+        }
+
+        const update = request.clone();
+        update.setAction("version");
+        delete update.node.attributes.where;
+        delete update.node.attributes.idlist;
+
+        for (const record of records) {
+            update.setProperty("id", record.id);
+            this.removeManagedProperties(update, record);
+            await this.runners.item(definition, "onBeforeVersion", update, true, context);
+
+            if (
+                update.getID() !== record.id ||
+                update.getType() !== definition.name ||
+                update.getAction() !== "version"
+            ) {
+                throw new PlatformError(
+                    "UnsupportedContextChange",
+                    "A version event cannot change the source generation, ItemType or action.",
+                );
+            }
+
+            this.removeManagedProperties(update, record);
+        }
+
+        return update;
+    }
+
+    private async afterUpdates(
+        definition: ItemTypeDefinition,
+        nodes: readonly Item["node"][],
+        enabled: boolean,
+        context: ExecutionContext,
+    ): Promise<Item> {
+        const results: Item["node"][] = [];
+
+        for (const node of nodes) {
+            const item = new Item({ items: [node] });
+            await this.runners.item(definition, "onAfterUpdate", item, enabled, context);
+            results.push(...item.payload.items);
+        }
+
+        const response = new Item({ items: results });
+        await this.runners.collection(definition, "onAfterUpdate", response, enabled, context);
 
         return response;
     }
 
-    private async prepare(
+    private updateRequest(record: StoredItem, request: Item, versioned: boolean): PreparedUpdate {
+        const update = request.clone();
+        update.setProperty("id", record.id);
+        delete update.node.attributes.where;
+        delete update.node.attributes.idlist;
+
+        return {
+            record,
+            request: update,
+            copies: new Map<string, string>(),
+            versioned,
+            enabled: request.getAttribute("serverEvents") !== "0",
+            select: request.node.attributes.select,
+        };
+    }
+
+    private async beforeUpdate(
         definition: ItemTypeDefinition,
-        original: StoredItem,
-        request: Item,
+        prepared: PreparedUpdate,
         context: ExecutionContext,
-    ): Promise<PreparedUpdate> {
-        let record = this.currentRecord(original);
-        this.security.assertMutation(definition, record, request.getAction(), context);
-        this.assertCurrent(record);
+    ): Promise<void> {
+        const { request, record, enabled } = prepared;
         const action = request.getAction();
-        const enabled = request.getAttribute("serverEvents") !== "0";
+        this.removeManagedProperties(request, record, prepared.versioned);
 
-        record = await this.lockForUpdate(definition, record, action, context);
+        if (prepared.versioned && !manualVersioning(this.storage, definition)) {
+            request.setProperty("new_version", 1);
+        }
 
-        const versioned = this.shouldVersion(definition, record, request);
+        await this.runners.item(definition, "onBeforeUpdate", request, enabled, context);
+        const attributes = { ...request.node.attributes };
+        delete attributes.oldId;
+        validateRequest({ ...request.node, attributes }, "update");
 
-        if (isReleased(record) && !versioned) {
+        if (
+            request.getType() !== definition.name ||
+            request.getAction() !== action ||
+            request.getID() !== record.id
+        ) {
+            throw new PlatformError(
+                "UnsupportedContextChange",
+                "An update event cannot change the target generation, ItemType or action.",
+            );
+        }
+
+        this.removeManagedProperties(request, record, prepared.versioned);
+        const current = this.currentRecord(record);
+        this.locks.assertOwned(current);
+        this.lifeCycles.classificationChange(definition, record, request.node.properties, context);
+    }
+
+    private assertUnreleased(definition: ItemTypeDefinition, record: StoredItem): void {
+        if (isReleased(record)) {
             throw new ApplicationError(
                 Item.error(
                     `Released '${definition.name}' requires a new revision before it can be changed.`,
@@ -175,36 +388,6 @@ export class Versioning {
                 ),
             );
         }
-
-        const update = request.clone();
-        this.removeManagedProperties(update, record);
-        const copies = new Map<string, string>();
-        const before = this.classificationBaseline(definition, record, action);
-
-        if (versioned) {
-            const previous = record;
-            record = await this.create(definition, record, enabled, context, copies, update);
-
-            if (isReleased(previous)) {
-                removeRevisionProperties(update, previous, record);
-            }
-        }
-
-        update.setProperty("id", record.id);
-        delete update.node.attributes.where;
-        delete update.node.attributes.idlist;
-        update.setAction("update");
-
-        return {
-            before,
-            record,
-            request: update,
-            copies,
-            versioned,
-            enabled,
-            unlock: action === "edit",
-            select: request.node.attributes.select,
-        };
     }
 
     private async lockForUpdate(
@@ -220,9 +403,7 @@ export class Versioning {
             return locked;
         }
 
-        if (action === "update") {
-            this.locks.assertOwned(record);
-        } else {
+        if (action === "version") {
             this.locks.assertAvailable(record);
         }
 
@@ -237,10 +418,9 @@ export class Versioning {
         const manual = manualVersioning(this.storage, definition);
 
         return (
-            request.getAction() === "version" ||
-            (!manual &&
-                request.getAttribute("version", "1") === "1" &&
-                String(record.properties.new_version ?? "0") !== "1")
+            !manual &&
+            request.getAttribute("version", "1") === "1" &&
+            String(record.properties.new_version ?? "0") !== "1"
         );
     }
 
@@ -297,25 +477,6 @@ export class Versioning {
         const { request: update, select, enabled, copies } = prepared;
         const record = this.currentRecord(prepared.record);
 
-        if (prepared.versioned && !manualVersioning(this.storage, definition)) {
-            update.setProperty("new_version", 1);
-        }
-
-        await this.runners.item(definition, "onBeforeUpdate", update, enabled, context);
-        validateRequest(update.node, "update");
-
-        if (
-            update.getType() !== definition.name ||
-            update.getAction() !== "update" ||
-            update.getID() !== record.id
-        ) {
-            throw new PlatformError(
-                "UnsupportedContextChange",
-                "An update event cannot change the target generation, ItemType or action.",
-            );
-        }
-
-        this.removeManagedProperties(update, record, prepared.versioned);
         this.revisions.assertValue(definition, update.node.properties.major_rev);
         const locked = this.storage.getItem(definition.name, record.id);
 
@@ -348,7 +509,6 @@ export class Versioning {
             ],
         });
         this.security.changed(locked, after, context);
-        await this.runners.item(definition, "onAfterUpdate", response, enabled, context);
 
         return response;
     }
@@ -373,7 +533,7 @@ export class Versioning {
             record,
             values,
             context,
-            prepared.before,
+            prepared.record,
         );
         const authorized = this.lifeCycles.authorizeUpdate(
             definition,
@@ -404,25 +564,6 @@ export class Versioning {
         return { after, classification };
     }
 
-    private classificationBaseline(
-        definition: ItemTypeDefinition,
-        record: StoredItem,
-        action: string,
-    ): StoredItem {
-        if (action !== "version" || !isReleased(record)) {
-            return record;
-        }
-
-        // Explicit version resets the released generation before its update phase.
-        return {
-            ...record,
-            properties: {
-                ...record.properties,
-                ...this.lifeCycles.revisionProperties(definition, record),
-            },
-        };
-    }
-
     private removeManagedProperties(request: Item, record: StoredItem, versioned = false): void {
         for (const name of managedProperties) {
             const value = getOwn(request.node.properties, name);
@@ -444,29 +585,11 @@ export class Versioning {
         }
     }
 
-    private async create(
+    private create(
         definition: ItemTypeDefinition,
         previous: StoredItem,
-        enabled: boolean,
         context: ExecutionContext,
-        copies: Map<string, string>,
-        update: Item,
-    ): Promise<StoredItem> {
-        const before = update.clone();
-        before.setAction("version");
-        before.setProperty("id", previous.id);
-
-        await this.runners.item(definition, "onBeforeVersion", before, enabled, context);
-
-        if (before.getID() !== previous.id || before.getType() !== definition.name) {
-            throw new PlatformError(
-                "UnsupportedContextChange",
-                "A version event cannot change the source generation or ItemType.",
-            );
-        }
-
-        this.removeManagedProperties(before, previous);
-        update.payload.items = structuredClone(before.payload.items);
+    ): StoredItem {
         const id = this.nextId();
         const after: StoredItem = {
             id,
@@ -476,14 +599,13 @@ export class Versioning {
         this.revisions.assertValue(definition, after.properties.major_rev);
         assertActiveContext(context);
         this.storage.updateItem(definition.name, previous.id, {
-            is_current: 0,
             locked_by_id: null,
         });
         assertActiveContext(context);
         this.storage.insertItem(after);
         this.trace.record(context, { kind: "mutation", name: "version", before: previous, after });
 
-        return await this.finishVersion(definition, previous, after, enabled, context, copies);
+        return after;
     }
 
     private generationProperties(
@@ -514,38 +636,37 @@ export class Versioning {
         };
     }
 
-    private async finishVersion(
+    private async finishVersions(
         definition: ItemTypeDefinition,
-        previous: StoredItem,
-        after: StoredItem,
-        enabled: boolean,
+        sources: readonly StoredItem[],
+        targets: readonly PreparedUpdate[],
         context: ExecutionContext,
-        copies: Map<string, string>,
-    ): Promise<StoredItem> {
-        await this.copier.copy(previous, after, copies, enabled, context);
-        this.references.versioned(previous, after, context);
-        const current = this.storage.getItem(definition.name, after.id);
+    ): Promise<void> {
+        for (const [index, target] of targets.entries()) {
+            const previous = sources[index];
 
-        if (!current) {
-            throw new PlatformError(
-                "MissingItem",
-                "Reference maintenance lost the new generation.",
-            );
+            if (!previous) {
+                throw new PlatformError("InvalidGeneration", "A version source is missing.");
+            }
+
+            await this.copier.copy(previous, target.record, target.copies, target.enabled, context);
+            this.references.versioned(previous, target.record, context);
+            this.security.changed(previous, this.currentRecord(target.record), context);
         }
 
-        const result = new Item({ items: [projectItem(this.storage, definition, current)] });
-        this.security.changed(previous, current, context);
-        await this.runners.item(definition, "onAfterVersion", result, enabled, context);
-        const latest = this.storage.getItem(definition.name, after.id);
-
-        if (!latest) {
-            throw new PlatformError(
-                "MissingItem",
-                "The after-version event removed the new generation.",
-            );
+        for (const target of targets) {
+            const item = new Item({
+                items: [projectItem(this.storage, definition, this.currentRecord(target.record))],
+            });
+            await this.runners.item(definition, "onAfterVersion", item, true, context);
         }
 
-        return latest;
+        const result = new Item({
+            items: targets.map((target) =>
+                projectItem(this.storage, definition, this.currentRecord(target.record)),
+            ),
+        });
+        await this.runners.collection(definition, "onAfterVersion", result, true, context);
     }
 
     private nextGeneration(record: StoredItem): number {
