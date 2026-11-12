@@ -12,6 +12,7 @@ import type { IdentityGrants } from "./grants.js";
 import type { Identities } from "./identities.js";
 import { SourceAccess } from "./source-access.js";
 import { systemIdentity } from "./system-identities.js";
+import { TeamRoles } from "./teams.js";
 import { effective } from "./time.js";
 
 export enum AccessRight {
@@ -24,6 +25,7 @@ export enum AccessRight {
 interface Actor {
     readonly user: StoredItem;
     readonly identities: ReadonlySet<string>;
+    readonly teams: TeamRoles;
 }
 
 export class ItemPermissions {
@@ -108,9 +110,12 @@ export class ItemPermissions {
     }
 
     private actor(context: ExecutionContext): Actor {
+        const identities = new Set(this.grants.current(context).map((id) => id.toLowerCase()));
+
         return {
             user: this.identities.user(),
-            identities: new Set(this.grants.current(context).map((id) => id.toLowerCase())),
+            identities,
+            teams: new TeamRoles(this.storage, identities, context),
         };
     }
 
@@ -180,19 +185,7 @@ export class ItemPermissions {
             return actor.identities.has(String(record.properties.managed_by_id).toLowerCase());
         }
 
-        if (
-            ["Team", "Team Guest", "Team Manager", "Team Member"].some((name) =>
-                systemIdentity(id, name),
-            ) &&
-            Boolean(record.properties.team_id)
-        ) {
-            throw new PlatformError(
-                "UnsupportedTeamPermissions",
-                "Team-role permissions require team identity resolution.",
-            );
-        }
-
-        return false;
+        return actor.teams.matches(id, record);
     }
 
     assertIdentity(id: string, record: StoredItem, context: ExecutionContext): void {

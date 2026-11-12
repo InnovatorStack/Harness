@@ -1,6 +1,5 @@
 import { PlatformError } from "../platform/errors.js";
 import { sourceAccessEnabled } from "../platform/security/source-access.js";
-import { systemIdentity } from "../platform/security/system-identities.js";
 import { AuthorizationMode } from "../platform/security/types.js";
 import type { AuthorizationPolicy } from "../platform/security/types.js";
 import type { CatalogEntry } from "../storage/types.js";
@@ -36,25 +35,6 @@ export function inspectSecurity(
 
         if (sourceAccess) {
             issues.push(sourceAccess);
-        }
-
-        const teamAccess =
-            entry.type === "Access" &&
-            ["Team", "Team Guest", "Team Manager", "Team Member"].some((name) =>
-                systemIdentity(String(entry.properties.related_id), name),
-            );
-
-        if (teamAccess) {
-            issues.push(
-                Object.freeze({
-                    code: CompatibilityIssueCode.UnsupportedCapability,
-                    severity: IssueSeverity.Warning,
-                    capability: CapabilityId.NativePermissions,
-                    causeCode: "UnsupportedTeamPermissions",
-                    message: "This Access row requires team-role identity resolution.",
-                    source: entry.source,
-                }),
-            );
         }
     }
 
