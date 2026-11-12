@@ -15,6 +15,7 @@ const assembliesMax = 2048;
 
 interface PendingInvocation {
     failure?: { readonly error: unknown };
+    received: boolean;
     started: boolean;
     readonly security: ManagedSecurity;
     callbackCount: number;
@@ -80,6 +81,7 @@ export class CSharpExecutor implements MethodExecutor {
                 resolve,
                 reject,
                 timer,
+                received: false,
                 started: false,
                 callbackCount: 0,
                 security: new ManagedSecurity(),
@@ -95,13 +97,24 @@ export class CSharpExecutor implements MethodExecutor {
 
     private timeout(id: string, method: string): void {
         const invocation = this.pending.get(id);
+        let phase = "worker receipt";
+
+        if (invocation?.received) {
+            phase = "Method loading";
+        }
+
+        if (invocation?.started) {
+            phase = "source execution";
+        }
+
         this.stop(
             new PlatformError(
                 "MethodTimeout",
-                `Method '${method}' exceeded ${this.compiler.timeoutMs}ms.`,
+                `Method '${method}' exceeded ${this.compiler.timeoutMs}ms during ${phase}.`,
                 {
                     cause: new Error(
                         JSON.stringify({
+                            received: invocation?.received ?? false,
                             sourceStarted: invocation?.started ?? false,
                             callbacks: invocation?.callbackCount ?? 0,
                             pendingCallbacks: this.callbacks.size,
@@ -198,7 +211,19 @@ export class CSharpExecutor implements MethodExecutor {
     }
 
     private receive(message: Record<string, unknown>, worker: ManagedProcess): void {
-        if (message.kind === "started") {
+        if (message.kind === "received") {
+            const pending =
+                typeof message.id === "string" ? this.pending.get(message.id) : undefined;
+
+            if (!pending || pending.received) {
+                throw new PlatformError(
+                    "InvalidProtocol",
+                    "Unknown or duplicate C# invocation receipt.",
+                );
+            }
+
+            pending.received = true;
+        } else if (message.kind === "started") {
             const pending =
                 typeof message.id === "string" ? this.pending.get(message.id) : undefined;
 
