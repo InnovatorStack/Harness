@@ -10,6 +10,7 @@ import type {
 import { ApplicationError, PlatformError } from "../errors.js";
 import type { IdentityGrants } from "./grants.js";
 import type { Identities } from "./identities.js";
+import { SourceAccess } from "./source-access.js";
 import { systemIdentity } from "./system-identities.js";
 import { effective } from "./time.js";
 
@@ -26,12 +27,16 @@ interface Actor {
 }
 
 export class ItemPermissions {
+    private readonly sources: SourceAccess;
+
     constructor(
         private readonly storage: HarnessStorage,
         private readonly identities: Identities,
         private readonly grants: IdentityGrants,
         private readonly now: () => Date,
-    ) {}
+    ) {
+        this.sources = new SourceAccess(storage);
+    }
 
     readable(
         definition: ItemTypeDefinition,
@@ -39,7 +44,7 @@ export class ItemPermissions {
         context: ExecutionContext,
     ): readonly StoredItem[] {
         const actor = this.actor(context);
-        this.assertSourcePolicy(definition);
+        this.sources.inherited(definition);
 
         return records.filter((record) =>
             this.allowed(definition, record, AccessRight.Get, actor, context),
@@ -117,14 +122,21 @@ export class ItemPermissions {
         context: ExecutionContext,
     ): boolean {
         spendContext(context);
-        this.assertSourcePolicy(definition);
 
-        const id = record.properties.permission_id ?? this.defaultPermission(definition, context);
+        const source =
+            right === AccessRight.Get
+                ? this.sources.resolve(definition, record, context)
+                : { definition, record };
+        this.assertSourcePolicy(source.definition);
+
+        const id =
+            source.record.properties.permission_id ??
+            this.defaultPermission(source.definition, context);
 
         if (typeof id !== "string" || !this.storage.getItem("Permission", id)) {
             throw new PlatformError(
                 "MissingPermission",
-                `Import Permission metadata for '${record.type}:${record.id}'.`,
+                `Import Permission metadata for '${source.record.type}:${source.record.id}'.`,
             );
         }
 
@@ -135,7 +147,7 @@ export class ItemPermissions {
                 String(access.properties[right] ?? "0") !== "1" ||
                 String(access.properties.source_id).toLowerCase() !== id.toLowerCase() ||
                 !effective(access, this.now()) ||
-                !this.matches(String(access.properties.related_id), record, actor)
+                !this.matches(String(access.properties.related_id), source.record, actor)
             ) {
                 continue;
             }
@@ -234,12 +246,10 @@ export class ItemPermissions {
     }
 
     private assertSourcePolicy(definition: ItemTypeDefinition): void {
-        const metadata = this.storage.getCatalogEntry("ItemType", definition.id);
-
-        if (String(metadata?.properties.use_src_access ?? "0") === "1") {
+        if (this.sources.inherited(definition)) {
             throw new PlatformError(
                 "UnsupportedSourceAccess",
-                "Source-inherited relationship access requires its own permission policy.",
+                "Source-inherited relationship mutations require their own permission policy. Reads use the source Item's permissions.",
             );
         }
     }
