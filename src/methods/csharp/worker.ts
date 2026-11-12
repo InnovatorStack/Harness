@@ -154,7 +154,8 @@ export class ManagedWorker {
     }
 
     private readWhenActive(): Promise<boolean> {
-        if (this.stopped || this.resetPending || this.invocations.size > 0) {
+        // Keep an owned pipe armed between calls. Reset acknowledgement ends the active world.
+        if (this.stopped || this.receiver || this.resetPending || this.invocations.size > 0) {
             return Promise.resolve(!this.stopped);
         }
 

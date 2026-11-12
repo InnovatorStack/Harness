@@ -100,13 +100,15 @@ export class CSharpExecutor implements MethodExecutor {
                 "MethodTimeout",
                 `Method '${method}' exceeded ${this.compiler.timeoutMs}ms.`,
                 {
-                    cause: {
-                        sourceStarted: invocation?.started ?? false,
-                        callbacks: invocation?.callbackCount ?? 0,
-                        pendingCallbacks: this.callbacks.size,
-                        queuedBytes: this.queuedBytes,
-                        workerExitCode: this.worker?.exitCode ?? null,
-                    },
+                    cause: new Error(
+                        JSON.stringify({
+                            sourceStarted: invocation?.started ?? false,
+                            callbacks: invocation?.callbackCount ?? 0,
+                            pendingCallbacks: this.callbacks.size,
+                            queuedBytes: this.queuedBytes,
+                            workerExitCode: this.worker?.exitCode ?? null,
+                        }),
+                    ),
                 },
             ),
         );
