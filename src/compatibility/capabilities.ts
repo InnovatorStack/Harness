@@ -298,9 +298,10 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Opt-in Native mode requires a User session and imported ACL, membership and creation metadata. Missing Permissions fail explicitly.",
             "Reads filter before paging; action, Method and transition checks use effective membership and scoped grants. Owner, Manager and Creator resolve per record.",
-            "Team roles resolve from each Item's team_id and imported Team Identity memberships, including custom roles. Relationship reads follow source-inherited ACL chains.",
+            "Team roles resolve from each Item's team_id and imported Team Identity memberships, including custom roles. Ordinary inherited ACLs copy Permission, Owner, Manager and Team while retaining the relationship's Creator.",
             "Can Add grants follow declared class paths and their descendants, including the root and classification defaults. Class names are case-sensitive; invalid trees fail explicitly.",
-            "Source-inherited mutations remain unavailable; discovery, ABAC and MAC policies are not implemented.",
+            "Inherited creation checks source Update access; direct edits and deletes use copied Update rights. ACL propagation, lifecycle changes, clones and owned deletion share their caller's transaction.",
+            "Moving inherited relationships and for_all source resolution remain unavailable; discovery, ABAC and MAC policies are not implemented.",
             "Release-specific native permission parity remains unverified. Callbacks and unchecked execution do not establish native ACL behavior.",
         ],
         tests: [
@@ -460,6 +461,7 @@ const errorCapabilities: Readonly<Record<string, CapabilityId>> = Object.freeze(
     MissingIdentity: CapabilityId.NativePermissions,
     AmbiguousIdentity: CapabilityId.NativePermissions,
     UnsupportedSourceAccess: CapabilityId.NativePermissions,
+    UnsupportedSourceAccessMove: CapabilityId.NativePermissions,
     InvalidSourceAccess: CapabilityId.NativePermissions,
     SourceAccessCycle: CapabilityId.NativePermissions,
     MissingSourceItem: CapabilityId.NativePermissions,

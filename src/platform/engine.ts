@@ -34,6 +34,7 @@ import { ItemQueries } from "./queries/engine.js";
 import { matches, projectedProperties, selectedProperties } from "./query.js";
 import { DependentDeletion } from "./references/deletion.js";
 import { ReferenceMaintenance } from "./references/maintenance.js";
+import { relationshipType } from "./relationship-type.js";
 import { validateRequest } from "./request.js";
 import { Revisions } from "./revisions/policy.js";
 import { NativeSecurity } from "./security/policy.js";
@@ -83,6 +84,10 @@ export const seedRecordsOperation = defineOperation<readonly SeedRecord[], void>
 );
 export const applyAMLOperation = defineOperation<string, Item>("platform.aml");
 const applySqlOperation = defineOperation<SqlCall, Item>("platform.sql");
+const deleteOwnedItemOperation = defineOperation<
+    { readonly parent: StoredItem; readonly child: StoredItem; readonly enabled: boolean },
+    Item
+>("platform.delete-owned");
 
 export type { AuthorizationRequest } from "./security/types.js";
 
@@ -137,6 +142,8 @@ export class Platform {
             this.references.catalog,
             this.references.sessions,
             (item, context) => context.execute(applyItemOperation, item),
+            (parent, child, enabled, context) =>
+                context.execute(deleteOwnedItemOperation, { parent, child, enabled }),
         );
         this.graph = new GraphActions(storage, (item, context) =>
             context.execute(applyItemOperation, item),
@@ -162,6 +169,7 @@ export class Platform {
             events,
             (name, item, context) => context.execute(callMethodOperation, { name, context: item }),
             this.references,
+            this.security,
         );
         this.revisions = new Revisions(storage);
         this.versioning = new Versioning(
@@ -207,6 +215,7 @@ export class Platform {
 
             reset: () => {
                 this.generation += 1;
+                this.security.reset();
                 this.trace.reset();
 
                 for (const executor of this.ownedExecutors) {
@@ -973,6 +982,10 @@ export class Platform {
     }
 
     private setupPlatform(registrar: ModuleRegistrar): void {
+        registrar.handleAsync(deleteOwnedItemOperation, (input, context) =>
+            this.deleteOwned(input.parent, input.child, input.enabled, context),
+        );
+
         for (const executor of this.executors.values()) {
             if (claimedExecutors.has(executor)) {
                 throw new PlatformError(
@@ -1017,6 +1030,39 @@ export class Platform {
         });
         registrar.handleAsync(applyAMLOperation, (xml, context) =>
             this.references.sessions.run(context, () => this.applyAML(xml, context)),
+        );
+    }
+
+    private async deleteOwned(
+        parent: StoredItem,
+        child: StoredItem,
+        enabled: boolean,
+        context: ExecutionContext,
+    ): Promise<Item> {
+        const owner = this.storage.getItem(parent.type, parent.id);
+        const record = this.storage.getItem(child.type, child.id);
+
+        if (
+            !owner ||
+            !record ||
+            String(record.properties.source_id).toLowerCase() !== owner.id.toLowerCase()
+        ) {
+            throw new PlatformError(
+                "RelationshipSource",
+                "An owned deletion requires its persisted parent.",
+            );
+        }
+
+        relationshipType(this.storage, this.catalog.itemType(parent.type), child.type);
+        const request = Item.create(child.type, "delete");
+        request.setAttribute("id", child.id);
+
+        if (!enabled) {
+            request.setAttribute("serverEvents", "0");
+        }
+
+        return await this.security.deletingOwned(record, context, () =>
+            context.execute(applyBaseItemOperation, { item: request, event: "onDelete" }),
         );
     }
 
@@ -1349,6 +1395,7 @@ export class Platform {
             record.id,
             context,
         );
+        this.security.changed(record, stored, context);
         await this.events(definition, `onAfter${verb}`, response, enabled, context);
 
         return response;

@@ -1,4 +1,5 @@
 import { setOwn } from "../core/data.js";
+import { Item } from "../items/item.js";
 import type { ItemNode } from "../items/item.js";
 import { PlatformError } from "./errors.js";
 
@@ -18,6 +19,21 @@ const attributes = new Set([
     "isNew",
     "isTemp",
 ]);
+
+/** Action instrumentation must also recognize trusted delegation to a native base action. */
+export function appliedItem(operation: string, input: unknown): Item | undefined {
+    if (operation === "platform.apply" && input instanceof Item) {
+        return input;
+    }
+
+    if (operation !== "platform.event-base" || input === null || typeof input !== "object") {
+        return undefined;
+    }
+
+    const item: unknown = Object.getOwnPropertyDescriptor(input, "item")?.value;
+
+    return item instanceof Item ? item : undefined;
+}
 
 /** Validate again after before events, which may change the request. */
 export function validateRequest(request: ItemNode, action: string): void {

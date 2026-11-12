@@ -85,7 +85,16 @@ export const watchedTypes: readonly WatchedType[] = [
     {
         type: "RefSecurityLink",
         keys: ["source_id", "label"],
-        properties: ["source_id", "related_id", "team_id", "label", ...identityProperties],
+        properties: [
+            "source_id",
+            "related_id",
+            "team_id",
+            "owned_by_id",
+            "managed_by_id",
+            "created_by_id",
+            "label",
+            ...identityProperties,
+        ],
     },
     { type: "RefNoAdd", keys: ["item_number"], properties: ["item_number", ...identityProperties] },
     {
@@ -130,6 +139,8 @@ export const idProperties = new Set([
     "owned_by_id",
     "team_id",
     "team_role",
+    "managed_by_id",
+    "created_by_id",
 ]);
 
 export const fixtureBindings = {
@@ -137,6 +148,8 @@ export const fixtureBindings = {
     "security-owner": { type: "RefSecurityRecord", item_number: "OWNER" },
     "access-change": { type: "RefSecurityRecord", item_number: "NO-ACCESS-CHANGE" },
     "team-manager": { type: "RefSecurityRecord", item_number: "TEAM-02" },
+    "delete-parent": { type: "RefSecurityRecord", item_number: "DELETE-PARENT" },
+    "delete-child": { type: "RefSecurityLink", label: "Owned deletion" },
     "team-promote": { type: "RefSecurityRecord", item_number: "PROMOTE-YES" },
     "team-reject": { type: "RefSecurityRecord", item_number: "PROMOTE-NO" },
     "state-record": { type: "RefStateRecord", item_number: "STATE-001" },

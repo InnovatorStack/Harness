@@ -5,6 +5,7 @@ import { validateParameters } from "../mocks/parameters.js";
 import { properties } from "../mocks/registry.js";
 import type { MockValue } from "../mocks/types.js";
 import { PlatformCatalog } from "../platform/catalog.js";
+import { appliedItem } from "../platform/request.js";
 import type { SourceDefinition } from "../platform/trace.js";
 import type { CatalogEntry, HarnessStorage } from "../storage/types.js";
 
@@ -28,32 +29,10 @@ export function injectionTarget(
     operation: string,
     input: unknown,
 ): InjectionTarget | undefined {
-    if (operation === "platform.apply" && input instanceof Item && input.getItemCount() === 1) {
-        const type = input.getType();
-        const action = input.getAction() || "get";
+    const item = appliedItem(operation, input);
 
-        if (type.toLowerCase() === "sql" && /^sql\s+process$/iu.test(action)) {
-            const name = input.getProperty("name");
-            const entry = storage
-                .listCatalogEntries("SQL")
-                .find((entry) => entry.properties.name === name);
-
-            return {
-                kind: "sql",
-                name,
-                aliases: [name],
-                values: properties(input),
-                ...sourceDetails(entry, "SQL", "sqlserver_body"),
-            };
-        }
-
-        return {
-            kind: "action",
-            name: `${type}.${action}`,
-            aliases: [type],
-            action,
-            values: properties(input),
-        };
+    if (item && item.getItemCount() === 1) {
+        return actionTarget(storage, item);
     }
 
     if (
@@ -91,6 +70,34 @@ export function injectionTarget(
     }
 
     return undefined;
+}
+
+function actionTarget(storage: HarnessStorage, item: Item): InjectionTarget {
+    const type = item.getType();
+    const action = item.getAction() || "get";
+
+    if (type.toLowerCase() === "sql" && /^sql\s+process$/iu.test(action)) {
+        const name = item.getProperty("name");
+        const entry = storage
+            .listCatalogEntries("SQL")
+            .find((entry) => entry.properties.name === name);
+
+        return {
+            kind: "sql",
+            name,
+            aliases: [name],
+            values: properties(item),
+            ...sourceDetails(entry, "SQL", "sqlserver_body"),
+        };
+    }
+
+    return {
+        kind: "action",
+        name: `${type}.${action}`,
+        aliases: [type],
+        action,
+        values: properties(item),
+    };
 }
 
 function sourceDetails(entry: CatalogEntry | undefined, type: "Method" | "SQL", body: string) {

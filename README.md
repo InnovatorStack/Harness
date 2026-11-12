@@ -319,12 +319,16 @@ remain separate work.
 
 `AuthorizationMode.Unchecked` (and the existing `"unchecked"` value) selects behavior-only execution.
 Policy callbacks remain supported. Without either choice, restricted operations require a policy.
-Missing native ACL metadata fails explicitly. Relationship reads with `use_src_access="1"` follow
-their stored `source_id` chain and evaluate the source Item's ACL and virtual roles before paging.
-Related Items keep their own permissions. Cycles, missing sources and excessive depth fail explicitly.
-Source ACL changes take effect immediately; historical relationships use their historical owner's ACL.
-Direct source-inherited mutations, discovery and ABAC/MAC remain unavailable. Release-specific native
-permission parity remains unverified.
+Missing native ACL metadata fails explicitly. Inherited relationships copy their source's Permission,
+owner, manager and Team; Creator stays with the relationship. Adding one needs source Update access.
+Direct edits and deletions use the copied Update right. Permission and ownership changes propagate
+through inherited relationships in the same transaction, including lifecycle changes and new
+generations. Historical generations retain their own ACLs. Propagation runs without business hooks.
+An authorized parent deletion removes its owned rows without granting those rights to Methods.
+Fixtures retain their supplied stored ACL values; reads do not rewrite them. Related Items keep
+their own permissions. Cycles, missing sources and excessive depth fail explicitly. Moving inherited
+relationships, `for_all` source resolution, discovery and ABAC/MAC remain unavailable. Release-specific
+native permission parity remains unverified.
 
 Managed Methods support `Item.isNew()`, `Item.apply(action)`, `Innovator.getNewID()` and scoped
 `CCO.Permissions.GrantIdentity`. New add Items receive an ID from the world's controlled stream before

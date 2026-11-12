@@ -45,7 +45,8 @@ export async function runCase(
     const bindings = new Map<string, string>();
 
     for (const [name, selector] of Object.entries(fixtureBindings)) {
-        bindings.set(name, h.state.getOne(selector.type, { item_number: selector.item_number }).id);
+        const { type, ...properties } = selector;
+        bindings.set(name, h.state.getOne(type, properties).id);
     }
 
     const steps: StepObservation[] = [];

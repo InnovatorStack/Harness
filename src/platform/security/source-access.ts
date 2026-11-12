@@ -8,14 +8,14 @@ import type {
     StoredItem,
 } from "../../storage/types.js";
 import { PlatformError } from "../errors.js";
-import { recordKey, ReferenceCatalog } from "../references/catalog.js";
+import { recordKey } from "../references/catalog.js";
 
 interface PermissionSource {
     readonly definition: ItemTypeDefinition;
     readonly record: StoredItem;
 }
 
-/** Static preflight and runtime reads enforce the same metadata contract. */
+/** Static preflight and runtime actions enforce the same metadata contract. */
 export function sourceAccessEnabled(
     definition: Pick<ItemTypeDefinition, "name" | "isRelationship" | "source">,
     value: StorageValue | undefined,
@@ -39,13 +39,14 @@ export function sourceAccessEnabled(
     return String(value ?? "0") === "1";
 }
 
-/** Resolve read authority through stored source IDs without invoking business get hooks. */
+/** Resolve stored source generations without invoking business get hooks. */
 export class SourceAccess {
-    private readonly references: ReferenceCatalog;
+    private readonly types = new WeakMap<
+        ExecutionContext,
+        ReadonlyMap<string, ItemTypeDefinition>
+    >();
 
-    constructor(private readonly storage: HarnessStorage) {
-        this.references = new ReferenceCatalog(storage);
-    }
+    constructor(private readonly storage: HarnessStorage) {}
 
     inherited(definition: ItemTypeDefinition): boolean {
         const value = this.storage.getCatalogEntry("ItemType", definition.id)?.properties
@@ -87,25 +88,48 @@ export class SourceAccess {
             }
 
             visited.add(key);
-            current = this.parent(current, context);
+            current = this.owner(current.definition, current.record.properties, context);
         }
 
         return current;
     }
 
-    private parent(current: PermissionSource, context: ExecutionContext): PermissionSource {
-        const source = current.definition.properties.find(
-            (property) => property.name === "source_id",
-        );
-        spendContext(context, this.storage.listItemTypes().length);
-        const definition = source ? this.references.target(source) : undefined;
-        const id = current.record.properties.source_id;
+    owner(
+        relationship: ItemTypeDefinition,
+        values: Readonly<Record<string, StorageValue>>,
+        context: ExecutionContext,
+    ): PermissionSource {
+        const source = relationship.properties.find((property) => property.name === "source_id");
+
+        if (!source?.dataSource) {
+            throw new PlatformError(
+                "UnsupportedSourceAccess",
+                `Source access on '${relationship.name}' requires a concrete source ItemType. for_all relationships need source-type resolution.`,
+                relationship.source ? { source: relationship.source } : undefined,
+            );
+        }
+
+        let types = this.types.get(context);
+
+        if (!types) {
+            const definitions = this.storage.listItemTypes();
+            spendContext(context, definitions.length);
+            types = new Map(
+                definitions.map((definition) => [definition.id.toLowerCase(), definition]),
+            );
+            this.types.set(context, types);
+        }
+
+        spendContext(context);
+        const definition =
+            source.dataType === "item" ? types.get(source.dataSource.toLowerCase()) : undefined;
+        const id = values.source_id;
 
         if (!definition || typeof id !== "string" || !id) {
             throw new PlatformError(
                 "InvalidSourceAccess",
-                `Relationship '${current.definition.name}' requires a typed source_id to resolve its permissions.`,
-                current.definition.source ? { source: current.definition.source } : undefined,
+                `Relationship '${relationship.name}' requires a typed source_id to resolve its permissions.`,
+                relationship.source ? { source: relationship.source } : undefined,
             );
         }
 
@@ -114,8 +138,8 @@ export class SourceAccess {
         if (!record) {
             throw new PlatformError(
                 "MissingSourceItem",
-                `Permission source '${definition.name}:${id}' for '${current.record.type}:${current.record.id}' is missing.`,
-                current.definition.source ? { source: current.definition.source } : undefined,
+                `Permission source '${definition.name}:${id}' for '${relationship.name}' is missing.`,
+                relationship.source ? { source: relationship.source } : undefined,
             );
         }
 
