@@ -302,10 +302,16 @@ export default {
 ```
 
 Import the User, Alias, Member, Permission/Access, Allowed Permission and Can Add records needed by
-the solution. Reads filter inaccessible records before paging; writes, Method execution and lifecycle
+the solution. Reads filter inaccessible records before paging; writes, ordinary Method execution and lifecycle
 roles check the imported rules. Owner, Manager and Creator resolve against each record. Temporary
 identity grants pass through the same TypeScript authority and expire when the Method finishes,
 including exceptions and worker timeouts. Effective membership dates use the controlled world clock.
+
+Imported server-event bindings use native `NoCheck` for Method execution identities, including nested
+Method calls in that chain. This grants no Identity and preserves Item permissions and transition roles.
+Calls outside the chain still check `execution_allowed_to`. Lifecycle pre/post Methods enter through
+the ordinary Method path; they inherit `NoCheck` when promotion descends from a bound hook. Scope
+does not pass to concurrent siblings or other worlds. Custom policy callbacks still observe every call.
 
 Team roles resolve from each Item's `team_id` and its Team Identity records, including group membership.
 The standard Team role includes every member; custom role Identities use classification `Team`.
