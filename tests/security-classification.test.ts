@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { realpath } from "node:fs/promises";
 import { join } from "node:path";
 
 import { dataDepthMax } from "../src/core/limits.js";
@@ -185,10 +186,11 @@ test.each([
 ])("invalid class metadata fails with source diagnostics before creation: %s", async (xml) => {
     await using project = await securityProject(model(grant(""), xml));
     using h = await createHarness({ cwd: project.cwd, authorization: AuthorizationMode.Native });
+    const file = await realpath(join(project.cwd, ".harness/packages/source.xml"));
     await expect(h.add("ClassifiedDocument", {})).rejects.toMatchObject({
         code: "InvalidClassStructure",
         capability: CapabilityId.NativePermissions,
-        source: { file: join(project.cwd, ".harness/packages/source.xml") },
+        source: { file },
     });
 
     expect(h.state.get("ClassifiedDocument")).toEqual([]);
