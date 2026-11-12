@@ -49,7 +49,11 @@ export class CSharpExecutor implements MethodExecutor {
         const generation = this.generation;
         const host = await this.compiler.host();
         await this.start(host);
-        const compiled = await this.compiler.method(method, host, ports.serverEvent?.name);
+        const compiled = await this.compiler.method(
+            method,
+            host,
+            ports.eventData?.kind ?? ports.serverEvent?.name,
+        );
 
         if (generation !== this.generation) {
             throw new PlatformError("ExecutorReset", "C# executor was reset during compilation.");
@@ -89,7 +93,7 @@ export class CSharpExecutor implements MethodExecutor {
             });
 
             try {
-                this.invoke(id, compiled, context);
+                this.invoke(id, compiled, context, ports);
             } catch (error) {
                 this.stop(error);
             }
@@ -186,7 +190,7 @@ export class CSharpExecutor implements MethodExecutor {
         });
     }
 
-    private invoke(id: string, compiled: CompiledMethod, context: Item): void {
+    private invoke(id: string, compiled: CompiledMethod, context: Item, ports: MethodPorts): void {
         if (!this.transport) {
             throw new PlatformError(
                 "WorkerUnavailable",
@@ -195,7 +199,13 @@ export class CSharpExecutor implements MethodExecutor {
         }
 
         this.transport.expectInvocation(id);
-        this.send({ kind: "invoke", id, ...compiled, context: context.payload });
+        this.send({
+            kind: "invoke",
+            id,
+            ...compiled,
+            context: context.payload,
+            ...(ports.eventData ? { eventData: ports.eventData } : {}),
+        });
     }
 
     private send(message: unknown): void {

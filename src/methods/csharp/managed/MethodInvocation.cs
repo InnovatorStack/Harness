@@ -47,7 +47,7 @@ internal static class MethodInvocation
 
         var type = assembly.GetType(message.TypeName, throwOnError: true)
             ?? throw new InvalidOperationException("Compiled Method type is missing.");
-        var remote = new Remote(protocol, message.Id);
+        var remote = new Remote(protocol, message.Id, message.EventData);
         using var scope = RemoteContext.Enter(remote);
         var instance = Activator.CreateInstance(type, message.Context, remote);
         var method = instance as IArasMethod

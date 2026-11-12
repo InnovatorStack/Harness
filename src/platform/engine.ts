@@ -1,12 +1,14 @@
 import { capabilityForLanguage } from "../compatibility/capabilities.js";
 import { assertActiveContext, spendContext } from "../core/context.js";
-import { setOwn } from "../core/data.js";
+import { cloneFrozenData, setOwn } from "../core/data.js";
 import { defineOperation } from "../core/operation.js";
 import type { ExecutionContext, HarnessModule, ModuleRegistrar } from "../core/types.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
 import { Item, itemNode } from "../items/item.js";
 import type { ItemNode } from "../items/item.js";
 import { parseItems } from "../items/xml.js";
+import { MethodEventDataKind } from "../methods/event-data.js";
+import type { MethodEventData } from "../methods/event-data.js";
 import type { MethodDefinition, MethodExecutor, MethodPorts } from "../methods/types.js";
 import { properties } from "../mocks/registry.js";
 import type { MockMatch, MockRegistry } from "../mocks/registry.js";
@@ -24,9 +26,11 @@ import { ItemAction } from "./actions.js";
 import { PlatformCatalog } from "./catalog.js";
 import { creationDefaults } from "./creation.js";
 import { ApplicationError, PlatformError, requireSuccess } from "./errors.js";
+import { AfterEvents } from "./events/after.js";
+import { afterAddFrames, afterUpdateFrames } from "./events/data.js";
 import { EventReplacements } from "./events/replacement.js";
 import { ServerEventVersion } from "./events/types.js";
-import type { EventRunners, RunEvents } from "./events/types.js";
+import type { EventBinding, EventRunners } from "./events/types.js";
 import { GraphActions } from "./graph-actions.js";
 import { LifeCycles } from "./lifecycle.js";
 import type { ClassificationChange } from "./lifecycle.js";
@@ -58,6 +62,7 @@ interface CallSource {
 interface MethodCall {
     readonly name: string;
     readonly context: Item;
+    readonly eventData?: MethodEventData;
 }
 
 interface SeedCall {
@@ -133,6 +138,7 @@ export class Platform {
     private readonly security: NativeSecurity;
     private readonly responses: ActionResponses;
     private readonly replacements = new EventReplacements();
+    private readonly afterEvents: AfterEvents;
 
     constructor(
         private readonly storage: HarnessStorage,
@@ -162,10 +168,9 @@ export class Platform {
         );
         this.nextId =
             options.nextId ?? (() => crypto.randomUUID().replaceAll("-", "").toUpperCase());
-        const events = this.events.bind(this);
-        const collection: RunEvents = (definition, name, item, enabled, context) =>
-            this.events(definition, name, item, enabled, context, ServerEventVersion.Collection);
-        const runners: EventRunners = { item: events, collection };
+        this.afterEvents = this.createAfterEvents();
+        const runners = this.eventRunners();
+        const events = runners.item;
         this.locks = new ItemLocks(
             storage,
             this.trace,
@@ -211,6 +216,44 @@ export class Platform {
             (parent, child, enabled, context) =>
                 context.execute(deleteOwnedItemOperation, { parent, child, enabled }),
         );
+    }
+
+    private createAfterEvents(): AfterEvents {
+        return new AfterEvents(
+            (definition, name, enabled, version) =>
+                this.eventBindings(definition, name, enabled, version),
+            (binding, name, item, context, data) =>
+                this.invokeEvent(binding, name, item, context, data),
+            dispatchItem,
+        );
+    }
+
+    private eventRunners(): EventRunners {
+        return {
+            item: (definition, name, item, enabled, context, data) =>
+                this.events(
+                    definition,
+                    name,
+                    item,
+                    enabled,
+                    context,
+                    ServerEventVersion.Item,
+                    data,
+                ),
+
+            collection: (definition, name, item, enabled, context) =>
+                this.events(
+                    definition,
+                    name,
+                    item,
+                    enabled,
+                    context,
+                    ServerEventVersion.Collection,
+                ),
+
+            after: (definition, name, items, enabled, context) =>
+                this.afterEvents.run(definition, name, items, enabled, context),
+        };
     }
 
     private registerExecutors(executors: readonly MethodExecutor[]): void {
@@ -493,7 +536,14 @@ export class Platform {
         );
         const executor = this.executorFor(definition);
 
-        return await this.executeMethod(executor, definition, input.context, source, context);
+        return await this.executeMethod(
+            executor,
+            definition,
+            input.context,
+            source,
+            context,
+            input.eventData,
+        );
     }
 
     private async executeMethod(
@@ -502,6 +552,7 @@ export class Platform {
         item: Item,
         source: CallSource,
         context: ExecutionContext,
+        data?: MethodEventData,
     ): Promise<Item> {
         let executed = false;
         let acceptingSignals = true;
@@ -519,6 +570,7 @@ export class Platform {
                 ...this.methodPorts(definition, item, context, executionStarted),
                 security: identityScope,
                 ...(eventScope ? { serverEvent: eventScope } : {}),
+                ...(data ? { eventData: cloneFrozenData(data) } : {}),
             });
             // An adapter that completes execution provides evidence even without an early-start
             // signal.
@@ -609,36 +661,63 @@ export class Platform {
         enabled: boolean,
         context: ExecutionContext,
         version = ServerEventVersion.Item,
+        data?: MethodEventData,
     ): Promise<void> {
-        for (const binding of this.eventBindings(definition, name, enabled, version)) {
+        const bindings = [...this.eventBindings(definition, name, enabled, version)];
+
+        if (data?.kind === MethodEventDataKind.BeforeUpdate) {
+            bindings.push(
+                ...this.eventBindings(definition, name, enabled, ServerEventVersion.Collection),
+            );
+            bindings.sort(
+                (left, right) =>
+                    Number(left.entry.properties.sort_order ?? 0) -
+                    Number(right.entry.properties.sort_order ?? 0),
+            );
+        }
+
+        for (const binding of bindings) {
+            if (binding.version === ServerEventVersion.Collection && data) {
+                await this.invokeEvent(binding, name, Item.create(""), context, data);
+
+                continue;
+            }
+
             if (version === ServerEventVersion.Item) {
                 await this.hydrateEventItem(name, item, context);
             }
 
-            this.trace.record(context, {
-                kind: "event",
-                name,
-                source: binding.entry.source,
-            });
-            const result = requireSuccess(
-                await context.execute(callMethodOperation, {
-                    name: binding.methodId,
-                    context: item,
-                }),
-            );
-            item.payload.items = structuredClone(result.payload.items);
+            await this.invokeEvent(binding, name, item, context, data);
+        }
+    }
 
-            if (result.payload.messages === undefined) {
-                delete item.payload.messages;
-            } else {
-                item.payload.messages = structuredClone(result.payload.messages);
-            }
+    private async invokeEvent(
+        binding: EventBinding,
+        name: string,
+        item: Item,
+        context: ExecutionContext,
+        data?: MethodEventData,
+    ): Promise<void> {
+        this.trace.record(context, { kind: "event", name, source: binding.entry.source });
+        const result = requireSuccess(
+            await context.execute(callMethodOperation, {
+                name: binding.methodId,
+                context: item,
+                ...(data ? { eventData: data } : {}),
+            }),
+        );
+        item.payload.items = structuredClone(result.payload.items);
 
-            if (result.payload.result === undefined) {
-                delete item.payload.result;
-            } else {
-                item.payload.result = result.payload.result;
-            }
+        if (result.payload.messages === undefined) {
+            delete item.payload.messages;
+        } else {
+            item.payload.messages = structuredClone(result.payload.messages);
+        }
+
+        if (result.payload.result === undefined) {
+            delete item.payload.result;
+        } else {
+            item.payload.result = result.payload.result;
         }
     }
 
@@ -1044,29 +1123,13 @@ export class Platform {
         });
         const children = await this.graph.relationships(definition, request, id, context);
 
-        const response = new Item({
-            items: [
-                {
-                    ...itemNode(definition.name),
-                    attributes: { id },
-                    properties: projectedProperties(
-                        this.storage,
-                        definition,
-                        record,
-                        selectedProperties(request),
-                    ),
-                    relationships: children,
-                },
-            ],
-        });
-        await this.events(definition, "onAfterAdd", response, enabled, context);
-        await this.events(
+        const response = this.recordResponse(definition, record, request, children);
+        await this.afterEvents.run(
             definition,
             "onAfterAdd",
-            response,
+            afterAddFrames(definition.id, id),
             enabled,
             context,
-            ServerEventVersion.Collection,
         );
 
         return await this.responses.complete(responseRequest, response, context);
@@ -1348,23 +1411,12 @@ export class Platform {
     ): Promise<Item> {
         const request = item.node;
         const action = item.getAction();
-        let records = await this.query(definition, request, context);
-
-        if (!records.length) {
-            throw new ApplicationError(
-                Item.error(
-                    `No '${definition.name}' records match this ${action} request.`,
-                    "NoItems",
-                ),
-            );
-        }
-
+        const records = await this.mutationTargets(definition, item, context);
         const result: ItemNode[] = [];
+        const updated: string[] = [];
         let replaced = false;
 
-        if (action === "delete") {
-            records = this.deletionTargets(definition, records, context);
-        }
+        const ids = records.map((record) => record.id);
 
         for (const record of records) {
             if (action === "delete" && !this.storage.getItem(record.type, record.id)) {
@@ -1372,7 +1424,7 @@ export class Platform {
             }
 
             const mutate = () =>
-                this.mutateTarget(definition, record, item, verb, enabled, context, baseEvent);
+                this.mutateTarget(definition, record, item, verb, enabled, context, baseEvent, ids);
             const response =
                 action === "delete"
                     ? await this.references.sessions.deleting(record, context, mutate)
@@ -1391,22 +1443,45 @@ export class Platform {
 
             result.push(...response.response.payload.items);
             replaced ||= response.replaced;
+
+            if (!response.replaced) {
+                updated.push(record.id);
+            }
         }
 
         const response = new Item({ items: result });
 
         if (verb === "Update") {
-            await this.events(
+            await this.afterEvents.run(
                 definition,
                 "onAfterUpdate",
-                response,
+                afterUpdateFrames(definition.id, Object.fromEntries(updated.map((id) => [id, id]))),
                 enabled,
                 context,
-                ServerEventVersion.Collection,
             );
         }
 
         return replaced ? response : await this.responses.complete(request, response, context);
+    }
+
+    private async mutationTargets(
+        definition: ItemTypeDefinition,
+        item: Item,
+        context: ExecutionContext,
+    ): Promise<readonly StoredItem[]> {
+        const records = await this.query(definition, item.node, context);
+        const action = item.getAction();
+
+        if (records.length === 0) {
+            throw new ApplicationError(
+                Item.error(
+                    `No '${definition.name}' records match this ${action} request.`,
+                    "NoItems",
+                ),
+            );
+        }
+
+        return action === "delete" ? this.deletionTargets(definition, records, context) : records;
     }
 
     private deletionTargets(
@@ -1439,6 +1514,7 @@ export class Platform {
         enabled: boolean,
         context: ExecutionContext,
         baseEvent?: string,
+        idList: readonly string[] = [record.id],
     ): Promise<MutationResult> {
         this.security.assertMutation(definition, record, original.getAction(), context);
         const item = original.clone();
@@ -1459,7 +1535,15 @@ export class Platform {
         }
 
         return {
-            response: await this.mutateTargetBase(definition, record, item, verb, enabled, context),
+            response: await this.mutateTargetBase(
+                definition,
+                record,
+                item,
+                verb,
+                enabled,
+                context,
+                idList,
+            ),
             replaced: false,
         };
     }
@@ -1471,9 +1555,20 @@ export class Platform {
         verb: string,
         enabled: boolean,
         context: ExecutionContext,
+        idList: readonly string[],
     ): Promise<Item> {
         const action = item.getAction();
-        await this.events(definition, `onBefore${verb}`, item, enabled, context);
+        await this.events(
+            definition,
+            `onBefore${verb}`,
+            item,
+            enabled,
+            context,
+            ServerEventVersion.Item,
+            verb === "Update"
+                ? { kind: MethodEventDataKind.BeforeUpdate, id: record.id, idList }
+                : undefined,
+        );
         const request = item.node;
         validateRequest(request, action);
         this.assertActionContext(definition, request, action, record.id);
@@ -1508,7 +1603,23 @@ export class Platform {
         );
         const children = await this.graph.relationships(definition, request, record.id, context);
         stored = this.lifeCycles.applyClassification(stored, classification, context);
-        const response = new Item({
+        const response = this.recordResponse(definition, stored, request, children);
+        this.security.changed(record, stored, context);
+
+        if (verb !== "Update") {
+            await this.events(definition, `onAfter${verb}`, response, enabled, context);
+        }
+
+        return response;
+    }
+
+    private recordResponse(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        request: ItemNode,
+        children: ItemNode[],
+    ): Item {
+        return new Item({
             items: [
                 {
                     ...itemNode(definition.name),
@@ -1516,17 +1627,13 @@ export class Platform {
                     properties: projectedProperties(
                         this.storage,
                         definition,
-                        stored,
+                        record,
                         selectedProperties(request),
                     ),
                     relationships: children,
                 },
             ],
         });
-        this.security.changed(record, stored, context);
-        await this.events(definition, `onAfter${verb}`, response, enabled, context);
-
-        return response;
     }
 
     private mutateRecord(

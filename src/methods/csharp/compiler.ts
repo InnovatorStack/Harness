@@ -122,6 +122,8 @@ export class CSharpCompiler {
             "ContextSafety.cs",
             "Connections.cs",
             "ServerEventArgs.cs",
+            "MethodEventArgs.cs",
+            "EventMetadata.cs",
             "InOutInvocation.cs",
             "ResponseXml.cs",
             "XmlProperties.cs",
@@ -164,7 +166,7 @@ export class CSharpCompiler {
     ): Promise<CompiledMethod> {
         const selected = methodTemplate(method.code);
         const methodSource = await readTextFile(join(interopDirectory, selected));
-        const eventType = selected === "InOut.cs.template" ? eventArgumentType(eventName) : "";
+        const eventType = eventArgumentType(eventName);
         const identity = await methodBuildIdentity(
             { method, host, source: methodSource, event: eventType },
             this.references,

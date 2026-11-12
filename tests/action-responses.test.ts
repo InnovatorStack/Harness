@@ -123,7 +123,7 @@ const responseHooks =
     referenceMethod("TransientMutation", 'this.setProperty("name", "Transient"); return this;') +
     referenceMethod(
         "HydrateResponse",
-        `if (this.getProperty("name") == "Reject response") {
+        `if (this.getProperty("name") == "Reject response" && this.getProperty("locked_by_id") == "") {
             return this.getInnovator().newError("Response rejected");
         }
         this.setProperty("name", this.getProperty("name") + " from Get");
@@ -145,6 +145,7 @@ test("full mutation results come from Get after update and unlock hooks finish",
         "Stored",
     );
     expect(h.trace.filter((entry) => entry.kind === "event").map((entry) => entry.name)).toEqual([
+        "onAfterGet",
         "onAfterUpdate",
         "onAfterGet",
     ]);
@@ -212,7 +213,7 @@ test.each([
         );
         expect(
             h.trace.filter((entry) => entry.kind === "event" && entry.name === "onAfterGet"),
-        ).toHaveLength(expected === "1" ? 1 : 0);
+        ).toHaveLength(Number(expected) + Number(afterAdd));
     },
     60_000,
 );

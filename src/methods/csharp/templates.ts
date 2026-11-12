@@ -1,7 +1,7 @@
 import { PlatformError } from "../../platform/errors.js";
 import type { MethodDefinition } from "../types.js";
 
-const eventArguments: ReadonlyMap<string, string> = new Map([
+const baseEventArguments: ReadonlyMap<string, string> = new Map([
     ["onget", "Aras.Server.Core.OnGetEventArgs"],
     ["onadd", "Aras.Server.Core.OnAddEventArgs"],
     ["onupdate", "Aras.Server.Core.OnUpdateEventArgs"],
@@ -9,6 +9,14 @@ const eventArguments: ReadonlyMap<string, string> = new Map([
     ["onlock", "Aras.Server.Core.OnLockEventArgs"],
     ["onunlock", "Aras.Server.Core.OnUnlockEventArgs"],
     ["onpromote", "Aras.Server.Core.OnPromoteEventArgs"],
+]);
+const baseArgumentTypes = new Set(baseEventArguments.values());
+const eventArguments: ReadonlyMap<string, string> = new Map([
+    ...baseEventArguments,
+    ["onbeforeupdate", "Aras.Server.Core.OnBeforeUpdateEventArgs"],
+    ["onafteradd", "Aras.Server.Core.OnAfterAddEventArgs"],
+    ["onafterupdate", "Aras.Server.Core.OnAfterUpdateEventArgs"],
+    ["onafterversion", "Aras.Server.Core.AfterVersionEventArgs"],
 ]);
 
 export function methodTemplate(code: string): string {
@@ -66,6 +74,10 @@ export function renderMethod(
         ["__SOURCE_PATH__", method.source.file.replaceAll("\\", "\\\\").replaceAll('"', '\\"')],
         ["__METHOD_CODE__", method.code],
         ["__EVENT_ARGS_TYPE__", eventType],
+        [
+            "__EVENT_ARGS_CONSTRUCTOR__",
+            `new ${eventType}(${baseArgumentTypes.has(eventType) ? "Remote, dom" : "Remote"})`,
+        ],
     ]);
 
     return source.replaceAll(/__[A-Z_]+__/gu, (placeholder) => {

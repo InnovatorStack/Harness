@@ -23,12 +23,12 @@ export const collectionCases: readonly ReferenceCase[] = [
             equalContract(
                 step.events[0]?.context.items.length,
                 1,
-                "A single add has a one-item collection.",
+                "A batch hook receives one empty Item.",
             );
             equalContract(
-                step.events[0]?.context.items[0]?.attributes.id,
-                resultId(observation, 0),
-                "The collection contains the persisted new identity.",
+                step.events[0]?.context.items[0]?.type,
+                "",
+                "The persisted identity is supplied through native event metadata.",
             );
         },
     },
@@ -59,23 +59,11 @@ export const collectionCases: readonly ReferenceCase[] = [
             );
             const version = step.events.find((event) => event.method === "RefBatchAfterVersion")
                 ?.context.items;
-            requireContract(version?.length === 2, "After-version receives both generations.");
-            requireContract(
-                version.every(
-                    (item) =>
-                        item.properties.generation === "2" && item.properties.name === "Original",
-                ),
-                "Version contexts precede the updates.",
-            );
+            equalContract(version?.length, 1, "After-version receives one empty Item.");
+            equalContract(version?.[0]?.type, "", "Generated IDs are carried by event metadata.");
             const updates = step.events.at(-1)?.context.items;
-            requireContract(updates?.length === 2, "After-update receives both updated records.");
-            requireContract(
-                updates.every(
-                    (item) =>
-                        item.properties.name === "Changed" && Boolean(item.properties.locked_by_id),
-                ),
-                "Collection hooks run before edit unlock.",
-            );
+            equalContract(updates?.length, 1, "After-update receives one empty Item.");
+            equalContract(updates?.[0]?.type, "", "Updates are addressed through event metadata.");
             requireContract(
                 step.response.items.every((item) => item.properties.locked_by_id === null),
                 "Edit results are unlocked.",

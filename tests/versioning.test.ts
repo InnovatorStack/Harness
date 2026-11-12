@@ -3,11 +3,25 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { createEngine } from "../src/engine.js";
 import type { Engine } from "../src/engine.js";
 import { Item } from "../src/items/item.js";
+import { MethodEventDataKind } from "../src/methods/event-data.js";
 import type { MethodExecutor, MethodPorts } from "../src/methods/types.js";
 import { importPackageDocuments } from "../src/packages/module.js";
 import { parseAml } from "../src/packages/parser.js";
 
 type Handler = (item: Item, ports: MethodPorts) => Item | Promise<Item>;
+
+function versionTarget(item: Item, ports: MethodPorts): string {
+    const data = ports.eventData;
+
+    if (data?.kind !== MethodEventDataKind.AfterVersion) {
+        throw new Error("After-version metadata is required.");
+    }
+
+    expect(item.getID()).not.toBe(data.newItemId);
+    expect(item.getProperty("generation")).toBe("1");
+
+    return data.newItemId;
+}
 
 const worlds: Engine[] = [];
 const userId = "AA000000000000000000000000000001";
@@ -254,11 +268,11 @@ describe("versionable actions", () => {
         for (const name of names) {
             // Event handlers intentionally update the shared result inspected after execution.
             // oxlint-disable-next-line no-loop-func
-            handlers[name] = (item) => {
+            handlers[name] = (item, ports) => {
                 calls.push(name);
 
                 if (name === "onAfterVersion") {
-                    newId = item.getID();
+                    newId = versionTarget(item, ports);
                     expect(item.getProperty("name")).toBe("Original");
                 }
 

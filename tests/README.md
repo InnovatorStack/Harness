@@ -49,6 +49,12 @@ Historical unlock cases cover locked/unlocked sources, callback order, event sup
 Unit tests also exercise automatic/manual markers, real Get hydration, shared contexts, owned dependent
 cascades, other owners, bounded cycles/depth, resumed callbacks after rollback and generated User targets.
 
+Event metadata tests execute both C# templates against historical after-version Items and empty
+version-2 contexts. They check complete ID mappings, before-update ID lists, persisted after-add data,
+rejection of mapped writes, mixed binding order and shared per-item pending values. Custom executor
+tests check immutable snapshots, nested ordinary calls, independent worlds and reset isolation.
+Portable batch cases use native argument IDs to query data instead of expecting result collections.
+
 The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, class paths and defaults, hook reclassification, Method execution identities, scoped C# grants, inherited relationship reads and mutations, copied ACL propagation and rollback, parent-authorized owned deletion, per-item Team roles, membership changes and lifecycle roles.
 
 Run it outside the test runner:

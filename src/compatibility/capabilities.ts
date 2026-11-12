@@ -230,7 +230,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Own and inherited Morphae bindings share sort_order; tied orders within the same event version are rejected.",
             "Required bindings survive serverEvents=0. Native release-specific ordering remains unverified.",
             "Automatic versioning runs before-update before its version decision, then reenters update for the generated batch. Version hooks run despite serverEvents=0.",
-            "Replacement interception during version reentry and native event-data arguments remain unimplemented; native event context profiles are unverified.",
+            "Before-update and after-add/update/version expose typed immutable event metadata. After-version item contexts are historical; generated IDs are supplied separately.",
+            "Replacement interception during version reentry remains unimplemented; native event context profiles are unverified.",
         ],
         tests: [
             "tests/actions.test.ts",
@@ -240,6 +241,9 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/update-reentry.test.ts",
             "tests/update-reentry-batch.test.ts",
             "tests/update-reentry-security.test.ts",
+            "tests/event-metadata.test.ts",
+            "tests/event-metadata-ports.test.ts",
+            "tests/event-metadata-inout.test.ts",
         ],
     }),
     descriptor({
@@ -247,6 +251,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         support: CapabilitySupport.Partial,
         owner: "platform",
         operations: [
+            "onBeforeUpdate",
             "onAfterAdd",
             "onAfterUpdate",
             "onAfterVersion",
@@ -256,12 +261,17 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         metadata: ["Server Event"],
         dependsOn: [CapabilityId.ServerEvents],
         limitations: [
-            "Supported after hooks run once per action collection. Separate AML actions retain separate contexts.",
+            "Supported after hooks run once per completed batch with an empty Item and native event metadata. Before-update runs per update invocation with its selected ID list.",
             "Version-2 copy hooks receive source/result relationship collections during parent versioning; version-1 copy hooks are skipped.",
             "Before-copy hooks cannot change collection size or source identity. Other version-2 contexts fail explicitly.",
             "Release-specific native context parity remains unverified.",
         ],
-        tests: ["tests/collection-events.test.ts", "tests/relationship-copy.test.ts"],
+        tests: [
+            "tests/collection-events.test.ts",
+            "tests/relationship-copy.test.ts",
+            "tests/event-metadata.test.ts",
+            "tests/event-metadata-inout.test.ts",
+        ],
     }),
     descriptor({
         id: CapabilityId.StateActionReplacement,
@@ -272,7 +282,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         dependsOn: [CapabilityId.ServerEvents],
         limitations: [
             "Imported replacement bindings own the request and bypass native hooks unless they explicitly delegate to the base action.",
-            "CSharpInOut supports native base delegates for get/add/update/delete/lock/unlock/promote; other event-data contracts remain unavailable.",
+            "CSharpInOut supports native base delegates for get/add/update/delete/lock/unlock/promote; other replacement-specific fields remain unavailable.",
             "The base port is invocation-scoped. Native release-specific context and locking parity remain unverified.",
         ],
         tests: ["tests/state-replacements.test.ts"],
@@ -369,6 +379,9 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "CSharpInOut",
             "eventData.BaseLockItem",
             "eventData.BaseUnlockItem",
+            "eventData.NewItemId",
+            "eventData.OldIdsNewIdsMap",
+            "eventData.IdList",
         ],
         metadata: ["Method"],
         dependsOn: [],

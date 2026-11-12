@@ -3,11 +3,13 @@ using InnovatorHarness.Managed;
 
 namespace Aras.Server.Core;
 
-public class ServerEventArgs(Remote remote, XmlDocument input)
+public class ServerEventArgs(Remote remote, XmlDocument? input = null)
 {
     protected void ApplyBase(string name, XmlDocument output)
     {
-        var payload = remote.Call("eventBase", new { name, xml = input.OuterXml });
+        var document = input
+            ?? throw new InvalidOperationException("A base delegate requires its event context.");
+        var payload = remote.Call("eventBase", new { name, xml = document.OuterXml });
         ResponseXml.Write(output, payload);
     }
 }
