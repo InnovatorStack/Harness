@@ -1,4 +1,4 @@
-import { assertActiveContext } from "../core/context.js";
+import { assertActiveContext, spendContext } from "../core/context.js";
 import { getOwn } from "../core/data.js";
 import type { ExecutionContext } from "../core/types.js";
 import { Item } from "../items/item.js";
@@ -183,6 +183,63 @@ export class LifeCycles {
         }
 
         return this.startProperties(lifecycle);
+    }
+
+    /** Native copy starts each type's default lifecycle after the entire owned graph exists. */
+    resetCopies(records: readonly StoredItem[], context: ExecutionContext): void {
+        const groups = new Map<string, StoredItem[]>();
+
+        for (const record of records) {
+            const group = groups.get(record.type) ?? [];
+            group.push(record);
+            groups.set(record.type, group);
+        }
+
+        for (const [type, group] of groups) {
+            const definition = this.storage.getItemType(type);
+
+            if (!definition) {
+                throw new Error("Copied records must retain their imported ItemType.");
+            }
+
+            for (const record of group) {
+                spendContext(context);
+                this.resetCopy(definition, record.id, context);
+            }
+        }
+    }
+
+    private resetCopy(definition: ItemTypeDefinition, id: string, context: ExecutionContext): void {
+        const before = this.storage.getItem(definition.name, id);
+
+        if (!before) {
+            throw new Error("Lifecycle initialization requires its copied record.");
+        }
+
+        const lifecycle = this.resolve(definition, before.properties.classification);
+        const values = lifecycle
+            ? this.startProperties(lifecycle)
+            : { state: null, current_state: null, is_released: 0, not_lockable: 0 };
+
+        if (definition.isVersionable && values.is_released === 1) {
+            throw new PlatformError(
+                "UnsupportedRevision",
+                `Copying '${definition.name}' into a released start state requires release-date initialization, which is unavailable.`,
+                definition.source ? { source: definition.source } : undefined,
+            );
+        }
+
+        assertActiveContext(context);
+        this.storage.updateItem(definition.name, id, this.security.auditedChanges(before, values));
+        const after = this.storage.getItem(definition.name, id);
+
+        if (!after) {
+            throw new Error("Lifecycle initialization must retain its copied record.");
+        }
+
+        this.trace.record(context, { kind: "mutation", name: "reset-lifecycle", before, after });
+        this.security.changed(before, after, context);
+        this.references.promoted(after, context);
     }
 
     private startProperties(lifecycle: Lifecycle): Readonly<Record<string, StorageValue>> {

@@ -1,0 +1,24 @@
+<AML>
+    <Item type="Life Cycle Map" action="add" id="A7800000000000000000000000000001">
+        <name>Reference copied relationship lifecycle</name>
+        <start_state>A7810000000000000000000000000001</start_state>
+        <Relationships>
+            <Item type="Life Cycle State" action="add" id="A7810000000000000000000000000001">
+                <name>Draft</name>
+                <state_permission_id>A6000000000000000000000000000001</state_permission_id>
+            </Item>
+            <Item type="Life Cycle State" action="add" id="A7810000000000000000000000000002">
+                <name>Working</name><set_not_lockable>1</set_not_lockable>
+                <state_permission_id>A6000000000000000000000000000008</state_permission_id>
+            </Item>
+            <Item type="Life Cycle Transition" action="add" id="A7820000000000000000000000000001">
+                <from_state>A7810000000000000000000000000001</from_state>
+                <to_state>A7810000000000000000000000000002</to_state>
+            </Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType Life Cycle" action="add">
+        <source_id>A1000000000000000000000000000010</source_id>
+        <related_id>A7800000000000000000000000000001</related_id>
+    </Item>
+</AML>

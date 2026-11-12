@@ -4,6 +4,7 @@ import type { ExecutionContext } from "../core/types.js";
 import type { HarnessStorage, ItemTypeDefinition, StoredItem } from "../storage/types.js";
 import { PlatformError } from "./errors.js";
 import { relationshipKey } from "./graph-actions.js";
+import type { LifeCycles } from "./lifecycle.js";
 import { recordKey } from "./references/catalog.js";
 import type { ReferenceMaintenance } from "./references/maintenance.js";
 import { VersionCopyPolicy } from "./relationship-copy-policy.js";
@@ -39,6 +40,7 @@ export class RelationshipCopy {
         private readonly nextId: () => string,
         private readonly references: ReferenceMaintenance,
         private readonly security: NativeSecurity,
+        private readonly lifeCycles: LifeCycles,
     ) {}
 
     copy(
@@ -58,6 +60,7 @@ export class RelationshipCopy {
             },
         ];
         const active = new Set<string>();
+        const created: StoredItem[] = [];
         let visited = 0;
 
         while (pending.length > 0) {
@@ -78,9 +81,11 @@ export class RelationshipCopy {
                 this.enter(task, pending, active, context);
             } else {
                 policy ??= new VersionCopyPolicy(this.storage);
-                this.copyGroup(task.group, copies, pending, policy, context);
+                this.copyGroup(task.group, copies, pending, policy, created, context);
             }
         }
+
+        this.lifeCycles.resetCopies(created, context);
     }
 
     private enter(
@@ -140,6 +145,7 @@ export class RelationshipCopy {
         copies: Map<string, string>,
         pending: CopyTask[],
         policy: VersionCopyPolicy,
+        created: StoredItem[],
         context: ExecutionContext,
     ): void {
         policy.assertSupported(group.definition, group.records);
@@ -150,6 +156,7 @@ export class RelationshipCopy {
             const copied = this.insert(group, source, context);
             copies.set(relationshipKey(source.type, source.id), copied.id);
             records.push(copied);
+            created.push(copied);
         }
 
         for (let index = records.length - 1; index >= 0; index -= 1) {

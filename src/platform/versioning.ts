@@ -65,7 +65,14 @@ export class Versioning {
         private readonly lifeCycles: LifeCycles,
         private readonly security: NativeSecurity,
     ) {
-        this.copier = new RelationshipCopy(storage, trace, nextId, references, security);
+        this.copier = new RelationshipCopy(
+            storage,
+            trace,
+            nextId,
+            references,
+            security,
+            lifeCycles,
+        );
     }
 
     assertCurrent(record: StoredItem): void {

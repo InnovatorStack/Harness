@@ -199,6 +199,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Parent versioning clones current owned relationships with fresh config_id, generation one and nested owned graphs.",
             "Parent versions copy stored values without business copy/add/update hooks, including required and inherited bindings. Copy mocks and executors are not invoked.",
+            "Copied relationships restart their classification-selected default lifecycle after the owned graph exists, before after-version hooks. State flags, permissions and nested reference policies reset transactionally.",
+            "Reset callbacks and released start-state date initialization are unavailable and fail explicitly. A copy without a default map clears its state flags while retaining its Permission.",
             "Released relationship revision/reset policies and native file-container/vault copying remain unavailable; those paths fail explicitly.",
             "Standalone copy actions remain unavailable. Release-specific clone and configuration parity remain unverified.",
         ],
@@ -206,6 +208,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/relationship-copy.test.ts",
             "tests/copy-suppression.test.ts",
             "tests/copy-policy.test.ts",
+            "tests/copy-lifecycle.test.ts",
+            "tests/copy-lifecycle-security.test.ts",
         ],
     }),
     descriptor({
@@ -315,12 +319,15 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Class-based map changes preserve shared-map states, require the old start state for map switches, and apply state Permissions before nested actions.",
             "Native mode evaluates transition roles through imported identities and record-specific virtual roles. Workflow startup and post-commit Methods need separate services.",
             "Pre/post Methods use ordinary execution checks and inherit NoCheck only when their promotion descends from a bound server-event Method.",
+            "Parent-version copies initialize default lifecycle states and propagate state Permissions to inherited relationships. Reset callbacks and released copy start states remain unavailable.",
         ],
         tests: [
             "tests/lifecycle.test.ts",
             "tests/revision-lifecycle.test.ts",
             "tests/bound-lifecycle-methods.test.ts",
             "tests/classification-updates.test.ts",
+            "tests/copy-lifecycle.test.ts",
+            "tests/copy-lifecycle-security.test.ts",
         ],
     }),
     descriptor({
@@ -523,6 +530,7 @@ const errorCapabilities: Readonly<Record<string, CapabilityId>> = Object.freeze(
     AmbiguousEventOrder: CapabilityId.ServerEvents,
     UnsupportedReplacement: CapabilityId.StateActionReplacement,
     UnsupportedPostTransactionMethod: CapabilityId.PostCommitMethods,
+    UnsupportedLifecycleResetEvent: CapabilityId.Lifecycles,
     UnsupportedWorkflow: CapabilityId.Workflow,
     AuthorizationRequired: CapabilityId.NativePermissions,
     MissingPermission: CapabilityId.NativePermissions,

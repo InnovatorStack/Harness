@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 77 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 78 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -64,12 +64,18 @@ after the hook returns. Unit tests exercise before/after and replacement hooks, 
 mocks, direct versus nested lifecycle Methods, transition roles, concurrent sibling operations,
 independent runtimes, rollback, abandoned callbacks and reset. This changes no consumer setup API.
 
-The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, class paths and defaults, hook reclassification, Method execution identities, scoped C# grants, inherited relationship reads and mutations, copied ACL propagation and rollback, parent-authorized owned deletion, per-item Team roles, membership changes and lifecycle roles.
+The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, copied lifecycle initialization, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, class paths and defaults, hook reclassification, Method execution identities, scoped C# grants, inherited relationship reads and mutations, copied ACL propagation and rollback, parent-authorized owned deletion, per-item Team roles, membership changes and lifecycle roles.
 
 Parent-version copy cases verify stored values, fresh configurations and suppressed business copy hooks.
 Unit tests cover both event versions, required/optional flags, inherited bindings, all versioning entry
 actions, unused mocks/executors, nested records, later source rejection, foreign values and explicit
 diagnostics for native file-container copies and released relationship resets.
+
+Copied-lifecycle tests exercise classification defaults, missing maps, native-mode state permissions,
+nested reference changes, source history and original C# after-version Methods. Method rejection and
+injected failure restore the full graph; world reset also restores controlled IDs and clocks without
+changing another world. Reset callbacks, workflow startup and released start-state date initialization
+retain explicit capability diagnostics. Local contracts do not establish native parity.
 
 Run it outside the test runner:
 
