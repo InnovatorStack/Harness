@@ -11,7 +11,7 @@ import type { MethodServerEvent } from "../src/methods/types.js";
 import { referenceLifecycle, referenceMethod, referenceProject } from "./helpers/references.js";
 import { afterLock, lockDelegate, stateEvent, unlockDelegate } from "./helpers/state-events.js";
 
-test("CSharpInOut lock and unlock delegate to native hooks and retain response-only XML changes", async () => {
+test("CSharpInOut lock and unlock delegate through Get before replacement response changes", async () => {
     const source =
         stateEvent("onLock", "ReplaceLock", lockDelegate) +
         stateEvent("onUnlock", "ReplaceUnlock", unlockDelegate) +
@@ -24,7 +24,7 @@ test("CSharpInOut lock and unlock delegate to native hooks and retain response-o
     );
     const stored = h.state.getOne("ReferenceRecord", { id: parent.id });
 
-    expect(response.getProperty("response_marker")).toBe("after");
+    expect(response.getProperty("response_marker")).toBe("");
     expect(response.getProperty("replacement_marker")).toBe("source");
     expect(stored.properties.locked_by_id).toBe(
         h.state.getOne("User", { login_name: "reference_owner" }).id,

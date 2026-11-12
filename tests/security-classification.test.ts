@@ -249,7 +249,7 @@ test("cached class paths follow metadata replacement and world reset", async () 
         throw new Error("The imported class tree must retain its ItemType metadata.");
     }
 
-    const request = `<Item type="ClassifiedDocument" action="add">
+    const request = `<Item type="ClassifiedDocument" action="add" doGetItem="0">
         <classification>Technical/Purchased</classification>
     </Item>`;
     engine.checkpoint();

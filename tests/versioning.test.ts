@@ -416,7 +416,9 @@ test("nested relationship edits address copied IDs and preserve historical relat
     edit.addRelationship(child);
 
     const result = await engine.apply(edit);
-    const copied = result.node.relationships[0];
+    const query = Item.create("RecordLink", "get");
+    query.setProperty("source_id", result.getID());
+    const copied = (await engine.apply(query)).node;
 
     expect(result.getID()).not.toBe(original.getID());
     expect(copied?.attributes.id).not.toBe(link.getID());

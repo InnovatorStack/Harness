@@ -18,6 +18,7 @@ const attributes = new Set([
     "isCriteria",
     "isNew",
     "isTemp",
+    "doGetItem",
 ]);
 
 /** Action instrumentation must also recognize trusted delegation to a native base action. */

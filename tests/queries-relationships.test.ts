@@ -65,29 +65,23 @@ test("nested property actions and relationship additions, updates and deletes pe
         </Item></Relationships>
     </Item>`);
     const id = created.getID();
-    const link = created.node.relationships[0];
-
-    if (!link?.attributes.id) {
-        throw new Error("Expected the persisted relationship.");
-    }
+    const link = await h.getOne("QueryLink", { source_id: id, note: "New link" });
 
     await h.applyAML(`<Item type="QueryPart" action="update" id="${id}">
         <parent><Item type="QueryPart" action="get"><name>Beta</name></Item></parent>
-        <Relationships><Item type="QueryLink" action="edit" id="${link.attributes.id}">
+        <Relationships><Item type="QueryLink" action="edit" id="${link.id}">
             <note>Edited</note>
         </Item></Relationships>
     </Item>`);
     expect((await h.getOne("QueryPart", { id })).properties.parent).toBe(
         (await h.getOne("QueryPart", { name: "Beta" })).id,
     );
-    expect((await h.getOne("QueryLink", { id: link.attributes.id })).properties.note).toBe(
-        "Edited",
-    );
+    expect((await h.getOne("QueryLink", { id: link.id })).properties.note).toBe("Edited");
 
     await h.applyAML(`<Item type="QueryPart" action="update" id="${id}">
-        <Relationships><Item type="QueryLink" action="delete" id="${link.attributes.id}"/></Relationships>
+        <Relationships><Item type="QueryLink" action="delete" id="${link.id}"/></Relationships>
     </Item>`);
-    expect((await h.get("QueryLink", { id: link.attributes.id })).length).toBe(0);
+    expect((await h.get("QueryLink", { id: link.id })).length).toBe(0);
     expect((await h.get("QueryPart", { name: "New child" })).length).toBe(1);
 });
 

@@ -236,7 +236,12 @@ describe("action and event pipeline", () => {
         child.setProperty("related_id", target.id);
         add.addRelationship(child);
         const added = await harness.apply(add);
-        expect(added.getRelationships("TestLink").getItemCount()).toBe(1);
+        expect(added.getRelationships("TestLink").getItemCount()).toBe(0);
+        const query = Item.create("TestNode", "get");
+        query.setProperty("id", added.getID());
+        query.addRelationship(Item.create("TestLink", "get"));
+        const fetched = await harness.apply(query);
+        expect(fetched.getRelationships("TestLink").getItemCount()).toBe(1);
         expect(harness.storage.listItems("TestLink")).toMatchObject([
             { properties: { source_id: added.getID(), related_id: target.id } },
         ]);

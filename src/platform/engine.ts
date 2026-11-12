@@ -19,6 +19,7 @@ import type {
     StorageValue,
     StoredItem,
 } from "../storage/types.js";
+import { ActionResponses } from "./action-responses.js";
 import { ItemAction } from "./actions.js";
 import { PlatformCatalog } from "./catalog.js";
 import { creationDefaults } from "./creation.js";
@@ -72,6 +73,11 @@ interface SqlCall {
     readonly values: Readonly<Record<string, MockValue>>;
 }
 
+interface MutationResult {
+    readonly response: Item;
+    readonly replaced: boolean;
+}
+
 export const applyItemOperation = defineOperation<Item, Item>("platform.apply");
 const applyBaseItemOperation = defineOperation<
     { readonly item: Item; readonly event: string },
@@ -103,6 +109,10 @@ const actions = new Set<string>(Object.values(ItemAction));
 const reservedActions = new Set(["copy", "clone", "merge", "purge", "create", "SQL Process"]);
 const claimedExecutors = new WeakSet<MethodExecutor>();
 
+function dispatchItem(item: Item, context: ExecutionContext): Promise<Item> {
+    return context.execute(applyItemOperation, item);
+}
+
 export class Platform {
     private readonly catalog: PlatformCatalog;
     private readonly executors = new Map<string, MethodExecutor>();
@@ -119,6 +129,7 @@ export class Platform {
     private readonly references: ReferenceMaintenance;
     private readonly deletion: DependentDeletion;
     private readonly security: NativeSecurity;
+    private readonly responses: ActionResponses;
     private readonly replacements = new EventReplacements();
 
     constructor(
@@ -129,6 +140,7 @@ export class Platform {
         select?: SelectQuery,
     ) {
         this.catalog = new PlatformCatalog(storage);
+        this.responses = new ActionResponses(dispatchItem, (type) => this.hasAfterEvents(type));
         this.security = new NativeSecurity(
             storage,
             options.authorization,
@@ -141,16 +153,14 @@ export class Platform {
             storage,
             this.references.catalog,
             this.references.sessions,
-            (item, context) => context.execute(applyItemOperation, item),
+            dispatchItem,
             (parent, child, enabled, context) =>
                 context.execute(deleteOwnedItemOperation, { parent, child, enabled }),
         );
-        this.graph = new GraphActions(storage, (item, context) =>
-            context.execute(applyItemOperation, item),
-        );
+        this.graph = new GraphActions(storage, dispatchItem);
         this.queries = new ItemQueries(
             storage,
-            (item, context) => context.execute(applyItemOperation, item),
+            dispatchItem,
             select,
             (definition, records, context) => this.security.readable(definition, records, context),
         );
@@ -160,9 +170,7 @@ export class Platform {
         const collection: RunEvents = (definition, name, item, enabled, context) =>
             this.events(definition, name, item, enabled, context, ServerEventVersion.Collection);
         const runners: EventRunners = { item: events, collection };
-        this.locks = new ItemLocks(storage, this.trace, events, options.userId, (item, context) =>
-            context.execute(applyItemOperation, item),
-        );
+        this.locks = new ItemLocks(storage, this.trace, events, options.userId, dispatchItem);
         this.lifeCycles = new LifeCycles(
             storage,
             this.trace,
@@ -561,6 +569,23 @@ export class Platform {
         return this.catalog.events(definition, name, enabled, version);
     }
 
+    private hasAfterEvents(type: string): boolean {
+        const definition = this.catalog.itemType(type);
+        const names = [
+            "onAfterAdd",
+            "onAfterUpdate",
+            "onAfterMethod",
+            "onAfterLock",
+            "onAfterUnlock",
+        ];
+
+        return names.some((name) =>
+            [ServerEventVersion.Item, ServerEventVersion.Collection].some(
+                (version) => this.eventBindings(definition, name, true, version).length > 0,
+            ),
+        );
+    }
+
     private async events(
         definition: ItemTypeDefinition,
         name: string,
@@ -621,6 +646,11 @@ export class Platform {
 
         const definition = this.catalog.itemType(request.type);
         validateRequest(request, action);
+
+        if (action !== "get") {
+            this.responses.prepare(request, context);
+        }
+
         this.traceAction(definition, item, action, context);
         const enabled = request.attributes.serverEvents !== "0";
         this.assertActionSupported(definition, action);
@@ -671,6 +701,7 @@ export class Platform {
             return await this.applyVersionedUpdate(definition, item, context);
         }
 
+        const responseRequest = { ...item.node, attributes: { ...item.node.attributes } };
         await this.events(definition, `onBefore${verb}`, item, enabled, context);
         const request = item.node;
         validateRequest(request, action);
@@ -681,7 +712,7 @@ export class Platform {
             return await this.get(definition, item.node, enabled, context);
         }
 
-        return await this.add(definition, item, enabled, context);
+        return await this.add(definition, item, enabled, responseRequest, context);
     }
 
     private assertActionContext(
@@ -786,7 +817,7 @@ export class Platform {
             result.push(...response.payload.items);
         }
 
-        return new Item({ items: result });
+        return await this.responses.complete(item.node, new Item({ items: result }), context);
     }
 
     private async applyStateTarget(
@@ -922,6 +953,7 @@ export class Platform {
         definition: ItemTypeDefinition,
         item: Item,
         enabled: boolean,
+        responseRequest: ItemNode,
         context: ExecutionContext,
     ): Promise<Item> {
         const request = item.node;
@@ -978,7 +1010,7 @@ export class Platform {
             ServerEventVersion.Collection,
         );
 
-        return response;
+        return await this.responses.complete(responseRequest, response, context);
     }
 
     private setupPlatform(registrar: ModuleRegistrar): void {
@@ -1205,7 +1237,9 @@ export class Platform {
             );
         }
 
-        return await this.versioning.applyBatch(definition, records, item, context);
+        const response = await this.versioning.applyBatch(definition, records, item, context);
+
+        return await this.responses.complete(request, response, context);
     }
 
     private async get(
@@ -1267,19 +1301,10 @@ export class Platform {
         }
 
         const result: ItemNode[] = [];
-
-        if (action === "delete" && definition.isVersionable) {
-            records = [
-                ...new Map(
-                    records
-                        .flatMap((record) => this.versioning.family(record))
-                        .map((record) => [record.id, record]),
-                ).values(),
-            ];
-        }
+        let replaced = false;
 
         if (action === "delete") {
-            this.deletion.prepare(records, context);
+            records = this.deletionTargets(definition, records, context);
         }
 
         for (const record of records) {
@@ -1293,7 +1318,20 @@ export class Platform {
                 action === "delete"
                     ? await this.references.sessions.deleting(record, context, mutate)
                     : await mutate();
-            result.push(...response.payload.items);
+
+            if (response.replaced && records.length === 1) {
+                return response.response;
+            }
+
+            if (response.replaced && response.response.payload.result !== undefined) {
+                throw new PlatformError(
+                    "UnsupportedBatchResult",
+                    "A collection replacement cannot combine text responses.",
+                );
+            }
+
+            result.push(...response.response.payload.items);
+            replaced ||= response.replaced;
         }
 
         const response = new Item({ items: result });
@@ -1309,7 +1347,29 @@ export class Platform {
             );
         }
 
-        return response;
+        return replaced ? response : await this.responses.complete(request, response, context);
+    }
+
+    private deletionTargets(
+        definition: ItemTypeDefinition,
+        records: readonly StoredItem[],
+        context: ExecutionContext,
+    ): readonly StoredItem[] {
+        let targets = records;
+
+        if (definition.isVersionable) {
+            targets = [
+                ...new Map(
+                    records
+                        .flatMap((record) => this.versioning.family(record))
+                        .map((record) => [record.id, record]),
+                ).values(),
+            ];
+        }
+
+        this.deletion.prepare(targets, context);
+
+        return targets;
     }
 
     private async mutateTarget(
@@ -1320,7 +1380,7 @@ export class Platform {
         enabled: boolean,
         context: ExecutionContext,
         baseEvent?: string,
-    ): Promise<Item> {
+    ): Promise<MutationResult> {
         this.security.assertMutation(definition, record, original.getAction(), context);
         const item = original.clone();
         item.node.attributes.id = record.id;
@@ -1336,10 +1396,13 @@ export class Platform {
         );
 
         if (replacement) {
-            return replacement;
+            return { response: replacement, replaced: true };
         }
 
-        return await this.mutateTargetBase(definition, record, item, verb, enabled, context);
+        return {
+            response: await this.mutateTargetBase(definition, record, item, verb, enabled, context),
+            replaced: false,
+        };
     }
 
     private async mutateTargetBase(

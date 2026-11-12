@@ -22,6 +22,7 @@ export const payloadAttributes = [
     "action",
     "version",
     "serverEvents",
+    "doGetItem",
     "select",
     "orderBy",
     "where",
