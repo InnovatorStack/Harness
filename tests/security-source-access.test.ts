@@ -354,7 +354,7 @@ test("source authorization bypasses relationship Can Add rules while preserving 
     expect(link.properties.classification).toBe("Known");
     await expect(
         h.add("SecurityLink", { source_id: parent.id, classification: "Unknown" }),
-    ).rejects.toThrow("unknown class");
+    ).rejects.toThrow("Invalid classification");
     expect(h.state.get("SecurityLink", { source_id: parent.id })).toHaveLength(2);
 });
 

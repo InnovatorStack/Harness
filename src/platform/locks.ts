@@ -6,6 +6,7 @@ import { PlatformError, requireSuccess } from "./errors.js";
 import type { RunEvents } from "./events/types.js";
 import { projectItem } from "./projection.js";
 import type { PlatformTrace } from "./trace.js";
+import { manualVersioning } from "./version-policy.js";
 
 /** Locks are database state, so nested calls and transaction rollback see the same owner. */
 export class ItemLocks {
@@ -127,7 +128,11 @@ export class ItemLocks {
 
         this.storage.updateItem(definition.name, record.id, {
             locked_by_id: action === "lock" ? owner : null,
-            new_version: 1,
+            ...(action === "unlock" &&
+            definition.isVersionable &&
+            !manualVersioning(this.storage, definition)
+                ? { new_version: 0 }
+                : {}),
         });
         const after = this.storage.getItem(definition.name, record.id);
 

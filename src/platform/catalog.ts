@@ -7,6 +7,7 @@ import { parseAml } from "../packages/parser.js";
 import { findDocument } from "../storage/documents.js";
 import { metadataEpoch } from "../storage/metadata-epoch.js";
 import type { CatalogEntry, HarnessStorage, ItemTypeDefinition } from "../storage/types.js";
+import { Classifications } from "./classifications.js";
 import { PlatformError } from "./errors.js";
 import { EventBindings } from "./events/bindings.js";
 import { ServerEventVersion } from "./events/types.js";
@@ -66,12 +67,14 @@ function methodCodeSource(storage: HarnessStorage, original: SourceLocation): So
 }
 
 export class PlatformCatalog {
+    readonly classifications: Classifications;
     private readonly bindings: EventBindings;
     private epoch: number | undefined;
     private methods: Map<string, CatalogEntry[]> | undefined;
     private readonly definitions = new Map<string, MethodDefinition>();
 
     constructor(private readonly storage: HarnessStorage) {
+        this.classifications = new Classifications(storage);
         this.bindings = new EventBindings(storage);
     }
 

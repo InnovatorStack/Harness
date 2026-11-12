@@ -149,7 +149,7 @@ describe("versionable actions", () => {
         expect(second.node.properties).toMatchObject({
             generation: 2,
             name: "Second save",
-            new_version: 0,
+            new_version: 1,
             locked_by_id: userId,
         });
 

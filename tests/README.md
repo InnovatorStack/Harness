@@ -30,11 +30,16 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 56 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 62 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
 real C# fetch-back, write-only ACLs and rollback when a return Get fails.
+
+Classification cases cover creation grants, invalid branch values, same-map changes, rejected
+map switches, unchanged classes and scoped C# reclassification with state permissions. Unit
+tests cover generation history, nested permissions, relationship behavior, rollback and reset.
+Versioning contracts also assert native `new_version` values through a complete lock cycle.
 
 The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, class paths and defaults, hook reclassification, Method execution identities, scoped C# grants, inherited relationship reads and mutations, copied ACL propagation and rollback, parent-authorized owned deletion, per-item Team roles, membership changes and lifecycle roles.
 

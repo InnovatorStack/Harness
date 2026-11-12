@@ -76,9 +76,9 @@ export const revisionCases: readonly ReferenceCase[] = [
                 "Revision hooks retain order.",
             );
             equalContract(
-                events[0]?.context.items[0]?.properties.state,
-                "Released",
-                "Before-version sees the source.",
+                events[0]?.context.items[0]?.properties.name,
+                "Revised",
+                "Before-version receives the caller's pending values.",
             );
             equalContract(
                 events[1]?.context.items[0]?.properties.state,

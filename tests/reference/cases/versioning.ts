@@ -23,6 +23,16 @@ export const versioningCases: readonly ReferenceCase[] = [
         ],
 
         check(observation) {
+            const flags = ["0", "1", "1", "0"];
+
+            for (let index = 0; index < flags.length; index += 1) {
+                equalContract(
+                    valueAt(observation, index, "new_version"),
+                    flags[index],
+                    "The native saved-generation marker follows the lock cycle.",
+                );
+            }
+
             requireContract(
                 resultId(observation, 1) !== resultId(observation, 0),
                 "First save must create an ID.",

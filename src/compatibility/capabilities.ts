@@ -141,10 +141,15 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         dependsOn: [CapabilityId.Locks],
         limitations: [
             "Automatic/manual generations retain config_id and history.",
+            "Automatic new_version values follow native saved-generation markers: 0 before a save, 1 during the saved lock cycle, and 0 after unlock.",
             "Released generations advance their imported revision sequence and restart their lifecycle; history and config_id remain stable.",
             "Versionable relationships clone as fresh configurations under a new parent; released relationship cloning remains unavailable.",
         ],
-        tests: ["tests/versioning.test.ts", "tests/collection-events.test.ts"],
+        tests: [
+            "tests/versioning.test.ts",
+            "tests/version-flags.test.ts",
+            "tests/collection-events.test.ts",
+        ],
     }),
     descriptor({
         id: CapabilityId.Locks,
@@ -216,8 +221,14 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Own and inherited Morphae bindings share sort_order; tied orders within the same event version are rejected.",
             "Required bindings survive serverEvents=0. Native release-specific ordering remains unverified.",
+            "Automatic versioning currently runs one before-update pass; native pre-version before-update reentry remains unimplemented.",
         ],
-        tests: ["tests/actions.test.ts", "tests/csharp.test.ts", "tests/inherited-events.test.ts"],
+        tests: [
+            "tests/actions.test.ts",
+            "tests/csharp.test.ts",
+            "tests/inherited-events.test.ts",
+            "tests/classification-updates.test.ts",
+        ],
     }),
     descriptor({
         id: CapabilityId.CollectionEvents,
@@ -268,9 +279,14 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         dependsOn: [CapabilityId.ServerEvents],
         limitations: [
             "Imported transitions, starting states, released revision resets and transactional pre/post Methods are supported.",
+            "Class-based map changes preserve shared-map states, require the old start state for map switches, and apply state Permissions before nested actions.",
             "Native mode evaluates transition roles through imported identities and record-specific virtual roles. Workflow startup and post-commit Methods need separate services.",
         ],
-        tests: ["tests/lifecycle.test.ts", "tests/revision-lifecycle.test.ts"],
+        tests: [
+            "tests/lifecycle.test.ts",
+            "tests/revision-lifecycle.test.ts",
+            "tests/classification-updates.test.ts",
+        ],
     }),
     descriptor({
         id: CapabilityId.PostCommitMethods,
@@ -302,7 +318,9 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Opt-in Native mode requires a User session and imported ACL, membership and creation metadata. Missing Permissions fail explicitly.",
             "Reads filter before paging; action, Method and transition checks use effective membership and scoped grants. Owner, Manager and Creator resolve per record.",
             "Team roles resolve from each Item's team_id and imported Team Identity memberships, including custom roles. Ordinary inherited ACLs copy Permission, Owner, Manager and Team while retaining the relationship's Creator.",
-            "Can Add grants follow declared class paths and their descendants, including the root and classification defaults. Class names are case-sensitive; invalid trees fail explicitly.",
+            "Can Add grants follow declared class paths and descendants. Assigned values must be leaves or the root; unknown and branch classes fail explicitly. Class names are case-sensitive.",
+            "Classification changes recheck target Can Add after before hooks. Map switches require the previous start state; unchanged maps preserve state. State Permissions and inherited ACLs share rollback.",
+            "Class-specific Property rules and legacy class-ID conversion remain unavailable.",
             "Inherited creation checks source Update access; direct edits and deletes use copied Update rights. ACL propagation, lifecycle changes, clones and owned deletion share their caller's transaction.",
             "Moving inherited relationships and for_all source resolution remain unavailable; discovery, ABAC and MAC policies are not implemented.",
             "Release-specific native permission parity remains unverified. Callbacks and unchecked execution do not establish native ACL behavior.",
@@ -311,6 +329,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         tests: [
             "tests/security.test.ts",
             "tests/security-classification.test.ts",
+            "tests/classification-security.test.ts",
+            "tests/classification-updates.test.ts",
             "tests/security-csharp.test.ts",
             "tests/security-isolation.test.ts",
             "tests/security-source-access.test.ts",
@@ -438,6 +458,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
 const errorCapabilities: Readonly<Record<string, CapabilityId>> = Object.freeze({
     UnsupportedAction: CapabilityId.ItemActions,
     InvalidActionResult: CapabilityId.ItemActions,
+    InvalidClassification: CapabilityId.ItemActions,
+    ClassificationCannotBeChanged: CapabilityId.Lifecycles,
     UnsupportedBatchResult: CapabilityId.ItemActions,
     UnsupportedReferencedDelete: CapabilityId.ItemActions,
     UnsupportedAttribute: CapabilityId.Queries,

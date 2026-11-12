@@ -8,6 +8,7 @@ import type {
     StorageValue,
     StoredItem,
 } from "../../storage/types.js";
+import type { Classifications } from "../classifications.js";
 import { ApplicationError, PlatformError } from "../errors.js";
 import { recordKey } from "../references/catalog.js";
 import type { PlatformTrace } from "../trace.js";
@@ -37,10 +38,17 @@ export class NativeSecurity {
         userId: (() => string) | undefined,
         private readonly now: () => Date,
         trace: PlatformTrace,
+        classifications: Classifications,
     ) {
         this.identities = new Identities(storage, userId, now);
         this.grants = new IdentityGrants(this.identities, trace);
-        this.permissions = new ItemPermissions(storage, this.identities, this.grants, now);
+        this.permissions = new ItemPermissions(
+            storage,
+            this.identities,
+            this.grants,
+            now,
+            classifications,
+        );
         this.sources = new SourceAccess(storage);
         this.inheritance = new SourceInheritance(storage, this.sources, trace, this.permissions);
     }
@@ -153,11 +161,22 @@ export class NativeSecurity {
         return this.enabled ? this.permissions.creation(definition, values, context) : {};
     }
 
+    assertCanReclassify(
+        definition: ItemTypeDefinition,
+        classification: string,
+        context: ExecutionContext,
+    ): void {
+        if (this.enabled) {
+            this.permissions.assertCanReclassify(definition, classification, context);
+        }
+    }
+
     assertAccessChange(
         definition: ItemTypeDefinition,
         record: StoredItem,
         changes: Readonly<Record<string, StorageValue>>,
         context: ExecutionContext,
+        classificationChanged = false,
     ): void {
         if (
             this.enabled &&
@@ -179,13 +198,26 @@ export class NativeSecurity {
             String(changes.permission_id).toLowerCase() !==
                 String(record.properties.permission_id).toLowerCase()
         ) {
-            this.permissions.assert(definition, record, AccessRight.ChangeAccess, context);
+            if (!classificationChanged) {
+                this.assertPermissionChange(definition, record, context);
+            }
+
             this.permissions.assertSelectedPermission(
                 definition,
                 String(changes.permission_id),
                 context,
                 record.properties.current_state,
             );
+        }
+    }
+
+    assertPermissionChange(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        context: ExecutionContext,
+    ): void {
+        if (this.enabled) {
+            this.permissions.assert(definition, record, AccessRight.ChangeAccess, context);
         }
     }
 

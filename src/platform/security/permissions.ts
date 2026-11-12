@@ -7,8 +7,8 @@ import type {
     StorageValue,
     StoredItem,
 } from "../../storage/types.js";
+import type { Classifications } from "../classifications.js";
 import { ApplicationError, PlatformError } from "../errors.js";
-import { Classifications } from "./classifications.js";
 import type { IdentityGrants } from "./grants.js";
 import type { Identities } from "./identities.js";
 import { SourceAccess } from "./source-access.js";
@@ -32,16 +32,15 @@ interface Actor {
 
 export class ItemPermissions {
     private readonly sources: SourceAccess;
-    private readonly classifications: Classifications;
 
     constructor(
         private readonly storage: HarnessStorage,
         private readonly identities: Identities,
         private readonly grants: IdentityGrants,
         private readonly now: () => Date,
+        private readonly classifications: Classifications,
     ) {
         this.sources = new SourceAccess(storage);
-        this.classifications = new Classifications(storage);
     }
 
     readable(
@@ -128,6 +127,16 @@ export class ItemPermissions {
             ...inheritedSecurity(record),
             permission_id: this.permissionId(definition, record, context),
         };
+    }
+
+    assertCanReclassify(
+        definition: ItemTypeDefinition,
+        classification: string,
+        context: ExecutionContext,
+    ): void {
+        if (!this.sources.inherited(definition)) {
+            this.assertCanAdd(definition, classification, this.actor(context), context);
+        }
     }
 
     private assertCanAdd(

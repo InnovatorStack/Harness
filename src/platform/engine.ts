@@ -29,6 +29,7 @@ import { ServerEventVersion } from "./events/types.js";
 import type { EventRunners, RunEvents } from "./events/types.js";
 import { GraphActions } from "./graph-actions.js";
 import { LifeCycles } from "./lifecycle.js";
+import type { ClassificationChange } from "./lifecycle.js";
 import { ItemLocks } from "./locks.js";
 import { compileProjection } from "./projection.js";
 import { ItemQueries } from "./queries/engine.js";
@@ -45,6 +46,7 @@ import { PlatformTrace } from "./trace.js";
 import type { SourceDefinition } from "./trace.js";
 import { normalizeProperties } from "./values.js";
 import type { ItemReference, SeedValue } from "./values.js";
+import { manualVersioning } from "./version-policy.js";
 import { Versioning } from "./versioning.js";
 
 interface CallSource {
@@ -147,6 +149,7 @@ export class Platform {
             options.userId,
             now,
             this.trace,
+            this.catalog.classifications,
         );
         this.references = new ReferenceMaintenance(storage, this.trace);
         this.deletion = new DependentDeletion(
@@ -178,6 +181,7 @@ export class Platform {
             (name, item, context) => context.execute(callMethodOperation, { name, context: item }),
             this.references,
             this.security,
+            this.catalog.classifications,
         );
         this.revisions = new Revisions(storage);
         this.versioning = new Versioning(
@@ -965,7 +969,7 @@ export class Platform {
         await this.graph.properties(definition, request, context);
         const id = request.attributes.id ?? this.nextId();
         this.assertAddProperties(definition, request);
-        const properties = this.creationProperties(definition, request, id);
+        const properties = this.creationProperties(definition, request, id, context);
         Object.assign(properties, this.security.creation(definition, properties, context));
         const record = this.references.initialize(definition, {
             id,
@@ -1418,14 +1422,23 @@ export class Platform {
         const request = item.node;
         validateRequest(request, action);
         this.assertActionContext(definition, request, action, record.id);
+        const classification =
+            action === "delete"
+                ? undefined
+                : this.lifeCycles.classificationChange(
+                      definition,
+                      record,
+                      request.properties,
+                      context,
+                  );
         await this.graph.properties(definition, request, context);
 
         if (action === "delete") {
             await this.deletion.children(record, enabled, context);
         }
 
-        this.mutateRecord(definition, record, request, action, context);
-        const stored =
+        this.mutateRecord(definition, record, request, action, context, classification);
+        let stored =
             action === "delete" ? record : this.storage.getItem(definition.name, record.id);
 
         if (!stored) {
@@ -1438,6 +1451,8 @@ export class Platform {
             enabled,
             context,
         );
+        const children = await this.graph.relationships(definition, request, record.id, context);
+        stored = this.lifeCycles.applyClassification(stored, classification, context);
         const response = new Item({
             items: [
                 {
@@ -1449,15 +1464,10 @@ export class Platform {
                         stored,
                         selectedProperties(request),
                     ),
+                    relationships: children,
                 },
             ],
         });
-        response.node.relationships = await this.graph.relationships(
-            definition,
-            request,
-            record.id,
-            context,
-        );
         this.security.changed(record, stored, context);
         await this.events(definition, `onAfter${verb}`, response, enabled, context);
 
@@ -1470,6 +1480,7 @@ export class Platform {
         request: ItemNode,
         action: string,
         context: ExecutionContext,
+        classification: ClassificationChange | undefined,
     ): void {
         if (Boolean(record.properties.locked_by_id)) {
             throw new PlatformError(
@@ -1489,45 +1500,56 @@ export class Platform {
                 before: record,
             });
         } else {
-            this.security.assertAccessChange(definition, record, request.properties, context);
-            const values = normalizeProperties(this.storage, definition, request.properties, {
-                creating: false,
-                current: record,
-            });
-
-            if (definition.isRelationship) {
-                const prepared = this.references.initialize(definition, {
-                    ...record,
-                    properties: { ...record.properties, ...values },
-                });
-                const behavior = prepared.properties.behavior;
-
-                if (typeof behavior !== "string") {
-                    throw new TypeError("A relationship must retain its resolved behavior.");
-                }
-
-                values.behavior = behavior;
-            }
-
-            assertActiveContext(context);
-            this.storage.updateItem(
-                definition.name,
-                record.id,
-                this.security.auditedChanges(record, values),
-            );
-            const after = this.storage.getItem(definition.name, record.id);
-
-            if (!after) {
-                throw new PlatformError("MissingItem", "Updated record disappeared.");
-            }
-
-            this.trace.record(context, {
-                kind: "mutation",
-                name: "update",
-                before: record,
-                after,
-            });
+            this.updateRecord(definition, record, request, context, classification);
         }
+    }
+
+    private updateRecord(
+        definition: ItemTypeDefinition,
+        record: StoredItem,
+        request: ItemNode,
+        context: ExecutionContext,
+        classification: ClassificationChange | undefined,
+    ): void {
+        const normalized = normalizeProperties(this.storage, definition, request.properties, {
+            creating: false,
+            current: record,
+        });
+        const values = this.lifeCycles.authorizeUpdate(
+            definition,
+            record,
+            normalized,
+            classification,
+            context,
+        );
+
+        if (definition.isRelationship) {
+            const prepared = this.references.initialize(definition, {
+                ...record,
+                properties: { ...record.properties, ...values },
+            });
+            const behavior = prepared.properties.behavior;
+
+            if (typeof behavior !== "string") {
+                throw new TypeError("A relationship must retain its resolved behavior.");
+            }
+
+            values.behavior = behavior;
+        }
+
+        assertActiveContext(context);
+        this.storage.updateItem(
+            definition.name,
+            record.id,
+            this.security.auditedChanges(record, values),
+        );
+        const after = this.storage.getItem(definition.name, record.id);
+
+        if (!after) {
+            throw new PlatformError("MissingItem", "Updated record disappeared.");
+        }
+
+        this.trace.record(context, { kind: "mutation", name: "update", before: record, after });
     }
 
     private assertAddProperties(definition: ItemTypeDefinition, request: ItemNode): void {
@@ -1553,17 +1575,20 @@ export class Platform {
         definition: ItemTypeDefinition,
         request: ItemNode,
         id: string,
+        context: ExecutionContext,
     ): Record<string, StorageValue> {
         const classification =
             request.properties.classification === undefined
                 ? definition.properties.find((property) => property.name === "classification")
                       ?.defaultValue
                 : request.properties.classification;
+        this.catalog.classifications.assertValue(definition, classification, context);
         const properties: Record<string, StorageValue> = {
             config_id: id,
             generation: 1,
             is_current: 1,
-            new_version: 1,
+            new_version:
+                definition.isVersionable && !manualVersioning(this.storage, definition) ? 0 : 1,
             ...this.revisions.initial(definition, request.properties),
             ...(classification === undefined ? {} : { classification }),
             ...request.properties,
