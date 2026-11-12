@@ -30,16 +30,34 @@ export class VersionCopyPolicy {
             return;
         }
 
+        const owners = eventOwners(this.storage, definition.id);
+
         if (
             id === fileTypeId.toLowerCase() ||
             definition.name.toLowerCase() === "file" ||
-            (this.hasFileContainer &&
-                eventOwners(this.storage, definition.id).has(fileContainerTypeId.toLowerCase()))
+            (this.hasFileContainer && owners.has(fileContainerTypeId.toLowerCase()))
         ) {
             throw new PlatformError(
                 "UnsupportedFileCopy",
                 `Copying '${definition.name}' during versioning requires native file-container and vault services, which are unavailable.`,
                 definition.source ? { source: definition.source } : undefined,
+            );
+        }
+
+        const reset = this.storage.listCatalogEntries("Server Event").find((entry) => {
+            const properties = entry.properties;
+
+            return (
+                owners.has(String(properties.source_id).toLowerCase()) &&
+                String(properties.server_event).toLowerCase() === "onafterresetlifecycle"
+            );
+        });
+
+        if (reset) {
+            throw new PlatformError(
+                "UnsupportedLifecycleResetEvent",
+                `Copying '${definition.name}' requires onAfterResetLifecycle event metadata, which is unavailable.`,
+                { source: reset.source },
             );
         }
 

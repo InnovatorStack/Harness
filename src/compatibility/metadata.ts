@@ -87,6 +87,15 @@ function inspectServerEvent(
         const name = String(properties.server_event ?? "");
         const version = String(properties.event_version ?? "version_1");
 
+        if (name.toLowerCase() === "onafterresetlifecycle") {
+            unsupported(
+                issues,
+                entry,
+                "UnsupportedLifecycleResetEvent",
+                "Lifecycle reset callbacks require native reset event metadata, which is unavailable.",
+            );
+        }
+
         try {
             eventVersion(name, properties.event_version, entry.source);
         } catch (error) {

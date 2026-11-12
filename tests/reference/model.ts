@@ -66,7 +66,17 @@ export const watchedTypes: readonly WatchedType[] = [
     {
         type: "RefBatchLink",
         keys: ["source_id", "label", "generation"],
-        properties: ["source_id", "related_id", "label", "behavior", ...identityProperties],
+        properties: [
+            "source_id",
+            "related_id",
+            "label",
+            "behavior",
+            "state",
+            "current_state",
+            "is_released",
+            "not_lockable",
+            ...identityProperties,
+        ],
     },
     {
         type: "RefRequired",

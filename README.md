@@ -426,6 +426,12 @@ Parent versioning clones stored relationship values without `onBeforeCopy`, `onA
 or relationship add/update hooks. Required and inherited bindings are also skipped; their mocks
 and executors are never consulted. Nested owned records exist before the parent's after-version
 hooks run. Copied rows, references and later Method writes share the request's rollback and reset.
+After the owned graph exists, copied relationships restart their classification-selected default
+lifecycle. The start state supplies state flags and its Permission; permission inheritance and
+nested reference policies run before after-version hooks. Without a default map, copies clear
+their state and flags while retaining their Permission. Original rows retain their lifecycle state.
+Reset callbacks and released copy start states fail explicitly until their execution and release-date
+initialization are supported. This internal copy reset runs even with `serverEvents="0"`.
 Standalone copy actions, released relationship reset policies and native file-container/vault
 copying remain unavailable; unsupported paths report their capability instead of pretending to copy.
 `Morphae` links supply inherited polymorphic bindings with concrete item contexts. Own and inherited
