@@ -1,3 +1,5 @@
+import type { ReadableStreamDefaultReader } from "node:stream/web";
+
 import { assertDataTree, parseFrozenJson } from "../../core/data.js";
 import { object } from "../../items/codec.js";
 import { PlatformError } from "../../platform/errors.js";
@@ -21,28 +23,52 @@ export function encodeMessage(message: unknown): Uint8Array {
 export async function readMessages(
     stream: ReadableStream<Uint8Array>,
     receive: (message: Record<string, unknown>) => void,
-    readWhenActive?: () => Promise<boolean>,
+    readWhenActive?: () => boolean | Promise<boolean>,
 ): Promise<void> {
-    const decoder = new TextDecoder("utf-8", { fatal: true });
-    let buffer = "";
+    const decoder = new MessageDecoder();
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
-    while (true) {
-        if (readWhenActive && !(await readWhenActive())) {
-            break;
+    try {
+        while (true) {
+            const active = readWhenActive?.() ?? true;
+
+            if (typeof active !== "boolean") {
+                reader?.releaseLock();
+                reader = undefined;
+
+                if (!(await active)) {
+                    break;
+                }
+            } else if (!active) {
+                break;
+            }
+
+            reader ??= stream.getReader();
+            const chunk = await reader.read();
+
+            if (chunk.done) {
+                break;
+            }
+
+            decoder.push(chunk.value, receive);
         }
 
-        const chunk = await readChunk(stream);
+        decoder.finish();
+    } finally {
+        reader?.releaseLock();
+    }
+}
 
-        if (chunk.done) {
-            buffer += decoder.decode();
-            break;
-        }
+class MessageDecoder {
+    private readonly decoder = new TextDecoder("utf-8", { fatal: true });
+    private buffer = "";
 
-        buffer += decoder.decode(chunk.value, { stream: true });
-        let newline = buffer.indexOf("\n");
+    push(bytes: Uint8Array, receive: (message: Record<string, unknown>) => void): void {
+        this.buffer += this.decoder.decode(bytes, { stream: true });
+        let newline = this.buffer.indexOf("\n");
 
         while (newline >= 0) {
-            const line = buffer.slice(0, newline);
+            const line = this.buffer.slice(0, newline);
             assertMessageSize(line);
             const message = parseFrozenJson(line);
 
@@ -55,26 +81,19 @@ export async function readMessages(
             }
 
             receive(message);
-            buffer = buffer.slice(newline + 1);
-            newline = buffer.indexOf("\n");
+            this.buffer = this.buffer.slice(newline + 1);
+            newline = this.buffer.indexOf("\n");
         }
 
-        assertMessageSize(buffer);
+        assertMessageSize(this.buffer);
     }
 
-    if (buffer.length > 0) {
-        throw new PlatformError("InvalidProtocol", "C# worker stopped inside a message.");
-    }
-}
+    finish(): void {
+        this.buffer += this.decoder.decode();
 
-/** Releasing Bun's pipe reader between frames lets an idle, unreferenced worker exit cleanly. */
-async function readChunk(stream: ReadableStream<Uint8Array>) {
-    const reader = stream.getReader();
-
-    try {
-        return await reader.read();
-    } finally {
-        reader.releaseLock();
+        if (this.buffer.length > 0) {
+            throw new PlatformError("InvalidProtocol", "C# worker stopped inside a message.");
+        }
     }
 }
 

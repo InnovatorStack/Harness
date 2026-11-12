@@ -298,9 +298,11 @@ test("the managed byte budget applies per message rather than per pipe chunk", a
         },
     });
     await readMessages(stream, (message) => {
+        expect(stream.locked).toBe(true);
         messages.push(message);
     });
     expect(messages).toHaveLength(2);
+    expect(stream.locked).toBe(false);
     expect(() => encodeMessage({ text: "x".repeat(messageBytesMax) })).toThrow("8 MiB");
 });
 
