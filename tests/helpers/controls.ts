@@ -2,7 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const entrypoint = Bun.fileURLToPath(new URL("../../src/index.ts", import.meta.url));
+// Match installed-package imports: share the runtime instead of bundling it into each setup.
+const entrypoint = new URL("../../src/index.ts", import.meta.url).href;
 const schema = `<AML>
 <Item type="ItemType" action="add" id="CONTROL_DOCUMENT">
   <name>ControlledDocument</name><is_versionable>1</is_versionable><Relationships>
