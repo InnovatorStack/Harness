@@ -3,6 +3,7 @@ import { ExecutionOutcome } from "../../src/index.js";
 import type { StoredItem } from "../../src/index.js";
 import { object, decodePayload } from "../../src/items/codec.js";
 import { watchedTypes } from "./model.js";
+import { recordInScope } from "./projection.js";
 import type { NativeEvidence, Observation, StepObservation } from "./types.js";
 
 /** An explicit attestation is required; the suite never promotes its own output into evidence. */
@@ -123,7 +124,15 @@ function records(value: unknown): readonly StoredItem[] {
             Object.defineProperty(properties, name, { value: scalar, enumerable: true });
         }
 
-        return { id: text(record.id), type, properties };
+        const parsed = { id: text(record.id), type, properties };
+
+        if (!recordInScope(parsed, projection)) {
+            throw new TypeError(
+                `Reference state '${type}' contains a record outside its source scope.`,
+            );
+        }
+
+        return parsed;
     });
 }
 

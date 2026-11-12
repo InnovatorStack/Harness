@@ -11,16 +11,24 @@ import { Item } from "../../src/items/item.js";
 import { parseItems } from "../../src/items/xml.js";
 import type { Corpus } from "./corpus.js";
 import { corpusDirectory } from "./corpus.js";
-import { fixtureBindings, sessionUser, watchedTypes } from "./model.js";
-import { methodContext, projectPayload, projectRecord } from "./projection.js";
+import {
+    authorization,
+    clock,
+    fixtureBindings,
+    idsSeed,
+    sessionUser,
+    watchedTypes,
+} from "./model.js";
+import { methodContext, projectPayload, projectRecord, recordInScope } from "./projection.js";
 import type { CaseRun, EventObservation, ReferenceCase, StepObservation } from "./types.js";
 
 export async function openReferenceWorld(): Promise<Harness> {
     return await createHarness({
         cwd: corpusDirectory,
         config: {
-            clock: fixedClock("2026-01-01T00:00:00Z"),
-            ids: seededIds("reference-corpus"),
+            authorization,
+            clock: fixedClock(clock),
+            ids: seededIds(idsSeed),
             session: { user: sessionUser },
         },
     });
@@ -102,7 +110,12 @@ export function resolveRequest(template: string, bindings: ReadonlyMap<string, s
 }
 
 function state(h: Harness) {
-    return watchedTypes.flatMap((entry) => h.state.get(entry.type).map(projectRecord));
+    return watchedTypes.flatMap((entry) =>
+        h.state
+            .get(entry.type)
+            .filter((record) => recordInScope(record, entry))
+            .map(projectRecord),
+    );
 }
 
 function completeReport(report: ExecutionReport | undefined): ExecutionReport {

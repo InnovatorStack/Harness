@@ -4,6 +4,31 @@ import { AuthorizationMode, createHarness, ExecutionOutcome } from "../src/index
 import { referenceMethod } from "./helpers/references.js";
 import { principalFixtures, securityProject } from "./helpers/security.js";
 
+test.each([0, null])(
+    "Can Add %s cannot authorize creation even when its Identity matches",
+    async (flag) => {
+        const enabled = flag === null ? '<can_add is_null="1" />' : `<can_add>${flag}</can_add>`;
+        const source = `<Item type="ItemType" action="add" id="SEC_CREATION_CONTROL">
+        <name>CreationControl</name>
+        <Relationships>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Can Add" action="add"><related_id>SEC_EDITORS</related_id>${enabled}</Item>
+            <Item type="Can Add" action="add"><related_id>SEC_PUBLISHERS</related_id><can_add>1</can_add></Item>
+            <Item type="Allowed Permission" action="add"><related_id>SEC_EDIT</related_id><is_default>1</is_default></Item>
+        </Relationships>
+    </Item>`;
+        await using project = await securityProject(source);
+        using h = await createHarness({
+            cwd: project.cwd,
+            authorization: AuthorizationMode.Native,
+        });
+        await expect(h.add("CreationControl", { name: "Denied" })).rejects.toThrow("Cannot add");
+
+        expect(h.state.get("CreationControl")).toEqual([]);
+        expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
+    },
+);
+
 test("native reads filter hidden records before paging and preserve raw-state inspection", async () => {
     await using project = await securityProject();
     using h = await createHarness({ cwd: project.cwd, authorization: AuthorizationMode.Native });

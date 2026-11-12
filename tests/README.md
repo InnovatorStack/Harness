@@ -30,7 +30,9 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 32 cases run through the ordinary dispatcher and managed adapter, with no mocks or injected failures. They cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 43 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+
+The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, Method execution identities, scoped C# grants, source-inherited reads, per-item Team roles, membership changes and lifecycle roles.
 
 Run it outside the test runner:
 
@@ -38,7 +40,9 @@ Run it outside the test runner:
 bun run scripts/reference.ts
 ```
 
-Open `tests/results/reference/report.json` for responses, event Method contexts and raw stored state after every step. `inputs.json` contains the original setup AML, request templates, fixture selectors, projected columns, identity fields, event bindings and per-case input hashes. Each case resets to the fixture checkpoint. Template bindings resolve fixture selectors or a previous single-item result to its ID.
+Open `tests/results/reference/report.json` for responses, event Method contexts and raw stored state after every step. `inputs.json` contains the original setup AML, request templates, fixture selectors, projected columns, identity fields, event bindings, authorization mode, session selector, local clock/ID controls and per-case input hashes. Each case resets to the fixture checkpoint. Template bindings resolve fixture selectors or a previous single-item result to its ID.
+
+Stored projections contain only columns in the imported schema. Shared platform tables declare `sourceIds` to limit snapshots to relationships owned by the reference fixtures; native evidence containing unrelated rows is rejected. Clock and ID controls make local runs deterministic. Native captures retain their server's actual values, with comparison limited to the declared projections.
 
 Local contract results and native comparisons have separate statuses. Default runs report `PENDING_NATIVE_REFERENCE`; they never write native recordings or mark platform capabilities as reference-verified. A stale recording, mismatch, invalid recording or failed local contract fails the suite. With `--require-native`, missing native outcomes also fail:
 
@@ -65,7 +69,7 @@ The native directory is read-only input and must contain one release/build profi
 }
 ```
 
-The empty observation above is only a shape illustration; validation rejects it. Actual outcomes must come from a dedicated disposable native reference environment using the supplied original setup and requests. Authenticate as `reference_owner`, restore the original fixture state between cases, retain the response/error and transaction outcome, and read the watched stored columns after each request. The suite contains no native writer or connection adapter.
+The empty observation above is only a shape illustration; validation rejects it. Actual outcomes must come from a dedicated disposable native reference environment using the supplied original setup and requests. Install the metadata and restore fixture data administratively, then authenticate as `reference_owner` for the requests. Restore the original fixture state between cases, retain the response/error and transaction outcome, and read the watched stored columns within their declared source scopes after each request. The suite contains no native writer or connection adapter.
 
 For native event capture, the original test Methods emit `HARNESS_REFERENCE_EVENT|<Method>|<Base64 AML>` when the native server process has `INNOVATOR_HARNESS_REFERENCE_CAPTURE=1`. This is inactive by default. Capture these lines per request, including failed transactions; `readNativeEvents()` in `tests/reference/native-events.ts` decodes them offline and derives event labels from original metadata through `nativeEventBindings()`. Native evidence requires review; its metadata is an attestation, not automatic proof of origin. Synthetic comparator samples are test inputs, never native evidence.
 

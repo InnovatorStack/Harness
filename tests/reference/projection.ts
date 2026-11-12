@@ -3,6 +3,17 @@ import { decodePayload, object } from "../../src/items/codec.js";
 import type { ItemNode, ItemPayload } from "../../src/items/item.js";
 import type { StoredItem } from "../../src/storage/types.js";
 import { contextProperties, payloadAttributes, watchedTypes } from "./model.js";
+import type { WatchedType } from "./types.js";
+
+/** Shared platform tables are observed only within the supplied reference fixtures' scope. */
+export function recordInScope(record: StoredItem, definition: WatchedType): boolean {
+    return (
+        !definition.sourceIds ||
+        definition.sourceIds.some(
+            (id) => id.toLowerCase() === String(record.properties.source_id).toLowerCase(),
+        )
+    );
+}
 
 /** Projection is explicit and hashed into the case. Absent stored columns represent SQL null. */
 export function projectRecord(record: StoredItem): StoredItem {

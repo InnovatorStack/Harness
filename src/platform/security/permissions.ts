@@ -78,12 +78,16 @@ export class ItemPermissions {
         this.assertSourcePolicy(definition);
         const rules = this.storage.listItems("Can Add");
         spendContext(context, rules.length);
-        const permitted = rules.some(
-            (record) =>
+        const permitted = rules.some((record) => {
+            const enabled = record.properties.can_add;
+
+            return (
+                (enabled === undefined || String(enabled) === "1") &&
                 String(record.properties.source_id).toLowerCase() === definition.id.toLowerCase() &&
                 effective(record, this.now()) &&
-                actor.identities.has(String(record.properties.related_id).toLowerCase()),
-        );
+                actor.identities.has(String(record.properties.related_id).toLowerCase())
+            );
+        });
 
         if (!permitted) {
             throw new ApplicationError(

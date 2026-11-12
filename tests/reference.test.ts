@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
+import { join } from "node:path";
 
 import { capabilities } from "../src/compatibility/capabilities.js";
-import { cases, loadCorpus } from "./reference/corpus.js";
+import { createEngine } from "../src/engine.js";
+import { AuthorizationMode } from "../src/index.js";
+import { cases, corpusDirectory, inputBundle, loadCorpus } from "./reference/corpus.js";
+import { watchedTypes } from "./reference/model.js";
 import { runReferenceSuite } from "./reference/suite.js";
 import { ComparisonStatus } from "./reference/types.js";
 
@@ -31,6 +35,24 @@ test("reference corpus covers required boundaries with unique cases and source-q
 
     expect(corpus.hash(first)).toMatch(/^[a-f\d]{64}$/u);
     expect(corpus.hash({ ...first, steps: [] })).not.toBe(corpus.hash(first));
-    expect(corpus.files).toHaveLength(4);
+    expect(corpus.files).toHaveLength(6);
     expect(corpus.anchors.size).toBeGreaterThan(20);
+    expect(inputBundle(corpus).authorization).toBe(AuthorizationMode.Native);
+});
+
+test("reference stored projections contain only unique columns from the original imported schema", async () => {
+    using engine = createEngine();
+    await engine.loadPackages([join(corpusDirectory, ".harness/packages")]);
+
+    for (const watched of watchedTypes) {
+        const definition = engine.storage.getItemType(watched.type);
+        expect(definition).toBeDefined();
+        expect(new Set(watched.properties).size).toBe(watched.properties.length);
+
+        for (const name of watched.properties) {
+            expect(definition?.properties.some((property) => property.name === name)).toBe(true);
+        }
+
+        expect(watched.keys.every((key) => watched.properties.includes(key))).toBe(true);
+    }
 });
