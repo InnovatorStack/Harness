@@ -14,6 +14,7 @@ import { recordKey } from "../references/catalog.js";
 import type { PlatformTrace } from "../trace.js";
 import { IdentityGrants } from "./grants.js";
 import { Identities } from "./identities.js";
+import { MethodExecutionScopes } from "./method-execution.js";
 import { AccessRight, ItemPermissions } from "./permissions.js";
 import { SourceAccess } from "./source-access.js";
 import { SourceInheritance } from "./source-inheritance.js";
@@ -25,6 +26,7 @@ interface OwnedDeletion {
 }
 
 export class NativeSecurity {
+    readonly methods = new MethodExecutionScopes();
     readonly grants: IdentityGrants;
     readonly permissions: ItemPermissions;
     private readonly identities: Identities;
@@ -59,6 +61,7 @@ export class NativeSecurity {
 
     reset(): void {
         this.ownedDeletes.clear();
+        this.methods.reset();
     }
 
     authorize(request: AuthorizationRequest, context: ExecutionContext): void {
@@ -96,6 +99,11 @@ export class NativeSecurity {
                 Item.error(`Identity does not permit '${request.name}'.`, "PermissionDenied"),
             );
         }
+    }
+
+    authorizeMethodSession(context: ExecutionContext): void {
+        assertActiveContext(context);
+        this.identities.user();
     }
 
     readable(

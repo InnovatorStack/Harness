@@ -220,6 +220,14 @@
         <name>RefRestrictedMethod</name><method_type>C#</method_type>
         <execution_allowed_to>A7100000000000000000000000000004</execution_allowed_to>
         <method_code><![CDATA[
+var protectedQuery = this.getInnovator().newItem("RefSecurityRecord", "get");
+protectedQuery.setProperty("item_number", "HIDDEN");
+var protectedResult = protectedQuery.apply();
+if (protectedResult.isError() && protectedResult.getErrorCode() != "0") { return protectedResult; }
+if (protectedResult.getItemCount() > 0)
+{
+    throw new Exception("Method NoCheck must not grant access to protected data");
+}
 return this.getInnovator().newResult("Restricted Method executed");
 ]]></method_code>
     </Item>

@@ -231,6 +231,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Required bindings survive serverEvents=0. Native release-specific ordering remains unverified.",
             "Automatic versioning runs before-update before its version decision, then reenters update for the generated batch. Version hooks run despite serverEvents=0.",
             "Before-update and after-add/update/version expose typed immutable event metadata. After-version item contexts are historical; generated IDs are supplied separately.",
+            "Bound server-event Methods and their nested Method chains use native NoCheck execution identities; Item ACLs and transition roles still apply.",
             "Replacement interception during version reentry remains unimplemented; native event context profiles are unverified.",
         ],
         tests: [
@@ -244,6 +245,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/event-metadata.test.ts",
             "tests/event-metadata-ports.test.ts",
             "tests/event-metadata-inout.test.ts",
+            "tests/bound-methods.test.ts",
         ],
     }),
     descriptor({
@@ -303,10 +305,12 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Imported transitions, starting states, released revision resets and transactional pre/post Methods are supported.",
             "Class-based map changes preserve shared-map states, require the old start state for map switches, and apply state Permissions before nested actions.",
             "Native mode evaluates transition roles through imported identities and record-specific virtual roles. Workflow startup and post-commit Methods need separate services.",
+            "Pre/post Methods use ordinary execution checks and inherit NoCheck only when their promotion descends from a bound server-event Method.",
         ],
         tests: [
             "tests/lifecycle.test.ts",
             "tests/revision-lifecycle.test.ts",
+            "tests/bound-lifecycle-methods.test.ts",
             "tests/classification-updates.test.ts",
         ],
     }),

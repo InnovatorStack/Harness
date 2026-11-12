@@ -184,6 +184,7 @@ return this;
   </Item>
   <Item type="Method" action="add" id="A400000000000000000000000000000F">
     <name>RefRequiredUpdate</name><method_type>C#</method_type>
+    <execution_allowed_to>A7100000000000000000000000000004</execution_allowed_to>
     <method_code><![CDATA[
 if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
 {
@@ -191,11 +192,22 @@ if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") ==
     Console.WriteLine("HARNESS_REFERENCE_EVENT|RefRequiredUpdate|" + aml);
 }
 this.setProperty("required_note", "Required hook");
+if (this.getProperty("note") == "Native NoCheck probe")
+{
+    var nested = this.getInnovator().applyMethod("RefRestrictedMethod", "");
+    if (nested.isError()) { return nested; }
+    if (nested.getResult() != "Restricted Method executed")
+    {
+        throw new Exception("The nested restricted Method did not execute");
+    }
+    this.setProperty("required_note", "Inherited NoCheck");
+}
 return this;
 ]]></method_code>
   </Item>
   <Item type="Method" action="add" id="A4000000000000000000000000000010">
     <name>RefReplaceGet</name><method_type>C#</method_type>
+    <execution_allowed_to>A7100000000000000000000000000004</execution_allowed_to>
     <method_code><![CDATA[
 if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
 {

@@ -138,6 +138,7 @@ export class Platform {
     private readonly security: NativeSecurity;
     private readonly responses: ActionResponses;
     private readonly replacements = new EventReplacements();
+    private readonly boundMethods = new WeakSet<MethodCall>();
     private readonly afterEvents: AfterEvents;
 
     constructor(
@@ -500,7 +501,40 @@ export class Platform {
         }
     }
 
+    private async callBoundMethod(input: MethodCall, context: ExecutionContext): Promise<Item> {
+        assertActiveContext(context);
+        this.boundMethods.add(input);
+
+        try {
+            return await context.execute(callMethodOperation, input);
+        } finally {
+            this.boundMethods.delete(input);
+        }
+    }
+
+    private async authorizeMethod(
+        input: MethodCall,
+        name: string,
+        entry: CatalogEntry | undefined,
+        context: ExecutionContext,
+        checkExecutionIdentity: boolean,
+    ): Promise<void> {
+        if (!checkExecutionIdentity && this.security.enabled) {
+            this.security.authorizeMethodSession(context);
+            this.trace.record(context, { kind: "authorization", name: "native Method NoCheck" });
+
+            return;
+        }
+
+        await this.authorize(
+            { kind: "method", name, item: input.context },
+            checkExecutionIdentity && Boolean(entry?.properties.execution_allowed_to),
+            context,
+        );
+    }
+
     private async callMethod(input: MethodCall, context: ExecutionContext): Promise<Item> {
+        using permissions = this.security.methods.enter(context, this.boundMethods.has(input));
         const entry = this.catalog.methodEntry(input.name);
         const name =
             typeof entry?.properties.name === "string" ? entry.properties.name : input.name;
@@ -513,10 +547,12 @@ export class Platform {
         const mocked = this.options.mocks?.method(names, input.context);
 
         if (mocked) {
-            await this.authorize(
-                { kind: "method", name, item: input.context },
-                Boolean(entry?.properties.execution_allowed_to),
+            await this.authorizeMethod(
+                input,
+                name,
+                entry,
                 context,
+                permissions.checkExecutionIdentity,
             );
 
             return this.mockedMethodResult(name, entry, mocked, context);
@@ -529,10 +565,12 @@ export class Platform {
             definition: { type: "Method", id: definition.id },
         };
         this.trace.record(context, { kind: "method", name: definition.name, ...source });
-        await this.authorize(
-            { kind: "method", name: definition.name, item: input.context },
-            Boolean(entry?.properties.execution_allowed_to),
+        await this.authorizeMethod(
+            input,
+            definition.name,
+            entry,
             context,
+            permissions.checkExecutionIdentity,
         );
         const executor = this.executorFor(definition);
 
@@ -700,11 +738,14 @@ export class Platform {
     ): Promise<void> {
         this.trace.record(context, { kind: "event", name, source: binding.entry.source });
         const result = requireSuccess(
-            await context.execute(callMethodOperation, {
-                name: binding.methodId,
-                context: item,
-                ...(data ? { eventData: data } : {}),
-            }),
+            await this.callBoundMethod(
+                {
+                    name: binding.methodId,
+                    context: item,
+                    ...(data ? { eventData: data } : {}),
+                },
+                context,
+            ),
         );
         item.payload.items = structuredClone(result.payload.items);
 
@@ -1333,8 +1374,7 @@ export class Platform {
                 context,
                 (request, nested) =>
                     nested.execute(applyBaseItemOperation, { item: request, event: `on${verb}` }),
-                () =>
-                    context.execute(callMethodOperation, { name: binding.methodId, context: item }),
+                () => this.callBoundMethod({ name: binding.methodId, context: item }, context),
             );
         }
 

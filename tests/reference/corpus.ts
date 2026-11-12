@@ -4,6 +4,7 @@ import { readTextFile } from "../../src/core/files.js";
 import { parseAml } from "../../src/packages/parser.js";
 import { actionResponseCases } from "./cases/action-responses.js";
 import { actionCases } from "./cases/actions.js";
+import { boundPermissionCases } from "./cases/bound-permissions.js";
 import { classificationCases } from "./cases/classifications.js";
 import { collectionCases } from "./cases/collections.js";
 import { eventCases } from "./cases/events.js";
@@ -45,6 +46,7 @@ export const cases: readonly ReferenceCase[] = [
     ...revisionCases,
     ...stateEventCases,
     ...permissionCases,
+    ...boundPermissionCases,
     ...teamCases,
     ...classificationCases,
     ...reclassificationCases,

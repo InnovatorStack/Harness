@@ -45,6 +45,7 @@ interface ExecutionFrame {
     readonly depth: number;
     readonly children: Set<Promise<unknown>>;
     active: boolean;
+    context?: ExecutionContext;
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -573,13 +574,32 @@ export class Runtime {
                 return child;
             },
         };
+        this.registerFrameContext(request, frame, context);
+
+        return Object.freeze(context);
+    }
+
+    private registerFrameContext(
+        request: RequestState,
+        frame: ExecutionFrame,
+        context: ExecutionContext,
+    ): void {
+        const parent = frame.parentId ? request.frames.get(frame.parentId)?.context : undefined;
+
+        if (frame.parentId && !parent) {
+            throw new RuntimeError(
+                "InvalidOperation",
+                "An execution parent has no active context.",
+            );
+        }
+
+        frame.context = context;
         registerContext(
             context,
             () => this.assertContext(request, frame),
             (units) => this.spendWork(request, units),
+            parent,
         );
-
-        return Object.freeze(context);
     }
 
     private spendWork(request: RequestState, units: number): void {
