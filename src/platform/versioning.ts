@@ -33,12 +33,12 @@ const managedProperties = ["config_id", "generation", "is_current", "new_version
 interface PreparedVersion {
     readonly record: StoredItem;
     readonly copies: Map<string, string>;
-    readonly enabled: boolean;
 }
 
 interface PreparedUpdate extends PreparedVersion {
     readonly request: Item;
     readonly versioned: boolean;
+    readonly enabled: boolean;
     readonly select: string | undefined;
     readonly idList: readonly string[];
 }
@@ -65,15 +65,7 @@ export class Versioning {
         private readonly lifeCycles: LifeCycles,
         private readonly security: NativeSecurity,
     ) {
-        this.copier = new RelationshipCopy(
-            storage,
-            trace,
-            nextId,
-            references,
-            graph,
-            runners.collection,
-            security,
-        );
+        this.copier = new RelationshipCopy(storage, trace, nextId, references, security);
     }
 
     assertCurrent(record: StoredItem): void {
@@ -308,13 +300,11 @@ export class Versioning {
         const sources = records.map((record) => this.currentRecord(record));
         const update = await this.beforeVersions(definition, sources, request, context);
         const prepared: PreparedVersion[] = [];
-        const enabled = update.getAttribute("serverEvents") !== "0";
 
         for (const source of sources) {
             prepared.push({
                 record: this.create(definition, source, context),
                 copies: new Map<string, string>(),
-                enabled,
             });
         }
 
@@ -711,7 +701,7 @@ export class Versioning {
                 throw new PlatformError("InvalidGeneration", "A version source is missing.");
             }
 
-            await this.copier.copy(previous, target.record, target.copies, target.enabled, context);
+            this.copier.copy(previous, target.record, target.copies, context);
             this.references.versioned(previous, target.record, context);
             this.security.changed(previous, this.currentRecord(target.record), context);
         }

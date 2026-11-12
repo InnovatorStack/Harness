@@ -422,9 +422,12 @@ Custom executors receive immutable `MethodPorts.eventData`, discriminated by `Me
 Nested ordinary Methods receive no inherited event metadata. Both C# templates expose the corresponding
 native argument classes. Hook writes, errors and metadata snapshots retain transaction/reset isolation.
 
-`onBeforeCopy` and `onAfterCopy` still receive relationship collections during parent versioning.
-Before-copy hooks can alter copied values while retaining source identity and collection size.
-Native suppression of business copy hooks during parent versioning remains unimplemented.
+Parent versioning clones stored relationship values without `onBeforeCopy`, `onAfterCopy`,
+or relationship add/update hooks. Required and inherited bindings are also skipped; their mocks
+and executors are never consulted. Nested owned records exist before the parent's after-version
+hooks run. Copied rows, references and later Method writes share the request's rollback and reset.
+Standalone copy actions, released relationship reset policies and native file-container/vault
+copying remain unavailable; unsupported paths report their capability instead of pretending to copy.
 `Morphae` links supply inherited polymorphic bindings with concrete item contexts. Own and inherited
 bindings share `sort_order`; tied orders within an event version fail explicitly. Required bindings survive
 `serverEvents="0"`. Native release-specific event and clone parity remains unverified.

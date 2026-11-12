@@ -95,8 +95,8 @@ export const collectionCases: readonly ReferenceCase[] = [
         },
     },
     {
-        id: "versionable-relationship-copy-contexts",
-        capabilities: [CapabilityId.RelationshipVersioning, CapabilityId.CollectionEvents],
+        id: "parent-version-suppresses-copy-hooks",
+        capabilities: [CapabilityId.RelationshipVersioning, CapabilityId.ServerEvents],
         steps: [
             {
                 name: "first-link",
@@ -114,19 +114,26 @@ export const collectionCases: readonly ReferenceCase[] = [
 
         check(observation) {
             const step = stepAt(observation, 2);
-            const before = step.events.find((event) => event.method === "RefBatchBeforeCopy");
-            const after = step.events.find((event) => event.method === "RefBatchAfterCopy");
-            requireContract(
-                before?.context.items.length === 2 && after?.context.items.length === 2,
-                "Copy hooks receive the complete relationship collection.",
+            equalContract(
+                step.events.filter((event) =>
+                    ["onBeforeCopy", "onAfterCopy"].includes(event.event),
+                ),
+                [],
+                "Parent versioning does not execute business copy hooks.",
             );
-            const sourceIds = new Set(before.context.items.map((item) => item.attributes.id));
+            const sourceIds = new Set([resultId(observation, 0), resultId(observation, 1)]);
+            const copied = step.state.filter(
+                (record) =>
+                    record.type === "RefBatchLink" &&
+                    record.properties.source_id === resultId(observation, 2),
+            );
+            equalContract(copied.length, 2, "Both stored relationships are cloned.");
 
-            for (const item of after.context.items) {
-                requireContract(!sourceIds.has(item.attributes.id), "Copies have new identities.");
+            for (const item of copied) {
+                requireContract(!sourceIds.has(item.id), "Copies have new identities.");
                 equalContract(
                     item.properties.config_id,
-                    item.attributes.id,
+                    item.id,
                     "Cloned relationships start fresh configurations.",
                 );
                 equalContract(item.properties.generation, "1", "A clone starts at generation one.");
