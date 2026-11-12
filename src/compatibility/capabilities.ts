@@ -160,8 +160,15 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         dependsOn: [],
         limitations: [
             "User-owned locks and implicit versionable edits are supported; ordinary locked-record mutation and some lock event paths remain unavailable.",
+            "Versioning releases historical source locks through before/after hooks and owned dependent cascades. Administrative lock overrides remain unavailable.",
         ],
-        tests: ["tests/versioning.test.ts"],
+        tests: [
+            "tests/versioning.test.ts",
+            "tests/historical-unlocks.test.ts",
+            "tests/unlock-dependents.test.ts",
+            "tests/unlock-limits.test.ts",
+            "tests/system-lock-owner.test.ts",
+        ],
     }),
     descriptor({
         id: CapabilityId.Revision,
@@ -223,7 +230,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Own and inherited Morphae bindings share sort_order; tied orders within the same event version are rejected.",
             "Required bindings survive serverEvents=0. Native release-specific ordering remains unverified.",
             "Automatic versioning runs before-update before its version decision, then reenters update for the generated batch. Version hooks run despite serverEvents=0.",
-            "Historical-source unlock hooks and replacement interception during version reentry remain unimplemented; native event context profiles are unverified.",
+            "Replacement interception during version reentry and native event-data arguments remain unimplemented; native event context profiles are unverified.",
         ],
         tests: [
             "tests/actions.test.ts",

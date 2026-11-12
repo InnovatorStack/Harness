@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 66 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 70 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -44,6 +44,10 @@ Versioning contracts also assert native `new_version` values through a complete 
 Update reentry cases cover source-controlled version suppression, both before-update passes,
 their action/ID contexts and transactional rejection in either phase. Unit tests cover shared
 before-version request data, mixed bulk version markers, idlist order, permission timing and reset.
+
+Historical unlock cases cover locked/unlocked sources, callback order, event suppression and rejection.
+Unit tests also exercise automatic/manual markers, real Get hydration, shared contexts, owned dependent
+cascades, other owners, bounded cycles/depth, resumed callbacks after rollback and generated User targets.
 
 The cases cover nonversionable edits, nullable clears, required values, lock ownership, first/subsequent saves, version suppression, manual versioning, current/history queries, event order, required/replacement events, promotion, nested rollback, grouped queries, paging metadata, relationship hydration, fixed/floating references, historical freezing, dependent deletion, collection contexts, collection rejection rollback and versionable relationship cloning, released revision resets, sequence exhaustion and revision rejection. Permission cases cover owner filtering, batch rollback on denial, access changes, disabled creation rights, class paths and defaults, hook reclassification, Method execution identities, scoped C# grants, inherited relationship reads and mutations, copied ACL propagation and rollback, parent-authorized owned deletion, per-item Team roles, membership changes and lifecycle roles.
 

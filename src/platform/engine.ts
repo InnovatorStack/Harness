@@ -152,14 +152,7 @@ export class Platform {
             this.catalog.classifications,
         );
         this.references = new ReferenceMaintenance(storage, this.trace);
-        this.deletion = new DependentDeletion(
-            storage,
-            this.references.catalog,
-            this.references.sessions,
-            dispatchItem,
-            (parent, child, enabled, context) =>
-                context.execute(deleteOwnedItemOperation, { parent, child, enabled }),
-        );
+        this.deletion = this.createDependentDeletion();
         this.graph = new GraphActions(storage, dispatchItem);
         this.queries = new ItemQueries(
             storage,
@@ -173,7 +166,15 @@ export class Platform {
         const collection: RunEvents = (definition, name, item, enabled, context) =>
             this.events(definition, name, item, enabled, context, ServerEventVersion.Collection);
         const runners: EventRunners = { item: events, collection };
-        this.locks = new ItemLocks(storage, this.trace, events, options.userId, dispatchItem);
+        this.locks = new ItemLocks(
+            storage,
+            this.trace,
+            events,
+            options.userId,
+            dispatchItem,
+            this.references.catalog,
+            select,
+        );
         this.lifeCycles = new LifeCycles(
             storage,
             this.trace,
@@ -199,6 +200,17 @@ export class Platform {
         );
 
         this.registerExecutors(options.executors ?? []);
+    }
+
+    private createDependentDeletion(): DependentDeletion {
+        return new DependentDeletion(
+            this.storage,
+            this.references.catalog,
+            this.references.sessions,
+            dispatchItem,
+            (parent, child, enabled, context) =>
+                context.execute(deleteOwnedItemOperation, { parent, child, enabled }),
+        );
     }
 
     private registerExecutors(executors: readonly MethodExecutor[]): void {
@@ -599,6 +611,10 @@ export class Platform {
         version = ServerEventVersion.Item,
     ): Promise<void> {
         for (const binding of this.eventBindings(definition, name, enabled, version)) {
+            if (version === ServerEventVersion.Item) {
+                await this.hydrateEventItem(name, item, context);
+            }
+
             this.trace.record(context, {
                 kind: "event",
                 name,
@@ -624,6 +640,45 @@ export class Platform {
                 item.payload.result = result.payload.result;
             }
         }
+    }
+
+    private async hydrateEventItem(
+        name: string,
+        item: Item,
+        context: ExecutionContext,
+    ): Promise<void> {
+        if (name === "onAfterGet" || item.getItemCount() !== 1) {
+            return;
+        }
+
+        const node = item.node;
+
+        if (
+            !node.attributes.id ||
+            Object.keys(node.attributes).length !== 1 ||
+            Object.keys(node.properties).length > 0 ||
+            Object.keys(node.propertyItems).length > 0 ||
+            Object.keys(node.propertyAttributes).length > 0 ||
+            node.relationships.length > 0 ||
+            (node.logical?.length ?? 0) > 0
+        ) {
+            return;
+        }
+
+        const request = Item.create(node.type, "get");
+        request.setProperty("id", node.attributes.id);
+        const result = requireSuccess(await dispatchItem(request, context));
+
+        if (result.isError() || result.getItemCount() === 0) {
+            throw new ApplicationError(
+                Item.error(
+                    `Cannot load '${node.type}:${node.attributes.id}' for '${name}'.`,
+                    "ItemNotFound",
+                ),
+            );
+        }
+
+        item.payload.items = [structuredClone(result.node)];
     }
 
     private async apply(item: Item, context: ExecutionContext, baseEvent?: string): Promise<Item> {

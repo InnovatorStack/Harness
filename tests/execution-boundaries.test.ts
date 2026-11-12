@@ -9,6 +9,7 @@ import { readProcessOutput } from "../src/core/process.js";
 import { Item } from "../src/items/item.js";
 import { encodeMessage, messageBytesMax, readMessages } from "../src/methods/csharp/protocol.js";
 import { ItemLocks } from "../src/platform/locks.js";
+import { ReferenceCatalog } from "../src/platform/references/catalog.js";
 import { PlatformTrace } from "../src/platform/trace.js";
 import { SqliteStorage } from "../src/storage/sqlite/storage.js";
 
@@ -366,30 +367,40 @@ function deferred() {
     };
 }
 
-test("a lock hook resumed after rollback cannot write outside the expired transaction", async () => {
+const lockDefinition = {
+    id: "DOCUMENT",
+    name: "Document",
+    isVersionable: true,
+    properties: [
+        { name: "locked_by_id", dataType: "string" },
+        { name: "new_version", dataType: "integer" },
+    ],
+};
+const lockActions: ("lock" | "unlock")[] = ["lock", "unlock"];
+
+function lockFixture(action: "lock" | "unlock") {
     const storage = new SqliteStorage();
-    const definition = {
-        id: "DOCUMENT",
-        name: "Document",
-        properties: [
-            { name: "locked_by_id", dataType: "string" },
-            { name: "new_version", dataType: "integer" },
-        ],
-    };
+    const definition = lockDefinition;
     storage.defineItemType(definition);
     const record = {
         type: "Document",
         id: "ONE",
-        properties: { locked_by_id: null, new_version: 1 },
+        properties: { locked_by_id: action === "lock" ? null : "USER", new_version: 1 },
     };
     storage.insertItem(record);
+
+    return { storage, definition, record };
+}
+
+test.each(lockActions)("a suspended %s hook cannot write after rollback", async (action) => {
+    const { storage, definition, record } = lockFixture(action);
     const entered = deferred();
     const resume = deferred();
     const locks = new ItemLocks(
         storage,
         new PlatformTrace(),
         (_type, event) => {
-            if (event === "onBeforeLock") {
+            if (event === (action === "lock" ? "onBeforeLock" : "onBeforeUnlock")) {
                 entered.release();
 
                 return resume.promise;
@@ -401,6 +412,7 @@ test("a lock hook resumed after rollback cannot write outside the expired transa
         () => {
             throw new Error("This test exercises the native lock implementation directly.");
         },
+        new ReferenceCatalog(storage),
     );
     const request = Item.create("Document", "lock");
     request.setProperty("id", record.id);
@@ -414,7 +426,13 @@ test("a lock hook resumed after rollback cannot write outside the expired transa
 
                 setup(registrar) {
                     registrar.handleAsync(child, async (_, context) => {
-                        await locks.base(definition, record, "lock", context, request);
+                        if (action === "lock") {
+                            await locks.base(definition, record, "lock", context, request);
+
+                            return;
+                        }
+
+                        await locks.unlockVersionSources(definition, [record], context);
                     });
                     registrar.handleAsync(root, async (_, context) => {
                         void context.execute(child, undefined);
@@ -430,7 +448,9 @@ test("a lock hook resumed after rollback cannot write outside the expired transa
     });
     resume.release();
     await Bun.sleep(5);
-    expect(storage.getItem("Document", "ONE")?.properties.locked_by_id).toBeNull();
+    expect(storage.getItem("Document", "ONE")?.properties.locked_by_id).toBe(
+        record.properties.locked_by_id,
+    );
     runtime.close();
     storage.close();
 });
