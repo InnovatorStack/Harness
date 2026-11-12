@@ -39,6 +39,7 @@ export class CSharpExecutor implements MethodExecutor {
     private readonly pending = new Map<string, PendingInvocation>();
     private nextId = 0;
     private generation = 0;
+    private starting: Promise<void> | undefined;
 
     constructor(options: CSharpOptions = {}) {
         this.compiler = new CSharpCompiler(options);
@@ -140,7 +141,31 @@ export class CSharpExecutor implements MethodExecutor {
             return;
         }
 
-        const transport = acquireWorker(this.compiler.dotnet, host, this.compiler.references);
+        const starting = this.starting ?? this.connect(host);
+        this.starting = starting;
+
+        try {
+            await starting;
+        } finally {
+            if (this.starting === starting) {
+                this.starting = undefined;
+            }
+        }
+    }
+
+    private async connect(host: string): Promise<void> {
+        const generation = this.generation;
+        const transport = await acquireWorker(this.compiler.dotnet, host, this.compiler.references);
+
+        if (generation !== this.generation) {
+            transport.close();
+
+            throw new PlatformError(
+                "ExecutorReset",
+                "C# executor was reset during worker acquisition.",
+            );
+        }
+
         const worker = transport.process;
         this.transport = transport;
         this.workerKey = JSON.stringify([this.compiler.dotnet, host, this.compiler.references]);
@@ -159,7 +184,6 @@ export class CSharpExecutor implements MethodExecutor {
                 }
             },
         });
-        await transport.ready;
     }
 
     private invoke(id: string, compiled: CompiledMethod, context: Item): void {
@@ -385,6 +409,7 @@ export class CSharpExecutor implements MethodExecutor {
 
     private stop(error: unknown, reuse = false): void {
         this.generation += 1;
+        this.starting = undefined;
         const transport = this.transport;
         this.worker = undefined;
         this.transport = undefined;

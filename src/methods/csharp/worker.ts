@@ -201,18 +201,27 @@ process.once("exit", () => {
     }
 });
 
-export function acquireWorker(
+export async function acquireWorker(
     dotnet: string,
     host: string,
     references: readonly string[],
-): ManagedWorker {
+): Promise<ManagedWorker> {
     const key = JSON.stringify([dotnet, host, references]);
 
     if (idle?.key === key && idle.worker.available) {
         const worker = idle.worker;
         idle = undefined;
 
-        return worker;
+        try {
+            await worker.ready;
+
+            if (worker.available) {
+                return worker;
+            }
+        } catch {
+            // Reuse is optional. A failed reset belongs to the disposed context.
+            worker.close();
+        }
     }
 
     return new ManagedWorker(dotnet, host, references);

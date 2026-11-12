@@ -15,7 +15,19 @@ private void Unused()
 {`;
 
 test("warm managed process reuse gives each world fresh Method statics", async () => {
-    await using project = await referenceProject(referenceMethod("OwnedCounter", counter));
+    await using project = await referenceProject(
+        referenceMethod("OwnedCounter", counter) +
+            referenceMethod(
+                "FreshWorker",
+                'AppDomain.CurrentDomain.GetData("unused"); return this;',
+            ),
+    );
+
+    {
+        using dedicated = await createHarness({ cwd: project.cwd, csharp: {} });
+        await dedicated.callMethod("FreshWorker");
+    }
+
     const spawns = spyOn(Bun, "spawn");
 
     try {
