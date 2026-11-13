@@ -1,0 +1,19 @@
+{
+    "name": "harness-docs",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "bun --bun run astro dev --host 127.0.0.1",
+        "check": "bun --bun run astro sync && bun --bun run tsc --noEmit",
+        "build": "bun run check && bun --bun run astro build",
+        "preview": "bun --bun run astro preview --host 127.0.0.1"
+    },
+    "dependencies": {
+        "@astrojs/markdown-remark": "^7.3.0",
+        "@astrojs/starlight": "0.42.11",
+        "astro": "7.4.11"
+    },
+    "devDependencies": {
+        "typescript": "^6.0.0"
+    }
+}

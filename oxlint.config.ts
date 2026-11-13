@@ -11,6 +11,8 @@ export default defineConfig({
         "workspaces/**",
         // Independent consumers install the packed package and run this linter in release:check.
         "examples/**",
+        // The documentation site has its own TypeScript check and build.
+        "docs/**",
         ".harness/local/**",
     ],
     jsPlugins: ["oxlint-plugin-complexity"],
