@@ -491,8 +491,11 @@ additions, removals, reordering and identical cloned replacements. Empty and rem
 remain distinct. Replacing an Item-valued property keeps the property wrapper and detaches its
 old child, including identical copies. Retained views of that old child stay independent of the
 new one. `setPropertyItem()` imports its argument, returns it and rebinds only that Item wrapper.
-This requires no configuration or business AML attributes. Untracked ambiguous requests and native
-request-root replacement fail with `UnsupportedRequestIdentity`.
+This requires no configuration or business AML attributes. Default Get, Add and per-record updates
+retain their captured request nodes when a before Method reloads the document; later bindings receive
+the current document. Captured changes made before and after detachment remain observable on success
+and rejection. Untracked ambiguous requests, base-delegate root replacement and version-generation
+document replacement still fail with `UnsupportedRequestIdentity`.
 Managed Items keep their selected nodes separate from their shared XML document. Reloading that
 XML leaves retained views on their original detached nodes. `ToString()` and Method returns read
 the whole document; `apply()` submits only the selected, attached Item. Scalar and fault inspection

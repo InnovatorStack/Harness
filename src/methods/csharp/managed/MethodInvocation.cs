@@ -7,6 +7,7 @@ namespace InnovatorHarness.Managed;
 internal static class MethodInvocation
 {
     private const int FailureTextMax = 16 * 1024;
+    private sealed record RetainedInput(ItemPayload Payload, OriginFrame Origins);
 
     internal static void Run(Invocation message, MethodContext context,
         MethodAssemblies? shared, Protocol protocol)
@@ -42,6 +43,7 @@ internal static class MethodInvocation
         try
         {
             ItemPayload? input = method?.ContextPayload ?? message.Context;
+            RetainedInput? retained = CaptureDetachedInput(message.Context, input, remote);
             OriginFrame? origins = null;
 
             if (input is not null)
@@ -56,7 +58,9 @@ internal static class MethodInvocation
                 reusable = context.CanReuse,
                 error = failure,
                 context = input,
-                contextOrigins = origins
+                contextOrigins = origins,
+                retainedContext = retained?.Payload,
+                retainedOrigins = retained?.Origins
             });
         }
         catch (Exception contextError) when (contextError is NotSupportedException
@@ -115,6 +119,7 @@ internal static class MethodInvocation
         protocol.Write(new { kind = "started", id = message.Id, reusable = context.CanReuse });
         var result = method.Execute();
         var original = method.ContextPayload;
+        RetainedInput? retained = CaptureDetachedInput(message.Context, original, remote);
         var returned = new ItemPayload { Result = "" };
 
         if (result is not null)
@@ -141,7 +146,26 @@ internal static class MethodInvocation
             contextIsResult,
             context = changedContext,
             origins = remote.Origins.Capture(returned),
-            contextOrigins = changedOrigins
+            contextOrigins = changedOrigins,
+            retainedContext = retained?.Payload,
+            retainedOrigins = retained?.Origins
         });
+    }
+
+    private static RetainedInput? CaptureDetachedInput(
+        ItemPayload? original, ItemPayload? current, Remote remote)
+    {
+        if (original is null || current is null
+            || (original.Items.Count == current.Items.Count
+                && original.Items.Zip(current.Items)
+                    .All(pair => ReferenceEquals(pair.First, pair.Second))))
+        {
+            return null;
+        }
+
+        var retained = new ItemPayload { Items = original.Items.ToList() };
+        OriginFrame origins = remote.Origins.Capture(retained);
+
+        return new(retained, origins);
     }
 }

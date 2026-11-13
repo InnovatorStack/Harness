@@ -1,0 +1,10 @@
+<AML>
+    <Item type="RefCapturedRecord" action="add" id="B2120000000000000000000000000001">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>CAPTURED-001</item_number><name>Captured value</name>
+    </Item>
+    <Item type="RefCapturedRecord" action="add" id="B2120000000000000000000000000002">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>CAPTURED-002</item_number><name>Ignored document value</name>
+    </Item>
+</AML>

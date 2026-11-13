@@ -41,6 +41,7 @@ interface PreparedVersion {
 
 interface PreparedUpdate extends PreparedVersion {
     readonly request: Item;
+    readonly document: Item;
     readonly versioned: boolean;
     readonly enabled: boolean;
     readonly select: string | undefined;
@@ -396,6 +397,8 @@ export class Versioning {
         request: Item,
         context: ExecutionContext,
     ): Promise<void> {
+        const captured = request.node;
+
         for (const record of records) {
             assertActiveContext(context);
             this.storage.updateItem(definition.name, record.id, {
@@ -412,6 +415,13 @@ export class Versioning {
             request.setProperty("id", record.id);
             this.removeManagedProperties(request, record);
             await this.runners.item(definition, "onBeforeVersion", request, true, context);
+
+            if (request.getItemCount() !== 1 || request.node !== captured) {
+                throw new PlatformError(
+                    "UnsupportedRequestIdentity",
+                    "Version-event document replacement requires captured generation selectors and a separate reentry document.",
+                );
+            }
 
             if (
                 request.getID() !== record.id ||
@@ -459,7 +469,8 @@ export class Versioning {
 
         return {
             record,
-            request: update,
+            request: new Item({ items: [update.node] }),
+            document: update,
             copies: new Map<string, string>(),
             versioned,
             enabled: request.getAttribute("serverEvents") !== "0",
@@ -481,7 +492,7 @@ export class Versioning {
             request.setProperty("new_version", 1);
         }
 
-        await this.runners.item(definition, "onBeforeUpdate", request, enabled, context, {
+        await this.runners.item(definition, "onBeforeUpdate", prepared.document, enabled, context, {
             kind: MethodEventDataKind.BeforeUpdate,
             id: record.id,
             idList: prepared.idList,
