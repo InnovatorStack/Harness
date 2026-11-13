@@ -5,9 +5,6 @@ namespace Aras.Server.Core;
 
 public class ServerEventArgs
 {
-    private const string InputReloadGap =
-        "Replacing Get/Update input before base delegation requires its captured "
-        + "request node and current document to be transferred separately.";
     private readonly Remote remote;
     private readonly XmlDocument? input;
     private readonly XmlElement? originalRoot;
@@ -57,51 +54,81 @@ public class ServerEventArgs
             request = RequestXml.Input(document);
         }
 
+        XmlElement? currentRequest = SingleRequest(document);
+        object arguments = CallbackInput(name, document, request);
+        var payload = remote.Call("eventBase", arguments,
+            change => Synchronize(document, request, currentRequest, change));
+        ResponseXml.Write(output, payload);
+    }
+
+    private object CallbackInput(string name, XmlDocument document, XmlElement request)
+    {
         var context = new ItemPayload { Items = new() { ItemXml.Bind(request) } };
         var origins = remote.Origins.Capture(context);
-        bool wrapped = !ReferenceEquals(request, document.DocumentElement);
+        bool detached = !IsAttached(request, document);
+        bool wrapped = !detached && !ReferenceEquals(request, document.DocumentElement);
         string xml = request.OuterXml;
+        string? currentDocument = null;
+        OriginFrame? currentOrigins = null;
 
         if (wrapped)
         {
             xml = document.OuterXml;
         }
 
-        var payload = remote.Call("eventBase", new { name, xml, origins, document = wrapped },
-            change => Synchronize(document, request, change));
-        ResponseXml.Write(output, payload);
+        if (detached)
+        {
+            currentDocument = document.OuterXml;
+            currentOrigins = remote.Origins.Capture(ResponseXml.Read(document));
+        }
+
+        return new { name, xml, origins, document = wrapped, currentDocument, currentOrigins };
     }
 
     private XmlElement CapturedInput(XmlDocument document)
     {
-        if (!ReferenceEquals(originalRoot, document.DocumentElement))
+        if (originalRequest is null)
         {
-            remote.Unsupported(InputReloadGap);
+            remote.Unsupported("A native base action requires one captured request Item.");
+
+            throw new InvalidOperationException("Missing captured base request.");
         }
 
-        XmlElement current;
-
-        try
+        if (!ReferenceEquals(originalRoot, document.DocumentElement)
+            && IsAttached(originalRequest, document))
         {
-            current = RequestXml.Input(document);
-        }
-        catch (Exception exception)
-            when (exception is InvalidOperationException or NotSupportedException)
-        {
-            remote.Unsupported(InputReloadGap);
-
-            throw;
+            remote.Unsupported("Moving a retained base request into another XML container "
+                + "requires a qualified XML mapping.");
         }
 
-        if (!ReferenceEquals(originalRequest, current))
-        {
-            remote.Unsupported(InputReloadGap);
-        }
-
-        return current;
+        return originalRequest;
     }
 
-    private void Synchronize(XmlDocument document, XmlElement request, BaseInputChange change)
+    private static bool IsAttached(XmlElement request, XmlDocument document)
+    {
+        XmlNode? current = request;
+
+        for (int depth = 0; current is not null && depth <= WorkLimits.DepthMax; depth++)
+        {
+            if (ReferenceEquals(current, document))
+            {
+                return true;
+            }
+
+            current = current.ParentNode;
+        }
+
+        if (current is not null)
+        {
+            throw new NotSupportedException("A base request exceeds its ancestry limit.");
+        }
+
+        return false;
+    }
+
+    private void Synchronize(
+        XmlDocument document, XmlElement request,
+        XmlElement? currentRequest, BaseInputChange change)
     {
         try
         {
@@ -113,6 +140,20 @@ public class ServerEventArgs
             remote.Origins.Apply(new ItemPayload { Items = new() { ItemXml.Bind(request) } },
                 change.Origins);
 
+            if (change.RetainedDocument is { } retained)
+            {
+                if (currentRequest is null || ReferenceEquals(currentRequest, request))
+                {
+                    throw new InvalidOperationException(
+                        "Missing separately retained document Item.");
+                }
+
+                RequestXml.Synchronize(currentRequest, retained);
+                remote.Origins.Apply(
+                    new ItemPayload { Items = new() { ItemXml.Bind(currentRequest) } },
+                    change.RetainedOrigins);
+            }
+
             if (change.Document is { } input)
             {
                 XmlDocument current = ManagedDocuments.Read(input);
@@ -123,6 +164,11 @@ public class ServerEventArgs
                     document.AppendChild(document.ImportNode(node, deep: true));
                 }
 
+                remote.Origins.Apply(ResponseXml.Read(document), change.DocumentOrigins);
+            }
+            else if (change.DocumentChange is { } documentChange)
+            {
+                RequestXml.Synchronize(RequestXml.Input(document), documentChange);
                 remote.Origins.Apply(ResponseXml.Read(document), change.DocumentOrigins);
             }
         }

@@ -3,9 +3,8 @@ import { Item } from "../../items/item.js";
 import { parseItems } from "../../items/xml.js";
 import { PlatformError } from "../../platform/errors.js";
 import type { MethodPorts } from "../types.js";
-import { BaseInput } from "./base-input.js";
-import type { BaseInputChange } from "./base-input.js";
-import { readDocument, rememberDocument } from "./documents.js";
+import { decodeBaseInput } from "./base-input.js";
+import type { BaseInput, BaseInputChange } from "./base-input.js";
 import type { ManagedOrigins } from "./origins.js";
 import type { ManagedSecurity } from "./security.js";
 
@@ -85,24 +84,10 @@ async function applyEventBase(
         return ports.fail("Native base actions require the matching active replacement event.");
     }
 
-    const item = new Item(readDocument(payload.xml));
+    const input = decodeBaseInput(payload, state.origins);
+    state.request = input;
 
-    if (item.getItemCount() !== 1 || item.isError() || item.payload.result !== undefined) {
-        throw new PlatformError(
-            "InvalidServerEventContext",
-            "A base action requires one request Item.",
-        );
-    }
-
-    state.origins.bind(item.payload, payload.origins);
-
-    if (payload.document === true) {
-        rememberDocument(item, payload.xml);
-    }
-
-    state.request = new BaseInput(item);
-
-    return await ports.serverEvent.applyBase(item);
+    return await ports.serverEvent.applyBase(input.item);
 }
 
 async function sql(payload: unknown, ports: MethodPorts): Promise<Item> {

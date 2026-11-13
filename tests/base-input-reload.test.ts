@@ -3,42 +3,33 @@ import { expect, test } from "bun:test";
 import { createHarness, ExecutionOutcome } from "../src/index.js";
 import { referenceEvent, referenceMethod, referenceProject } from "./helpers/references.js";
 
-test.each(["Get", "Update"])(
-    "a caught input reload before Base%s cannot commit an unqualified native action",
-    async (verb) => {
-        const action = verb.toLowerCase();
-        const source = `
-var holder = this.newItem("ReferenceRecord", "add");
+test("a caught document reload cannot commit unqualified version-generation reentry", async () => {
+    const source = `
+var holder = this.newItem("ReferenceHolder", "add");
 holder.setProperty("name", "Must roll back");
 var saved = holder.apply();
 if (saved.isError()) { return saved; }
 string id = this.getID();
-this.loadAML("<Item type='ReferenceHolder' action='${action}' id='" + id + "'><name>Replaced</name></Item>");
-try { eventData.Base${verb}Item(new System.Xml.XmlDocument()); }
+this.loadAML("<Item type='ReferenceRecord' action='update' id='" + id + "'><name>Replaced</name></Item>");
+try { eventData.BaseUpdateItem(new System.Xml.XmlDocument()); }
 catch (Exception) { }
 return this.getInnovator().newResult("Caught unsupported input reload");`;
-        const methods =
-            referenceMethod("ReloadBeforeBase", source) +
-            referenceEvent("REF_HOLDER", `on${verb}`, "ReloadBeforeBase");
-        await using project = await referenceProject(
-            methods,
-            'ReferenceHolder: [{ name: "Original" }],',
-        );
-        using h = await createHarness({ cwd: project.cwd, csharp: {} });
-        const record = h.state.getOne("ReferenceHolder", { name: "Original" });
-        const before = h.state.get("ReferenceHolder");
-        const records = h.state.get("ReferenceRecord");
+    const methods =
+        referenceMethod("ReloadBeforeBase", source) +
+        referenceEvent("REF_RECORD", "onUpdate", "ReloadBeforeBase");
+    await using project = await referenceProject(methods);
+    using h = await createHarness({ cwd: project.cwd, csharp: {} });
+    const record = h.state.getOne("ReferenceRecord", { name: "Parent" });
+    const records = h.state.get("ReferenceRecord");
 
-        await expect(
-            h.applyAML(`<Item type="ReferenceHolder" action="${action}" id="${record.id}">
+    await expect(
+        h.applyAML(`<Item type="ReferenceRecord" action="edit" id="${record.id}">
                 <name>Requested</name></Item>`),
-        ).rejects.toThrow("captured request node and current document");
-        expect(h.state.get("ReferenceHolder")).toEqual(before);
-        expect(h.state.get("ReferenceRecord")).toEqual(records);
-        expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
-    },
-    60_000,
-);
+    ).rejects.toThrow("Version-generation reentry");
+    expect(h.state.get("ReferenceHolder")).toEqual([]);
+    expect(h.state.get("ReferenceRecord")).toEqual(records);
+    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
+}, 60_000);
 
 test("BaseAdd uses the document reparsed after the replacement Method reloads it", async () => {
     const source = `
