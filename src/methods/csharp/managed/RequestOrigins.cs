@@ -109,7 +109,7 @@ internal sealed class RequestOrigins
     }
 
     // Keep this order aligned with items/origins.ts, including logical Item criteria.
-    private static IEnumerable<ItemData> Nodes(ItemPayload payload)
+    internal static IEnumerable<ItemData> Nodes(ItemPayload payload)
     {
         if (payload.Items.Count > WorkLimits.NodesMax)
         {

@@ -10,9 +10,8 @@ internal static class RequestXml
         RequestAlignment? Alignment);
     private readonly record struct ChildKey(string Name, int Occurrence);
 
-    public static void Synchronize(XmlDocument document, RequestChange change)
+    public static void Synchronize(XmlElement target, RequestChange change)
     {
-        XmlElement target = Input(document);
         XmlElement before = ItemXml.View(change.Before);
         XmlElement after = ItemXml.View(change.After);
         XmlTraversal.Validate(target);

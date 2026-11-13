@@ -496,7 +496,9 @@ retain their captured request nodes when a before Method reloads the document; l
 the current document. Captured changes made before and after detachment remain observable on success
 and rejection. Untracked ambiguous requests and unqualified root changes retain explicit diagnostics.
 Get/Update base delegates currently reject input replaced before delegation; Add reparses that input
-at base entry. Document replacement during a base call and version-generation reentry remain unsupported.
+at base entry. During default Get/Add base calls, detached-root reloads synchronize the captured
+request and current document separately, including native wrappers and comments. Moving retained
+request nodes into new XML containers and version-generation document reentry remain unsupported.
 
 Default Add assigns a missing or empty ID before `onBeforeAdd`, after any `onAdd` replacement
 delegates to the base action. The pending input retains that ID, including after `BaseAddItem`

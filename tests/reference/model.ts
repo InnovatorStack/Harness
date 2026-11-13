@@ -101,6 +101,7 @@ export const watchedTypes: readonly WatchedType[] = [
     },
     { type: "RefReplacement", keys: ["item_number"], properties: documentProperties },
     { type: "RefCapturedRecord", keys: ["item_number"], properties: namedProperties },
+    { type: "RefBaseDocument", keys: ["item_number"], properties: namedProperties },
     {
         type: "RefAddRecord",
         keys: ["item_number"],

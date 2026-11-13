@@ -1,31 +1,21 @@
 import { decodePayload, object } from "../../items/codec.js";
 import { Item } from "../../items/item.js";
-import type { ItemNode } from "../../items/item.js";
 import { parseItems } from "../../items/xml.js";
 import { PlatformError } from "../../platform/errors.js";
 import type { MethodPorts } from "../types.js";
-import type { ManagedOrigins, OriginFrame } from "./origins.js";
-import { requestDifference } from "./request-change.js";
-import type { RequestChange } from "./request-change.js";
+import { BaseInput } from "./base-input.js";
+import type { BaseInputChange } from "./base-input.js";
+import { readDocument, rememberDocument } from "./documents.js";
+import type { ManagedOrigins } from "./origins.js";
 import type { ManagedSecurity } from "./security.js";
 
 export interface ManagedCallbackState {
     readonly origins: ManagedOrigins;
-    request?: { readonly before: ItemNode; readonly item: Item };
+    request?: BaseInput;
 }
 
-export function requestChange(
-    state: ManagedCallbackState,
-): (RequestChange & { readonly origins: OriginFrame }) | undefined {
-    const request = state.request;
-
-    if (!request) {
-        return undefined;
-    }
-
-    const change = requestDifference(request.before, request.item.node);
-
-    return change ? { ...change, origins: state.origins.capture(request.item.payload) } : undefined;
+export function requestChange(state: ManagedCallbackState): BaseInputChange | undefined {
+    return state.request?.change(state.origins);
 }
 
 export async function managedCallback(
@@ -95,18 +85,22 @@ async function applyEventBase(
         return ports.fail("Native base actions require the matching active replacement event.");
     }
 
-    const items = parseItems(payload.xml);
+    const item = new Item(readDocument(payload.xml));
 
-    if (items.length !== 1 || !items[0]) {
+    if (item.getItemCount() !== 1 || item.isError() || item.payload.result !== undefined) {
         throw new PlatformError(
             "InvalidServerEventContext",
             "A base action requires one request Item.",
         );
     }
 
-    const item = items[0];
     state.origins.bind(item.payload, payload.origins);
-    state.request = { before: item.clone().node, item };
+
+    if (payload.document === true) {
+        rememberDocument(item, payload.xml);
+    }
+
+    state.request = new BaseInput(item);
 
     return await ports.serverEvent.applyBase(item);
 }

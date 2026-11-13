@@ -17,6 +17,7 @@ public sealed class __TYPE_NAME__ : IArasMethod
     }
 
     ItemPayload IArasMethod.ContextPayload => invocation.ContextPayload;
+    XmlDocument IArasMethod.ContextDocument => invocation.Input;
 
     public Item Execute()
     {

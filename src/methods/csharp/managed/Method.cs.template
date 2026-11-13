@@ -26,4 +26,5 @@ __METHOD_CODE__
     }
 
     ItemPayload IArasMethod.ContextPayload => ReadDocument(InputDocument);
+    System.Xml.XmlDocument IArasMethod.ContextDocument => InputDocument;
 }

@@ -6,6 +6,7 @@ namespace InnovatorHarness.Managed;
 public interface IArasMethod
 {
     ItemPayload ContextPayload { get; }
+    XmlDocument ContextDocument { get; }
 
     Item Execute();
 }

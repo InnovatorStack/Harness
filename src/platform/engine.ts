@@ -1441,17 +1441,12 @@ export class Platform {
 
     private async applyBaseItem(input: BaseItemCall, context: ExecutionContext): Promise<Item> {
         const applyBase = this.baseOverrides.get(input);
-        const request = input.item.clone();
 
-        try {
-            if (applyBase) {
-                return await applyBase(request, context);
-            }
-
-            return await this.apply(request, context, input.event);
-        } finally {
-            input.item.payload.items = request.payload.items;
+        if (applyBase) {
+            return await applyBase(input.item, context);
         }
+
+        return await this.apply(input.item, context, input.event);
     }
 
     private async updateEvent(
