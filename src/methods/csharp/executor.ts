@@ -6,6 +6,7 @@ import { managedCallback, requestChange } from "./callbacks.js";
 import type { ManagedCallbackState } from "./callbacks.js";
 import { CSharpCompiler } from "./compiler.js";
 import type { CompiledMethod, CSharpOptions } from "./compiler.js";
+import { ManagedInput, managedFailure } from "./context.js";
 import { ManagedOrigins } from "./origins.js";
 import { encodeMessage, pendingCallsMax, messageBytesMax } from "./protocol.js";
 import { ManagedSecurity } from "./security.js";
@@ -21,7 +22,7 @@ interface PendingInvocation {
     readonly security: ManagedSecurity;
     readonly origins: ManagedOrigins;
     callbackCount: number;
-    readonly context: Item;
+    readonly input: ManagedInput;
     readonly ports: MethodPorts;
     readonly resolve: (item: Item) => void;
     readonly reject: (error: unknown) => void;
@@ -78,13 +79,14 @@ export class CSharpExecutor implements MethodExecutor {
         this.loadedAssemblies.add(compiled.assembly);
         const id = String(++this.nextId);
         const origins = new ManagedOrigins();
+        const input = new ManagedInput(context, origins);
 
         return await new Promise<Item>((resolve, reject) => {
             const timer = setTimeout(() => {
                 this.timeout(id, method.name);
             }, this.compiler.timeoutMs);
             this.pending.set(id, {
-                context,
+                input,
                 ports,
                 resolve: deferNativeCompletion(resolve),
                 reject: deferNativeCompletion(reject),
@@ -97,7 +99,7 @@ export class CSharpExecutor implements MethodExecutor {
             });
 
             try {
-                this.invoke(id, compiled, context, ports, origins);
+                this.invoke(id, compiled, context, ports, input);
             } catch (error) {
                 this.stop(error);
             }
@@ -199,7 +201,7 @@ export class CSharpExecutor implements MethodExecutor {
         compiled: CompiledMethod,
         context: Item,
         ports: MethodPorts,
-        origins: ManagedOrigins,
+        input: ManagedInput,
     ): void {
         if (!this.transport) {
             throw new PlatformError(
@@ -214,7 +216,7 @@ export class CSharpExecutor implements MethodExecutor {
             id,
             ...compiled,
             context: context.payload,
-            contextOrigins: origins.capture(context.payload),
+            contextOrigins: input.frame,
             ...(ports.eventData ? { eventData: ports.eventData } : {}),
         });
     }
@@ -319,7 +321,7 @@ export class CSharpExecutor implements MethodExecutor {
         clearTimeout(pending.timer);
 
         try {
-            synchronizeContext(pending.context, message, pending.origins);
+            pending.input.synchronize(message);
 
             if (pending.failure !== undefined) {
                 throw pending.failure.error;
@@ -485,55 +487,6 @@ export class CSharpExecutor implements MethodExecutor {
 
 export function csharp(options: CSharpOptions = {}): MethodExecutor {
     return new CSharpExecutor(options);
-}
-
-function synchronizeContext(
-    context: Item,
-    message: Record<string, unknown>,
-    origins: ManagedOrigins,
-): void {
-    if (message.contextError !== undefined) {
-        throw managedFailure(message);
-    }
-
-    const input = message.contextIsResult === true ? message.payload : message.context;
-
-    if (input === undefined && message.kind === "failure") {
-        return;
-    }
-
-    const frame = message.contextIsResult === true ? message.origins : message.contextOrigins;
-    const changed = origins.decode(input, frame);
-    context.payload.items = changed.items;
-
-    if (changed.error === undefined) {
-        delete context.payload.error;
-    } else {
-        context.payload.error = changed.error;
-    }
-
-    if (changed.result === undefined) {
-        delete context.payload.result;
-    } else {
-        context.payload.result = changed.result;
-    }
-
-    if (changed.messages === undefined) {
-        delete context.payload.messages;
-    } else {
-        context.payload.messages = changed.messages;
-    }
-}
-
-function managedFailure(message: Record<string, unknown>): PlatformError {
-    let error =
-        typeof message.error === "string" ? message.error : "Invalid managed failure response.";
-
-    if (typeof message.contextError === "string") {
-        error += `\nFailed to synchronize Method input: ${message.contextError}`;
-    }
-
-    return new PlatformError("MethodExecutionFailed", error);
 }
 
 /** Settle outside the Windows pipe callback so Bun's native matchers can reenter its loop. */

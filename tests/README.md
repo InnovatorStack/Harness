@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 88 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 89 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -61,8 +61,8 @@ origins survive clones, nested relationship actions/queries and managed event re
 entering business AML or stored records.
 Tests reject malformed, duplicated, foreign and over-budget origins, and cover failure/reset/world
 isolation plus retained managed Items from earlier invocations. Two portable contracts exercise
-original Methods with repeated and anonymous requests; native evidence remains pending. Native root
-replacement retains an explicit diagnostic and transactional rollback.
+original Methods with repeated and anonymous requests; native evidence remains pending. Unqualified
+base-delegate and version-generation document replacements retain explicit diagnostics and rollback.
 
 Property-Item cases verify changed and identical imported copies through real replacement and
 before-version Methods. Unit tests cover both C# templates, nested query properties, retained/detached
@@ -72,6 +72,12 @@ reloads, detached nodes, independent native fields, scalar/fault inspection, who
 selected-Item application and self-insertion. Failure cases cover both templates, rollback, reset and
 separate worlds. Two portable contracts cover document views and selected-Item returns; offline
 SDK observations qualify local adapter behavior, not native server execution.
+Captured-request tests distinguish the action's retained node from the document later hooks see.
+They cover default Get/Add, versionable and nonversionable per-record updates, both C# templates,
+changes before/after detachment, rollback and reset/world isolation. Protocol tests reject replaced
+retained roots, conflicting data and conflicting child identities before mutating caller objects.
+A portable Get contract exercises the captured query and both original hooks. Base-delegate and
+version-generation document replacement remain explicitly unsupported.
 
 Failure-context tests cover returned faults and exceptions from one or multiple before-version
 Methods, normalized batch selectors and nested generated replacements. Pending input changes

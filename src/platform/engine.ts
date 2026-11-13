@@ -774,8 +774,15 @@ export class Platform {
         item: Item,
         context: ExecutionContext,
     ): Promise<void> {
-        if (name === "onAfterGet" || item.getItemCount() !== 1) {
+        if (name === "onAfterGet") {
             return;
+        }
+
+        if (item.getItemCount() !== 1) {
+            throw new PlatformError(
+                "InvalidServerEventContext",
+                `Event '${name}' requires one current document Item.`,
+            );
         }
 
         const node = item.node;
@@ -888,18 +895,25 @@ export class Platform {
             return replacement;
         }
 
-        const responseRequest = { ...item.node, attributes: { ...item.node.attributes } };
-        await this.events(definition, `onBefore${verb}`, item, enabled, context);
+        // The default action retains this node while callbacks share its changing document.
         const request = item.node;
+        const responseRequest = { ...request, attributes: { ...request.attributes } };
+        await this.events(definition, `onBefore${verb}`, item, enabled, context);
         validateRequest(request, action);
 
         this.assertActionContext(definition, request, action, targetId);
 
         if (action === "get") {
-            return await this.get(definition, item.node, enabled, context);
+            return await this.get(definition, request, enabled, context);
         }
 
-        return await this.add(definition, item, enabled, responseRequest, context);
+        return await this.add(
+            definition,
+            new Item({ items: [request] }),
+            enabled,
+            responseRequest,
+            context,
+        );
     }
 
     private assertActionContext(
@@ -1686,6 +1700,7 @@ export class Platform {
         idList: readonly string[],
     ): Promise<Item> {
         const action = item.getAction();
+        const captured = item.node;
         await this.events(
             definition,
             `onBefore${verb}`,
@@ -1697,7 +1712,7 @@ export class Platform {
                 ? { kind: MethodEventDataKind.BeforeUpdate, id: record.id, idList }
                 : undefined,
         );
-        const request = item.node;
+        const request = verb === "Update" ? captured : item.node;
         validateRequest(request, action);
         this.assertActionContext(definition, request, action, record.id);
         const classification =

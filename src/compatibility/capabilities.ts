@@ -309,7 +309,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Both C# templates synchronize supported base-action input changes in place before returning or reporting failure. Retained XML views stay live, with responses kept separate.",
             "Private pending-node origins preserve relationship views through changed repeated IDs, anonymous additions, removals, reordering and identical replacement. Empty and removed containers remain distinct.",
             "Item-valued property replacements retain the property wrapper and detach the old child, including identical copies. Retained XML and Item views stay independent of the imported copy.",
-            "Untracked ambiguous requests and native root replacement fail explicitly until their DOM replacement profiles are qualified.",
+            "Default Get/Add and per-record updates keep captured request nodes across before-event document reloads. Base-delegate root replacement and version-generation document replacement remain unsupported.",
             "The base port is invocation-scoped. Native release-specific context and locking parity remain unverified.",
         ],
         tests: [
@@ -434,7 +434,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Native replacement delegates preserve live input XML views across supported selector, property and nested relationship changes. Synchronization failures reject the owning transaction.",
             "Throwing Methods return supported pending input changes before rejection. Unrepresentable or oversized failure context is diagnosed explicitly; long exception text is marked truncated.",
             "Pending XML identity is private to managed invocations and survives supported Item clones and event returns. Origin tokens are bounded and excluded from business payloads, AML and stored records.",
-            "Managed Items retain independent selected nodes and shared XML documents across reloads and self-insertion. Returns serialize the whole document; apply submits one attached selected Item. Native server root replacement remains unavailable.",
+            "Managed Items retain independent selected nodes and shared XML documents across reloads and self-insertion. Returns serialize the whole document; apply submits one attached selected Item. Base-delegate and version-generation document replacement remain unavailable.",
             "ErrorLookup formats one imported UserMessage text; native localization, language fallback and legacy static permission APIs are unavailable.",
         ],
         tests: [
@@ -442,6 +442,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/csharp-xml.test.ts",
             "tests/document-views.test.ts",
             "tests/document-isolation.test.ts",
+            "tests/captured-requests.test.ts",
+            "tests/managed-input.test.ts",
             "tests/base-input.test.ts",
             "tests/failed-context.test.ts",
             "tests/failed-context-transport.test.ts",

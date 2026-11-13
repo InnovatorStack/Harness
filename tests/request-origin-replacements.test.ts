@@ -31,3 +31,20 @@ test("unqualified native root replacement fails explicitly and rolls back", asyn
     expect(h.state.get("ReferenceRecord")).toEqual(records);
     expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
 }, 60_000);
+
+test("direct versioning also rejects an unqualified document replacement and restores its source", async () => {
+    const hooks =
+        referenceMethod("ReplacePendingInput", source) +
+        referenceEvent("REF_RECORD", "onBeforeVersion", "ReplacePendingInput");
+    await using project = await referenceProject(hooks);
+    using h = await createHarness({ cwd: project.cwd, csharp: {} });
+    const parent = h.state.getOne("ReferenceRecord", { name: "Parent" });
+    const records = h.state.get("ReferenceRecord");
+
+    await expect(
+        h.applyAML(`<Item type="ReferenceRecord" action="version" id="${parent.id}">
+            <name>Requested</name></Item>`),
+    ).rejects.toMatchObject({ code: "UnsupportedRequestIdentity" });
+    expect(h.state.get("ReferenceRecord")).toEqual(records);
+    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
+}, 60_000);

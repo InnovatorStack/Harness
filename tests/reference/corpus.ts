@@ -5,6 +5,7 @@ import { parseAml } from "../../src/packages/parser.js";
 import { actionResponseCases } from "./cases/action-responses.js";
 import { actionCases } from "./cases/actions.js";
 import { boundPermissionCases } from "./cases/bound-permissions.js";
+import { capturedRequestCases } from "./cases/captured-requests.js";
 import { classificationCases } from "./cases/classifications.js";
 import { collectionCases } from "./cases/collections.js";
 import { copyLifecycleCases } from "./cases/copy-lifecycles.js";
@@ -48,6 +49,7 @@ export const cases: readonly ReferenceCase[] = [
     ...requestOriginCases,
     ...propertyItemCases,
     ...documentViewCases,
+    ...capturedRequestCases,
     ...eventCases,
     ...eventResultCases,
     ...historicalUnlockCases,
