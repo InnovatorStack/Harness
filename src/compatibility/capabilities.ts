@@ -308,7 +308,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "CSharpInOut supports native base delegates for get/add/update/delete/lock/unlock/promote; other replacement-specific fields remain unavailable.",
             "Both C# templates synchronize supported base-action input changes in place before returning or reporting failure. Retained XML views stay live, with responses kept separate.",
             "Private pending-node origins preserve relationship views through changed repeated IDs, anonymous additions, removals, reordering and identical replacement. Empty and removed containers remain distinct.",
-            "Untracked ambiguous requests and replacement of a native root or existing Item-valued property fail explicitly until their DOM replacement profiles are qualified.",
+            "Item-valued property replacements retain the property wrapper and detach the old child, including identical copies. Retained XML and Item views stay independent of the imported copy.",
+            "Untracked ambiguous requests and native root replacement fail explicitly until their DOM replacement profiles are qualified.",
             "The base port is invocation-scoped. Native release-specific context and locking parity remain unverified.",
         ],
         tests: [
@@ -320,6 +321,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/request-origin-isolation.test.ts",
             "tests/request-origin-nesting.test.ts",
             "tests/request-origin-replacements.test.ts",
+            "tests/property-replacements.test.ts",
+            "tests/property-replacement-queries.test.ts",
         ],
     }),
     descriptor({
@@ -431,6 +434,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Native replacement delegates preserve live input XML views across supported selector, property and nested relationship changes. Synchronization failures reject the owning transaction.",
             "Throwing Methods return supported pending input changes before rejection. Unrepresentable or oversized failure context is diagnosed explicitly; long exception text is marked truncated.",
             "Pending XML identity is private to managed invocations and survives supported Item clones and event returns. Origin tokens are bounded and excluded from business payloads, AML and stored records.",
+            "setPropertyItem imports its argument and returns/rebinds only that Item wrapper. Native document reload aliases and self-insertion remain unavailable.",
             "ErrorLookup formats one imported UserMessage text; native localization, language fallback and legacy static permission APIs are unavailable.",
         ],
         tests: [
@@ -443,6 +447,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/item-origins.test.ts",
             "tests/request-origins.test.ts",
             "tests/request-origin-isolation.test.ts",
+            "tests/property-item-apis.test.ts",
+            "tests/property-replacements.test.ts",
         ],
     }),
     descriptor({

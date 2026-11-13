@@ -218,13 +218,21 @@ public class Item
         ItemXml.Property(Node, property).SetAttribute(attribute, value);
     }
 
-    public void setPropertyItem(string name, Item item)
+    public Item setPropertyItem(string name, Item item)
     {
+        if (ReferenceEquals(this, item))
+        {
+            Remote.Unsupported(
+                "Setting an Item as its own property requires document-alias support.");
+        }
+
+        XmlElement source = item.node;
         XmlElement property = ItemXml.Property(Node, name);
-        property.InnerText = "";
-        property.RemoveAttribute("is_null");
+        XmlElement copy = PropertyItems.Replace(property, source);
+        item.payload.Items[0] = ItemXml.Bind(copy);
         Node.Properties.Remove(name);
-        ItemXml.Attach(property, item.Node);
+
+        return item;
     }
 
     public Item? getPropertyItem(string name)

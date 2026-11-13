@@ -99,6 +99,13 @@ internal static class RequestXml
 
     private static void Children(Frame frame, Stack<Frame> pending)
     {
+        if (frame.Alignment?.ReplaceItem == true)
+        {
+            ReplacePropertyItem(frame);
+
+            return;
+        }
+
         if (frame.Before.Name == "Relationships" && frame.Alignment?.Relationships is { } order)
         {
             RequestRelationships.Synchronize(frame, pending, order);
@@ -158,6 +165,23 @@ internal static class RequestXml
                 frame.Target.AppendChild(XmlTraversal.Owner(frame.Target).ImportNode(next, true));
             }
         }
+    }
+
+    private static void ReplacePropertyItem(Frame frame)
+    {
+        var before = frame.Before.ChildNodes.OfType<XmlElement>().ToArray();
+        var after = frame.After.ChildNodes.OfType<XmlElement>().ToArray();
+        var targets = frame.Target.ChildNodes.OfType<XmlElement>().ToArray();
+
+        if (frame.Depth == 0 || before.Length != 1 || after.Length != 1
+            || targets.Length != 1 || before[0].Name != "Item" || after[0].Name != "Item"
+            || targets[0].Name != "Item")
+        {
+            throw new InvalidOperationException(
+                "A property Item replacement requires one original and resulting child.");
+        }
+
+        PropertyItems.Replace(frame.Target, after[0]);
     }
 
     private static bool IsCollection(XmlElement element)

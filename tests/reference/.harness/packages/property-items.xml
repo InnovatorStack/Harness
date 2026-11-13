@@ -1,0 +1,58 @@
+<AML>
+    <Item type="ItemType" action="add" id="A1100000000000000000000000000001">
+        <name>RefPropertyRecord</name><is_versionable>1</is_versionable>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Property" action="add"><name>note</name><data_type>string</data_type></Item>
+            <Item type="Property" action="add"><name>fixed_ref</name><data_type>item</data_type><data_source>A1100000000000000000000000000001</data_source><item_behavior>fixed</item_behavior></Item>
+            <Item type="Can Add" action="add"><related_id>A73B655731924CD0B027E4F4D5FCC0A9</related_id><can_add>1</can_add></Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+            <Item type="Server Event" action="add"><related_id>A40A0000000000000000000000000001</related_id><server_event>onUpdate</server_event></Item>
+            <Item type="Server Event" action="add"><related_id>A40A0000000000000000000000000002</related_id><server_event>onBeforeVersion</server_event></Item>
+        </Relationships>
+    </Item>
+    <Item type="Method" action="add" id="A40A0000000000000000000000000001">
+        <name>RefPropertyUpdate</name><method_type>C#</method_type><method_code><![CDATA[// MethodTemplateName = CSharpInOut;
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(inDom.OuterXml));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefPropertyUpdate|" + aml);
+}
+var input = inDom.DocumentElement ?? throw new Exception("Missing input");
+bool initial = !input.HasAttribute("oldId");
+var property = input.SelectSingleNode("fixed_ref") ?? throw new Exception("Missing property");
+var previous = property.SelectSingleNode("Item") ?? throw new Exception("Missing child");
+var number = previous.SelectSingleNode("item_number");
+string expected = input.SelectSingleNode("note")?.InnerText ?? "";
+eventData.BaseUpdateItem(outDom);
+if (initial)
+{
+    var currentProperty = input.SelectSingleNode("fixed_ref");
+    var current = currentProperty?.SelectSingleNode("Item");
+    if (!Object.ReferenceEquals(property, currentProperty)
+        || Object.ReferenceEquals(previous, current) || previous.ParentNode != null
+        || !Object.ReferenceEquals(number, previous.SelectSingleNode("item_number"))
+        || number?.InnerText != "TARGET-A"
+        || property.Attributes["keyed_name"]?.Value != "Keep"
+        || current?.SelectSingleNode("item_number")?.InnerText != expected)
+    {
+        throw new Exception("Property replacement lost native XML ownership");
+    }
+}
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A40A0000000000000000000000000002">
+        <name>RefPropertyBeforeVersion</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefPropertyBeforeVersion|" + aml);
+}
+var replacement = this.newItem("RefPropertyRecord", "get");
+replacement.setProperty("item_number", this.getProperty("note"));
+this.setPropertyItem("fixed_ref", replacement);
+return this;
+]]></method_code>
+    </Item>
+</AML>

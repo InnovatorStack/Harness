@@ -105,6 +105,7 @@ export class CSharpCompiler {
             "DomChanges.cs",
             "Item.cs",
             "ItemXml.cs",
+            "PropertyItems.cs",
             "LogicalData.cs",
             "LogicalXml.cs",
             "PayloadXml.cs",
