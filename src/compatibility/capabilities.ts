@@ -246,6 +246,8 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Versionable edit replacements returning text are unsupported. Supported base-action input changes synchronize into retained managed XML views.",
             "Explicit version preserves its original criteria in oldId; automatic version uses selected IDs. Native event context profiles remain unverified.",
             "Before-version hooks share pending input. Rejected and throwing Methods retain supported input changes while stored writes roll back.",
+            "Ordinary before/after hooks mutate shared input; their separate successful responses do not replace it. Any returned fault, including code 0, rejects the hook and rolls back.",
+            "After-Get callbacks share the actual response collection and paging metadata. Direct and replacement Methods retain their own returned responses.",
         ],
         tests: [
             "tests/actions.test.ts",
@@ -267,6 +269,9 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/event-metadata-ports.test.ts",
             "tests/event-metadata-inout.test.ts",
             "tests/bound-methods.test.ts",
+            "tests/event-results.test.ts",
+            "tests/event-result-faults.test.ts",
+            "tests/event-result-collections.test.ts",
         ],
     }),
     descriptor({

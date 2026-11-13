@@ -168,7 +168,7 @@ test("bound mocks skip execution restrictions while direct mocked calls still re
         '<Item type="SecurityDocument" action="get"><name>Editable</name></Item>',
     );
 
-    expect(result.getProperty("name")).toBe("Mocked view");
+    expect(result.getProperty("name")).toBe("Editable");
     expect(h.executions.at(-1)?.mocks).toHaveLength(1);
     expect((await h.callMethod("RestrictedHook")).getErrorCode()).toBe("PermissionDenied");
     expect(h.executions.at(-1)?.mocks).toHaveLength(0);

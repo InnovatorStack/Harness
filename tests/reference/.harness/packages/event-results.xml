@@ -1,0 +1,81 @@
+<AML>
+    <Item type="ItemType" action="add" id="A1090000000000000000000000000001">
+        <name>RefEventRecord</name><is_versionable>1</is_versionable>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Property" action="add"><name>note</name><data_type>string</data_type></Item>
+            <Item type="Can Add" action="add"><related_id>A73B655731924CD0B027E4F4D5FCC0A9</related_id><can_add>1</can_add></Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+            <Item type="Server Event" action="add"><related_id>A4090000000000000000000000000001</related_id><server_event>onBeforeVersion</server_event><sort_order>10</sort_order></Item>
+            <Item type="Server Event" action="add"><related_id>A4090000000000000000000000000002</related_id><server_event>onBeforeVersion</server_event><sort_order>20</sort_order></Item>
+            <Item type="Server Event" action="add"><related_id>A4090000000000000000000000000003</related_id><server_event>onAfterGet</server_event></Item>
+            <Item type="Server Event" action="add"><related_id>A4090000000000000000000000000004</related_id><server_event>onAfterUpdate</server_event></Item>
+        </Relationships>
+    </Item>
+    <Item type="Method" action="add" id="A4090000000000000000000000000001">
+        <name>RefEventMutateInput</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefEventMutateInput|" + aml);
+}
+this.setProperty("name", "From input");
+var response = this.newItem(this.getType(), this.getAction());
+response.setID(this.getID());
+response.setProperty("name", "Response only");
+return response;
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A4090000000000000000000000000002">
+        <name>RefEventValidateInput</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefEventValidateInput|" + aml);
+}
+if (this.getProperty("name") != "From input")
+{
+    return this.getInnovator().newError("The separate response replaced shared input");
+}
+this.setProperty("name", "Validated input");
+return this.getInnovator().newResult("Unrelated response");
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A4090000000000000000000000000003">
+        <name>RefEventHydrateInput</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefEventHydrateInput|" + aml);
+}
+for (int index = 0; index < this.getItemCount(); index++)
+{
+    this.getItemByIndex(index).setProperty("name", "Hydrated input");
+}
+return this.getInnovator().newResult("Another unrelated response");
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A4090000000000000000000000000004">
+        <name>RefEventRejectZero</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefEventRejectZero|" + aml);
+}
+if (this.getProperty("note") == "Reject zero")
+{
+    var missing = this.newItem("RefEventRecord", "get");
+    missing.setProperty("item_number", "MISSING-EVENT");
+    return missing.apply();
+}
+return this.getInnovator().newResult("Accepted");
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A4090000000000000000000000000005">
+        <name>RefEventReturnNull</name><method_type>C#</method_type><method_code><![CDATA[
+this.setProperty("name", "Transient input");
+return null;
+]]></method_code>
+    </Item>
+</AML>

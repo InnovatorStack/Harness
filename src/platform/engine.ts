@@ -119,6 +119,11 @@ const actions = new Set<string>(Object.values(ItemAction));
 const reservedActions = new Set(["copy", "clone", "merge", "purge", "create", "SQL Process"]);
 const claimedExecutors = new WeakSet<MethodExecutor>();
 
+enum BoundMethodKind {
+    Replacement = "replacement",
+    Callback = "callback",
+}
+
 function dispatchItem(item: Item, context: ExecutionContext): Promise<Item> {
     return context.execute(applyItemOperation, item);
 }
@@ -141,7 +146,7 @@ export class Platform {
     private readonly security: NativeSecurity;
     private readonly responses: ActionResponses;
     private readonly replacements = new EventReplacements();
-    private readonly boundMethods = new WeakSet<MethodCall>();
+    private readonly boundMethods = new WeakMap<MethodCall, BoundMethodKind>();
     private readonly baseOverrides = new WeakMap<BaseItemCall, ApplyEventBase>();
     private readonly afterEvents: AfterEvents;
 
@@ -498,9 +503,13 @@ export class Platform {
         }
     }
 
-    private async callBoundMethod(input: MethodCall, context: ExecutionContext): Promise<Item> {
+    private async callBoundMethod(
+        input: MethodCall,
+        context: ExecutionContext,
+        kind = BoundMethodKind.Replacement,
+    ): Promise<Item> {
         assertActiveContext(context);
-        this.boundMethods.add(input);
+        this.boundMethods.set(input, kind);
 
         try {
             return await context.execute(callMethodOperation, input);
@@ -552,7 +561,10 @@ export class Platform {
                 permissions.checkExecutionIdentity,
             );
 
-            return this.mockedMethodResult(name, entry, mocked, context);
+            return this.checkedMethodResult(
+                input,
+                this.mockedMethodResult(name, entry, mocked, context),
+            );
         }
 
         const definition = this.catalog.method(input.name);
@@ -571,14 +583,25 @@ export class Platform {
         );
         const executor = this.executorFor(definition);
 
-        return await this.executeMethod(
-            executor,
-            definition,
-            input.context,
-            source,
-            context,
-            input.eventData,
+        return this.checkedMethodResult(
+            input,
+            await this.executeMethod(
+                executor,
+                definition,
+                input.context,
+                source,
+                context,
+                input.eventData,
+            ),
         );
+    }
+
+    private checkedMethodResult(input: MethodCall, result: Item): Item {
+        if (this.boundMethods.get(input) === BoundMethodKind.Callback && result.isError()) {
+            throw new ApplicationError(result);
+        }
+
+        return result;
     }
 
     private async executeMethod(
@@ -734,29 +757,16 @@ export class Platform {
         data?: MethodEventData,
     ): Promise<void> {
         this.trace.record(context, { kind: "event", name, source: binding.entry.source });
-        const result = requireSuccess(
-            await this.callBoundMethod(
-                {
-                    name: binding.methodId,
-                    context: item,
-                    ...(data ? { eventData: data } : {}),
-                },
-                context,
-            ),
+        // Callbacks share their input; the separate response supplies faults, not input patches.
+        await this.callBoundMethod(
+            {
+                name: binding.methodId,
+                context: item,
+                ...(data ? { eventData: data } : {}),
+            },
+            context,
+            BoundMethodKind.Callback,
         );
-        item.payload.items = result.clone().payload.items;
-
-        if (result.payload.messages === undefined) {
-            delete item.payload.messages;
-        } else {
-            item.payload.messages = structuredClone(result.payload.messages);
-        }
-
-        if (result.payload.result === undefined) {
-            delete item.payload.result;
-        } else {
-            item.payload.result = result.payload.result;
-        }
     }
 
     private async hydrateEventItem(

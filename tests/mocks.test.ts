@@ -238,7 +238,7 @@ test("parameterized SQL preserves its XML parameters and getItemById queries rea
     ).toMatchObject({ query, parameters });
 }, 60_000);
 
-test("event Method mocks resolve imported IDs and return the next request in the real action pipeline", async () => {
+test("event Method mocks resolve imported IDs without replacing the pending request", async () => {
     const cwd = await project([
         {
             method: "Test_BeforeGet",
@@ -266,12 +266,15 @@ test("event Method mocks resolve imported IDs and return the next request in the
 
     const found = await harness.getOne("TestNode", { name: "Child" });
 
-    expect(found.properties.name).toBe("Parent");
-    expect(found.properties.count).toBe(9);
+    expect(found.properties.name).toBe("Child");
+    expect(found.properties.count).toBe(0);
     expect(
         harness.trace.some((entry) => entry.kind === "event" && entry.name === "onBeforeGet"),
     ).toBe(true);
     expect(harness.trace.find((entry) => entry.name === "Test_BeforeGet")?.kind).toBe("mock");
+    const direct = await harness.callMethod("Test_BeforeGet", { name: "Child" });
+
+    expect(direct.getProperty("name")).toBe("Parent");
 });
 
 test("new harnesses reload edited response files and nested parameter objects remain isolated", async () => {

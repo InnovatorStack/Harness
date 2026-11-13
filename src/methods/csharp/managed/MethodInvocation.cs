@@ -106,9 +106,9 @@ internal static class MethodInvocation
         protocol.Write(new { kind = "started", id = message.Id, reusable = context.CanReuse });
         var result = method.Execute();
         var original = method.ContextPayload;
-        var returned = original;
+        var returned = new ItemPayload { Result = "" };
 
-        if (result is not null && !ReferenceEquals(result, method))
+        if (result is not null)
         {
             returned = result.Payload;
         }
