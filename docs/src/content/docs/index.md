@@ -4,20 +4,10 @@ title: "Getting started"
 
 Harness runs your Innovator solution locally so a test can invoke its real Methods, fetch stored records, and check the result. Packages supply the schema and event wiring. Fixtures supply starting data.
 
-## 1. Install the preview
-
-Build the package from a checkout:
+## 1. Install
 
 ```sh
-bun install --frozen-lockfile
-bun run build
-bun pm pack
-```
-
-Copy the generated archive into your application and install it:
-
-```sh
-bun add --dev ./innovatorstack-harness-0.1.0.tgz
+bun add --dev @innovatorstack/harness
 ```
 
 Use Bun 1.4.4. Running C# Methods also requires the .NET 10 SDK. The SDK is not needed for a test that only uses TypeScript and AML.
