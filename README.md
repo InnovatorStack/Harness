@@ -11,18 +11,8 @@ Test Innovator solutions locally with Bun. Load normal AML package exports, add 
 
 ## Install
 
-The preview is installed from a built archive. From this checkout:
-
 ```sh
-bun install --frozen-lockfile
-bun run build
-bun pm pack
-```
-
-Copy the archive into your application, then run:
-
-```sh
-bun add --dev ./innovatorstack-harness-0.1.0.tgz
+bun add --dev @innovatorstack/harness
 ```
 
 Use Bun 1.4.4. C# Methods also need the .NET 10 SDK.

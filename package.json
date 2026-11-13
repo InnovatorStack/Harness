@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": false,
     "description": "An instrumentable local runtime for testing Innovator applications",
-    "homepage": "https://github.com/InnovatorStack/Harness#readme",
+    "homepage": "https://innovatorstack.github.io/Harness/",
     "bugs": {
         "url": "https://github.com/InnovatorStack/Harness/issues"
     },
@@ -56,6 +56,10 @@
             "types": "./dist/methods/csharp/index.d.ts",
             "import": "./dist/methods/csharp/index.js"
         }
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
     },
     "scripts": {
         "build": "bun run scripts/build.ts",
