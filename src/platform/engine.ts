@@ -881,7 +881,6 @@ export class Platform {
             return await this.applyVersionedUpdate(definition, item, context);
         }
 
-        const targetId = item.node.attributes.id;
         const replacement = await this.replaceAction(
             definition,
             item,
@@ -897,6 +896,12 @@ export class Platform {
 
         // The default action retains this node while callbacks share its changing document.
         const request = item.node;
+
+        if (action === "add") {
+            this.prepareAddId(request, context);
+        }
+
+        const targetId = request.attributes.id;
         const responseRequest = { ...request, attributes: { ...request.attributes } };
         await this.events(definition, `onBefore${verb}`, item, enabled, context);
         validateRequest(request, action);
@@ -916,6 +921,16 @@ export class Platform {
         );
     }
 
+    private prepareAddId(request: ItemNode, context: ExecutionContext): void {
+        assertActiveContext(context);
+
+        if (request.attributes.id) {
+            return;
+        }
+
+        request.attributes.id = this.nextId();
+    }
+
     private assertActionContext(
         definition: ItemTypeDefinition,
         request: ItemNode,
@@ -929,7 +944,7 @@ export class Platform {
         ) {
             throw new PlatformError(
                 "UnsupportedContextChange",
-                "A before event cannot change the ItemType, action or explicit target ID.",
+                "A before event cannot change the ItemType, action or captured target ID.",
             );
         }
     }
@@ -1158,13 +1173,17 @@ export class Platform {
         context: ExecutionContext,
     ): Promise<Item> {
         const request = item.node;
+        const id = request.attributes.id;
+
+        if (!id) {
+            throw new Error("The default Add must allocate its ID before running before hooks.");
+        }
 
         if (request.attributes.where) {
             throw new PlatformError("InvalidAdd", "add cannot contain a where selector.");
         }
 
         await this.graph.properties(definition, request, context);
-        const id = request.attributes.id ?? this.nextId();
         this.assertAddProperties(definition, request);
         const properties = this.creationProperties(definition, request, id, context);
         Object.assign(properties, this.security.creation(definition, properties, context));

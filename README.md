@@ -497,6 +497,12 @@ the current document. Captured changes made before and after detachment remain o
 and rejection. Untracked ambiguous requests and unqualified root changes retain explicit diagnostics.
 Get/Update base delegates currently reject input replaced before delegation; Add reparses that input
 at base entry. Document replacement during a base call and version-generation reentry remain unsupported.
+
+Default Add assigns a missing or empty ID before `onBeforeAdd`, after any `onAdd` replacement
+delegates to the base action. The pending input retains that ID, including after `BaseAddItem`
+returns. SDK-created Add items keep their preallocated ID. Before-hooks changing the captured
+Add ID remain unsupported and roll back the request.
+
 Managed Items keep their selected nodes separate from their shared XML document. Reloading that
 XML leaves retained views on their original detached nodes. `ToString()` and Method returns read
 the whole document; `apply()` submits only the selected, attached Item. Scalar and fault inspection
