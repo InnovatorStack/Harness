@@ -26,6 +26,7 @@ import { SqliteQueries } from "./queries.js";
 import {
     assertCompatible,
     columnsFor,
+    columnFor,
     normalizeValue,
     quoteIdentifier,
     tableName,
@@ -804,11 +805,10 @@ export class SqliteStorage implements HarnessStorage {
         properties: Readonly<Record<string, StorageValue>>,
     ): Record<string, StorageValue> {
         assertStorageData(properties, "INVALID_ITEM");
-        const columns = columnsFor(definition);
         const result: Record<string, StorageValue> = {};
 
         for (const [name, value] of Object.entries(properties)) {
-            const column = columns.find((candidate) => candidate.name === name);
+            const column = columnFor(definition, name);
 
             if (!column || name === "id") {
                 throw new StorageError(

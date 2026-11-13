@@ -27,7 +27,12 @@ const textDataTypes = new Set([
     "md5",
 ]);
 
-const columnLayouts = new WeakMap<ItemTypeDefinition, readonly StorageColumn[]>();
+interface ColumnLayout {
+    readonly columns: readonly StorageColumn[];
+    readonly byName: ReadonlyMap<string, StorageColumn>;
+}
+
+const columnLayouts = new WeakMap<ItemTypeDefinition, ColumnLayout>();
 
 export function quoteIdentifier(name: string): string {
     // oxlint-disable-next-line no-control-regex -- SQL identifiers must reject control characters.
@@ -72,11 +77,16 @@ function propertyColumn(property: PropertyDefinition): StorageColumn {
 }
 
 export function columnsFor(definition: ItemTypeDefinition): readonly StorageColumn[] {
-    if (!isFrozenData(definition)) {
-        return compileColumns(definition);
-    }
+    return columnLayout(definition).columns;
+}
 
-    const cached = columnLayouts.get(definition);
+export function columnFor(definition: ItemTypeDefinition, name: string): StorageColumn | undefined {
+    return columnLayout(definition).byName.get(name);
+}
+
+function columnLayout(definition: ItemTypeDefinition): ColumnLayout {
+    const immutable = isFrozenData(definition);
+    const cached = immutable ? columnLayouts.get(definition) : undefined;
 
     if (cached) {
         return cached;
@@ -84,14 +94,21 @@ export function columnsFor(definition: ItemTypeDefinition): readonly StorageColu
 
     const columns = compileColumns(definition);
 
-    for (const column of columns) {
-        Object.freeze(column);
+    if (immutable) {
+        for (const column of columns) {
+            Object.freeze(column);
+        }
+
+        Object.freeze(columns);
     }
 
-    Object.freeze(columns);
-    columnLayouts.set(definition, columns);
+    const layout = { columns, byName: new Map(columns.map((column) => [column.name, column])) };
 
-    return columns;
+    if (immutable) {
+        columnLayouts.set(definition, layout);
+    }
+
+    return layout;
 }
 
 function compileColumns(definition: ItemTypeDefinition): StorageColumn[] {
