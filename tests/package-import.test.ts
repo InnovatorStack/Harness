@@ -22,9 +22,17 @@ const partSchema = `<Item type="ItemType" id="PART_TYPE" action="add">
 
 let storage: SqliteStorage;
 let runtime: Runtime;
+let started = 0;
+let startingCpu = { user: 0, system: 0 };
+let startingRssBytes = 0;
+let phases: { readonly name: string; readonly wallMs: number; readonly cpuMs: number }[] = [];
 
 beforeEach(() => {
-    storage = new SqliteStorage();
+    phases = [];
+    started = performance.now();
+    startingCpu = process.cpuUsage();
+    startingRssBytes = process.memoryUsage().rss;
+    storage = timedPhase("open storage", () => new SqliteStorage());
     runtime = createRuntime({
         transactions: storage.transactions,
         modules: [
@@ -32,9 +40,14 @@ beforeEach(() => {
                 id: "test.packages",
 
                 setup(registrar) {
-                    registrar.handleSync(importOperation, (documents) =>
-                        new PackageImporter(storage).import(documents),
-                    );
+                    registrar.handleSync(importOperation, (documents) => {
+                        const importer = timedPhase(
+                            "read import state",
+                            () => new PackageImporter(storage),
+                        );
+
+                        return timedPhase("apply import", () => importer.import(documents));
+                    });
                 },
             },
         ],
@@ -42,9 +55,38 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    runtime.close();
-    storage.close();
+    timedPhase("close runtime", () => runtime.close());
+    timedPhase("close storage", () => storage.close());
+    const wallMs = performance.now() - started;
+    const slowTestMs = 1000;
+
+    if (wallMs > slowTestMs) {
+        const cpu = process.cpuUsage(startingCpu);
+        console.warn("Slow importer test", {
+            wallMs,
+            cpuMs: (cpu.user + cpu.system) / 1000,
+            startingRssBytes,
+            memoryBytes: process.memoryUsage(),
+            phases,
+        });
+    }
 });
+
+function timedPhase<Result>(name: string, run: () => Result): Result {
+    const start = performance.now();
+    const cpu = process.cpuUsage();
+
+    try {
+        return run();
+    } finally {
+        const used = process.cpuUsage(cpu);
+        phases.push({
+            name,
+            wallMs: performance.now() - start,
+            cpuMs: (used.user + used.system) / 1000,
+        });
+    }
+}
 
 function importXml(xml: string, file = "fixture.xml"): PackageLoadReport {
     return runtime.executeSync(importOperation, [parseAml(xml, file)]);
@@ -278,13 +320,10 @@ describe("PackageImporter", () => {
     });
 
     test("matches mixed-case ItemType names and IDs consistently with SQLite", () => {
-        const started = performance.now();
-        const cpu = process.cpuUsage();
         importXml(
             `<AML>${partSchema}<Item type="FixturePart" id="ONE" action="add"><label>Original</label><next_part type="fixturepart">two</next_part></Item><Item type="FixturePart" id="TWO" action="add"><label>Target</label></Item></AML>`,
             "baseline.xml",
         );
-        const imported = performance.now();
         importXml(
             '<Item type="fixturepart" id="one" action="edit"><label>Updated</label><next_part><Item type="FIXTUREPART" action="get" id="two" /></next_part></Item>',
             "patch.xml",
@@ -294,18 +333,6 @@ describe("PackageImporter", () => {
             next_part: "TWO",
         });
         expect(storage.listItems("FixturePart")).toHaveLength(2);
-        const completed = performance.now();
-        const slowImportMs = 1000;
-
-        if (completed - started > slowImportMs) {
-            const used = process.cpuUsage(cpu);
-            console.warn("Slow package import", {
-                addMs: imported - started,
-                patchMs: completed - imported,
-                cpuMs: (used.user + used.system) / 1000,
-                memoryBytes: process.memoryUsage(),
-            });
-        }
     });
 
     test("patches current stored state rather than reverting prior runtime mutations", () => {
