@@ -93,11 +93,31 @@ if (generated && name == "Skip generated")
     outDom.LoadXml("<Result>Generated update replaced</Result>");
     return;
 }
+var retainedName = input.SelectSingleNode("name");
+var retainedId = input.GetAttributeNode("id");
 if (generated && name == "Change generated")
 {
     input.SelectSingleNode("name").InnerText = "Changed by generated replacement";
 }
 eventData.BaseUpdateItem(outDom);
+if (name == "Verify live input")
+{
+    if (!Object.ReferenceEquals(input, inDom.DocumentElement)
+        || !Object.ReferenceEquals(retainedName, input.SelectSingleNode("name"))
+        || (retainedId != null
+            && !Object.ReferenceEquals(retainedId, input.GetAttributeNode("id"))))
+    {
+        throw new Exception("Reference base replaced retained request nodes");
+    }
+    var returned = outDom.SelectSingleNode("//Result/Item") as XmlElement
+        ?? throw new Exception("Reference base result is missing");
+    if (input.GetAttribute("id") != returned.GetAttribute("id")
+        || input.GetAttribute("action") != "version"
+        || String.IsNullOrEmpty(input.GetAttribute("oldId")))
+    {
+        throw new Exception("Reference base did not update its live request");
+    }
+}
 if (generated && name == "Reject generated replacement")
 {
     throw new Exception("Reference generated replacement rejected");
@@ -110,6 +130,13 @@ if (generated)
         var note = item.SelectSingleNode("note") ?? item.AppendChild(outDom.CreateElement("note"));
         note.InnerText = "Generated response";
     }
+}
+if (name == "Verify live input")
+{
+    var item = outDom.SelectSingleNode("//Result/Item")
+        ?? throw new Exception("Reference result is missing");
+    var note = item.SelectSingleNode("note") ?? item.AppendChild(outDom.CreateElement("note"));
+    note.InnerText = "Live input verified";
 }
 ]]></method_code>
     </Item>

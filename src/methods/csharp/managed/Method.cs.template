@@ -22,4 +22,7 @@ __METHOD_CODE__
     }
 
     ItemPayload IArasMethod.ContextPayload => Payload;
+
+    private System.Xml.XmlDocument InputDocument => node.OwnerDocument
+        ?? throw new InvalidOperationException("Missing Method input document.");
 }

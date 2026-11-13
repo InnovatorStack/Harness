@@ -467,8 +467,14 @@ Replacement Methods can delegate once to their native action through invocation-
 and typed event arguments, including `BaseLockItem`, `BaseUnlockItem` and `BasePromoteItem`.
 Delegation retains authorization, before/after hooks and the owning transaction. Explicit lock/unlock
 suppression skips optional hooks; `edit serverEvents="0"` still runs its implicit lock/unlock hooks.
-Managed base delegates return responses; server-side input DOM rewrites are not yet synchronized
-back into the calling `CSharpInOut` Method's input document.
+Both C# templates see supported base-action changes in their existing input XML before the base
+call returns or throws. Generated selectors, `oldId`, copied relationship IDs and property changes
+preserve retained element, attribute and text references. Responses stay in the output document.
+Unchanged request values are omitted from synchronization messages; the existing transport limits
+still apply. A failed synchronization rejects the transaction even if the Method catches it.
+Saved relationship identities preserve retained nodes across supported removal and reordering of
+pending requests, including the distinction between an empty and removed container. Ambiguous
+repeated-ID edits need additional XML identity metadata and fail with `UnsupportedRequestIdentity`.
 Unknown Method templates and event argument types fail with explicit diagnostics.
 
 Lifecycle bindings, states, transitions, and pre/post Methods come from imported AML. `add` uses the start state; `promoteItem` validates the transition and updates `state` and `current_state` without creating another generation. Transition roles require the configured authorization policy or the existing explicit `authorization: "unchecked"` setting. Transactional pre/post Methods execute through the same Method dispatcher and configured mocks.

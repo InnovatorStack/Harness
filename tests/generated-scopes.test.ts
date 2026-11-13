@@ -63,6 +63,9 @@ test("generated base retains captured event suppression and response mode", asyn
             input.SetAttribute("doGetItem", "1");
         }
         eventData.BaseUpdateItem(outDom);
+        if (input.GetAttribute("serverEvents") != "0" || input.GetAttribute("doGetItem") != "0") {
+            throw new Exception("Captured base flags did not reach the live input");
+        }
     `;
     const source =
         generatedUpdateSources(true, code) +

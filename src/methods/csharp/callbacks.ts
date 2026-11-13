@@ -1,14 +1,35 @@
 import { decodePayload, object } from "../../items/codec.js";
 import { Item } from "../../items/item.js";
+import type { ItemNode } from "../../items/item.js";
 import { parseItems } from "../../items/xml.js";
 import { PlatformError } from "../../platform/errors.js";
+import { requestCopyId } from "../../platform/request-copies.js";
 import type { MethodPorts } from "../types.js";
+import { requestDifference } from "./request-change.js";
+import type { RequestChange } from "./request-change.js";
 import type { ManagedSecurity } from "./security.js";
+
+export interface ManagedCallbackState {
+    request?: { readonly before: ItemNode; readonly item: Item };
+}
+
+export function requestChange(state: ManagedCallbackState): RequestChange | undefined {
+    const request = state.request;
+
+    if (!request) {
+        return undefined;
+    }
+
+    return requestDifference(request.before, request.item.node, (type, id) =>
+        requestCopyId(request.item, type, id),
+    );
+}
 
 export async function managedCallback(
     message: Record<string, unknown>,
     ports: MethodPorts,
     security: ManagedSecurity,
+    state: ManagedCallbackState = {},
 ): Promise<Item> {
     if (security.handles(message.operation)) {
         return security.invoke(message.operation, message.payload, ports);
@@ -31,7 +52,7 @@ export async function managedCallback(
     }
 
     if (message.operation === "eventBase") {
-        return await applyEventBase(message.payload, ports);
+        return await applyEventBase(message.payload, ports, state);
     }
 
     if (message.operation === "apply") {
@@ -57,7 +78,11 @@ export async function managedCallback(
     );
 }
 
-async function applyEventBase(payload: unknown, ports: MethodPorts): Promise<Item> {
+async function applyEventBase(
+    payload: unknown,
+    ports: MethodPorts,
+    state: ManagedCallbackState,
+): Promise<Item> {
     if (
         !ports.serverEvent ||
         !object(payload) ||
@@ -76,7 +101,10 @@ async function applyEventBase(payload: unknown, ports: MethodPorts): Promise<Ite
         );
     }
 
-    return await ports.serverEvent.applyBase(items[0]);
+    const item = items[0];
+    state.request = { before: item.clone().node, item };
+
+    return await ports.serverEvent.applyBase(item);
 }
 
 async function sql(payload: unknown, ports: MethodPorts): Promise<Item> {

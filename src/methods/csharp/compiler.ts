@@ -126,6 +126,8 @@ export class CSharpCompiler {
             "EventMetadata.cs",
             "InOutInvocation.cs",
             "ResponseXml.cs",
+            "RequestXml.cs",
+            "RequestRelationships.cs",
             "XmlProperties.cs",
             "Program.cs",
         ];

@@ -298,9 +298,15 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Imported replacement bindings own the request and bypass native hooks unless they explicitly delegate to the base action.",
             "CSharpInOut supports native base delegates for get/add/update/delete/lock/unlock/promote; other replacement-specific fields remain unavailable.",
+            "Both C# templates synchronize supported base-action input changes in place before returning or reporting failure. Retained XML views stay live, with responses kept separate.",
+            "Native copy identities preserve supported pending relationship removals, reordering and empty-container presence. Ambiguous repeated-ID edits require additional XML identity metadata and fail explicitly.",
             "The base port is invocation-scoped. Native release-specific context and locking parity remain unverified.",
         ],
-        tests: ["tests/state-replacements.test.ts"],
+        tests: [
+            "tests/state-replacements.test.ts",
+            "tests/base-input.test.ts",
+            "tests/base-input-relationships.test.ts",
+        ],
     }),
     descriptor({
         id: CapabilityId.Lifecycles,
@@ -408,9 +414,10 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Requires the .NET 10 SDK and configured assemblies.",
             "Only the implemented managed server API is available; compilation does not prove runtime behavior.",
+            "Native replacement delegates preserve live input XML views across supported selector, property and nested relationship changes. Synchronization failures reject the owning transaction.",
             "ErrorLookup formats one imported UserMessage text; native localization, language fallback and legacy static permission APIs are unavailable.",
         ],
-        tests: ["tests/csharp.test.ts", "tests/csharp-xml.test.ts"],
+        tests: ["tests/csharp.test.ts", "tests/csharp-xml.test.ts", "tests/base-input.test.ts"],
     }),
     descriptor({
         id: CapabilityId.JavaScript,
@@ -551,6 +558,7 @@ const errorCapabilities: Readonly<Record<string, CapabilityId>> = Object.freeze(
     MethodCompilationFailed: CapabilityId.CSharp,
     UnsupportedMethodTemplate: CapabilityId.CSharp,
     UnsupportedEventData: CapabilityId.CSharp,
+    UnsupportedRequestIdentity: CapabilityId.CSharp,
     UnsupportedSQL: CapabilityId.TSql,
     UnsupportedFederatedPredicate: CapabilityId.Federation,
     UnsupportedDefinitionMutation: CapabilityId.DefinitionMutation,

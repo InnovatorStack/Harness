@@ -13,6 +13,39 @@ const capabilities = [CapabilityId.Generations, CapabilityId.ServerEvents, Capab
 
 export const generatedUpdateCases: readonly ReferenceCase[] = [
     {
+        id: "base-delegation-updates-live-input",
+        capabilities,
+        steps: [
+            {
+                name: "lock",
+                aml: '<Item type="RefStateRecord" action="lock" id="{{state-record}}" />',
+            },
+            {
+                name: "save",
+                aml: '<Item type="RefStateRecord" action="update" id="{{state-record}}"><name>Verify live input</name></Item>',
+            },
+        ],
+
+        check(observation) {
+            equalContract(
+                valueAt(observation, 1, "note"),
+                "Live input verified",
+                "Both replacements verified the base-mutated input and retained XML nodes.",
+            );
+            equalContract(valueAt(observation, 1, "generation"), "2", "One generation is saved.");
+            equalContract(
+                valueAt(observation, 1, "name"),
+                "Verify live input",
+                "Native request synchronization retains pending business values.",
+            );
+            equalContract(
+                stepAt(observation, 1).outcome,
+                ExecutionOutcome.Committed,
+                "Successful input observations share the base action's transaction.",
+            );
+        },
+    },
+    {
         id: "generated-replacement-base-delegation",
         capabilities,
         steps: [

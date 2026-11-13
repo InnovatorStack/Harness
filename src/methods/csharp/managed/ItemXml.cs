@@ -345,7 +345,8 @@ internal static class ItemXml
         {
             string name = property.Key;
 
-            if (property.Value.Count > 0 && FindProperty(element, name) is null
+            if ((property.Value.Count > 0 || name == "Relationships")
+                && FindProperty(element, name) is null
                 && (name != "Relationships" || item.Relationships.Count == 0))
             {
                 XmlElement child = document.CreateElement(name);
@@ -511,6 +512,7 @@ internal static class ItemXml
 
             if (name == "Relationships")
             {
+                item.PropertyAttributes.Add(name, new());
                 ReadRelationships(item, property, children);
 
                 continue;

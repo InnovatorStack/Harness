@@ -80,6 +80,7 @@ function readRelationships(
     }
 
     frame.relationshipsSeen = true;
+    setOwn(frame.node.propertyAttributes, "Relationships", {});
 
     for (const child of childElements(property)) {
         frame.node.relationships.push(appendItem(child, pending));

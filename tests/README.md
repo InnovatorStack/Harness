@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 78 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 79 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -48,6 +48,16 @@ before-version request data, mixed bulk version markers, idlist order, permissio
 Generated replacement cases cover base delegation, skipped updates, response ownership, rollback and
 explicit/automatic WHERE criteria. Unit tests exercise single/bulk ID lists, manual versioning,
 nested relationship ID remapping, captured targets/flags, permission changes, port expiry and reset.
+
+Base-input tests exercise real source through both C# templates. Generated IDs, selector changes,
+captured flags, property insertion/removal, nulls, implicit query groups and expanded Item properties
+update retained XML nodes. They cover source-visible base faults, caught synchronization failures,
+transaction rollback and isolated reset. A 3 MiB unchanged value verifies that request synchronization
+does not duplicate business data into callback messages. The portable base-input contract remains
+pending native evidence.
+Relationship-request cases retain surviving XML views across source-driven removal and reordering
+using native copy identities, including empty versus removed containers. Ambiguous repeated-ID
+edits retain explicit diagnostics and rollback until their XML identity metadata is available.
 
 Historical unlock cases cover locked/unlocked sources, callback order, event suppression and rejection.
 Unit tests also exercise automatic/manual markers, real Get hydration, shared contexts, owned dependent
