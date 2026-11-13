@@ -115,14 +115,23 @@ export default {
 export async function checkSkillExamples(root: string, directory: string): Promise<string> {
     const skill = await Bun.file(join(root, "skills/innovator-harness/SKILL.md")).text();
     const blocks = [...skill.matchAll(/```ts\n([\s\S]*?)```/gu)].map((match) => match[1]);
+    const configuration = blocks.find((block) => block?.startsWith("// .harness/config.ts\n"));
+    const fixtures = blocks.find((block) => block?.startsWith("// .harness/fixtures.ts"));
+    const test = blocks.find((block) => block?.startsWith("// tests/submission.test.ts"));
 
-    if (blocks.length !== 2 || blocks[0] === undefined || blocks[1] === undefined) {
-        throw new Error("The skill's fixture and test examples must both be checked.");
+    if (
+        blocks.length !== 3 ||
+        configuration === undefined ||
+        fixtures === undefined ||
+        test === undefined
+    ) {
+        throw new Error("The skill's configuration, fixture and test examples must be checked.");
     }
 
     await rm(join(directory, "tests"), { recursive: true });
-    await Bun.write(join(directory, ".harness/fixtures.ts"), blocks[0]);
-    await Bun.write(join(directory, "tests/skill.test.ts"), blocks[1]);
+    await Bun.write(join(directory, ".harness/config.ts"), configuration);
+    await Bun.write(join(directory, ".harness/fixtures.ts"), fixtures);
+    await Bun.write(join(directory, "tests/skill.test.ts"), test);
 
     return await checkConsumer(root, directory);
 }
