@@ -8,6 +8,8 @@
 A Bun and TypeScript library for testing applications against a local, instrumentable Innovator environment. Packages define the model and business logic. Fixtures supply starting data. Tests use an isolated SQLite database.
 
 Bun is the runtime and test runner; C# Methods additionally require the .NET 10 SDK.
+CI uses Bun 1.4.4. Use that version for isolated or parallel suites; Bun 1.3.13 has a
+[module graph retention bug](https://github.com/oven-sh/bun/pull/39818) when tests use mocks or plugins.
 For this preview, build the package from a checkout:
 
 ```sh

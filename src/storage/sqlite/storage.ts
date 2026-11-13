@@ -8,6 +8,7 @@ import { selectQuery } from "../../queries/types.js";
 import type { Predicate } from "../../queries/types.js";
 import { selectDocument } from "../documents.js";
 import { changeMetadata, metadataEpoch, trackMetadata } from "../metadata-epoch.js";
+import { packageTransaction } from "../package-transaction.js";
 import type {
     CatalogEntry,
     HarnessStorage,
@@ -84,8 +85,9 @@ export class SqliteStorage implements HarnessStorage {
     readonly transactions: TransactionBoundary = Object.freeze({
         begin: () => {
             this.boundary.begin();
+            this.transactionMetadata = metadataEpoch(this);
 
-            if (metadataEpoch(this) === undefined) {
+            if (this.transactionMetadata === undefined) {
                 this.definitions.clear();
             }
         },
@@ -96,6 +98,14 @@ export class SqliteStorage implements HarnessStorage {
 
         rollback: () => {
             this.boundary.rollback();
+
+            if (
+                this.transactionMetadata === undefined ||
+                this.transactionMetadata !== metadataEpoch(this)
+            ) {
+                this.clearStatements();
+            }
+
             this.definitions.clear();
             changeMetadata(this);
         },
@@ -103,6 +113,8 @@ export class SqliteStorage implements HarnessStorage {
 
     private connection: Database;
     private closed = false;
+    private packageWriteActive = false;
+    private transactionMetadata: number | undefined;
     private readonly filename: string;
     private reusableImage: Uint8Array | undefined;
     private definitionList:
@@ -139,7 +151,7 @@ export class SqliteStorage implements HarnessStorage {
             this.definitions.clear();
         }
 
-        database.transaction(() => {
+        this.writeAtomically(() => {
             const previous = this.getItemType(definition.name);
 
             if (
@@ -165,7 +177,7 @@ export class SqliteStorage implements HarnessStorage {
                 .run(definition.id, definition.name, JSON.stringify(definition));
             this.definitions.delete(definition.name.toLowerCase());
             changeMetadata(this);
-        })();
+        });
     }
 
     getItemType(name: string): ItemTypeDefinition | undefined {
@@ -218,33 +230,35 @@ export class SqliteStorage implements HarnessStorage {
         const definition = this.requireItemType(item.type);
         this.validateId(item.id);
         const properties = this.normalizeProperties(definition, item.properties);
-        const database = this.database;
-        database.transaction(() => {
-            if (this.getItem(definition.name, item.id)) {
+
+        this.writeAtomically(() => {
+            const names = ["id", ...Object.keys(properties)];
+            const values: StorageValue[] = [item.id, ...Object.values(properties)];
+            const result = this.statements
+                .query(
+                    `INSERT INTO ${quoteIdentifier(tableName(definition))} ` +
+                        `(${names.map(quoteIdentifier).join(", ")}) ` +
+                        `VALUES (${names.map(() => "?").join(", ")}) ` +
+                        "ON CONFLICT(id) DO NOTHING",
+                )
+                .run(...values);
+
+            if (result.changes === 0) {
                 throw new StorageError(
                     "ITEM_EXISTS",
                     `${definition.name} item ${item.id} already exists.`,
                 );
             }
 
-            const names = ["id", ...Object.keys(properties)];
-            const values: StorageValue[] = [item.id, ...Object.values(properties)];
-            this.statements
-                .query(
-                    `INSERT INTO ${quoteIdentifier(tableName(definition))} ` +
-                        `(${names.map(quoteIdentifier).join(", ")}) ` +
-                        `VALUES (${names.map(() => "?").join(", ")})`,
-                )
-                .run(...values);
             this.writePresence(definition.name, item.id, Object.keys(properties));
-        })();
+        });
     }
 
     updateItem(type: string, id: string, values: Readonly<Record<string, StorageValue>>): void {
         const definition = this.requireItemType(type);
         const properties = this.normalizeProperties(definition, values);
-        const database = this.database;
-        database.transaction(() => {
+
+        this.writeAtomically(() => {
             const existing = this.getItem(definition.name, id);
 
             if (!existing) {
@@ -270,7 +284,7 @@ export class SqliteStorage implements HarnessStorage {
             this.writePresence(definition.name, existing.id, [
                 ...new Set([...Object.keys(existing.properties), ...Object.keys(properties)]),
             ]);
-        })();
+        });
     }
 
     getItem(type: string, id: string): StoredItem | undefined {
@@ -304,7 +318,7 @@ export class SqliteStorage implements HarnessStorage {
     deleteItem(type: string, id: string): void {
         const definition = this.requireItemType(type);
         const database = this.database;
-        database.transaction(() => {
+        this.writeAtomically(() => {
             if (!this.getItem(type, id)) {
                 throw new StorageError(
                     "ITEM_NOT_FOUND",
@@ -320,7 +334,7 @@ export class SqliteStorage implements HarnessStorage {
                     "DELETE FROM _harness_presence WHERE type = ? COLLATE NOCASE AND id = ? COLLATE NOCASE",
                 )
                 .run(definition.name, id);
-        })();
+        });
     }
 
     putCatalogEntry(entry: CatalogEntry): void {
@@ -565,6 +579,46 @@ export class SqliteStorage implements HarnessStorage {
         if (failures.length > 0) {
             throw new AggregateError(failures, "Storage cleanup failed.");
         }
+    }
+
+    [packageTransaction]<Result>(write: () => Result): Result {
+        if (this.packageWriteActive) {
+            throw new StorageError("TRANSACTION_STATE", "Package write scopes cannot overlap.");
+        }
+
+        try {
+            return this.database.transaction(() => {
+                this.packageWriteActive = true;
+
+                try {
+                    return write();
+                } finally {
+                    this.packageWriteActive = false;
+                }
+            })();
+        } catch (error) {
+            // A rolled-back ALTER can leave cached result columns describing the temporary schema.
+            this.clearStatements();
+            this.definitions.clear();
+            this.definitionList = undefined;
+            this.catalog.clear();
+            changeMetadata(this);
+
+            throw error;
+        }
+    }
+
+    private writeAtomically<Result>(write: () => Result): Result {
+        if (this.packageWriteActive) {
+            return write();
+        }
+
+        return this.database.transaction(write)();
+    }
+
+    private clearStatements(): void {
+        this.statements.clear();
+        this.connection.clearQueryCache();
     }
 
     private retainCleanConnection(): boolean {

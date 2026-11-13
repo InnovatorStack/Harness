@@ -1,19 +1,10 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 
 import { createHarness } from "../src/index.js";
 import { SetupTiming } from "./helpers/setup-timing.js";
 
-let timing: SetupTiming;
-
-beforeEach(() => {
-    timing = new SetupTiming();
-});
-
-afterEach(() => {
-    timing.finish();
-});
-
 test("shared setup imports packages and fixtures before the test queries data", async () => {
+    using timing = new SetupTiming();
     using world = await timing.phase("create harness", () => createHarness());
 
     const parent = await timing.phase("get parent", () =>

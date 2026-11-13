@@ -1,7 +1,7 @@
 const slowSetupTestMs = 1000;
 
 /** Diagnose slow shared setup without changing its assertions or timeout. */
-export class SetupTiming {
+export class SetupTiming implements Disposable {
     private readonly started = performance.now();
     private readonly cpu = process.cpuUsage();
     private readonly startingRssBytes = process.memoryUsage().rss;
@@ -27,7 +27,7 @@ export class SetupTiming {
         }
     }
 
-    finish(): void {
+    [Symbol.dispose](): void {
         const wallMs = performance.now() - this.started;
 
         if (wallMs <= slowSetupTestMs) {
