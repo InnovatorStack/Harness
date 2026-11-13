@@ -5,6 +5,7 @@ import type { Engine } from "../engine.js";
 import { captureEngine, openEngine } from "../engine/instance.js";
 import { loadFixtureRecords } from "../fixtures/module.js";
 import { csharp } from "../methods/csharp/index.js";
+import type { MethodFile } from "../methods/sources.js";
 import type { MethodExecutor } from "../methods/types.js";
 import { loadAmlDocuments } from "../packages/files.js";
 import { PlatformError } from "../platform/errors.js";
@@ -13,6 +14,7 @@ import { SqliteStorage } from "../storage/sqlite/storage.js";
 import { loadConfiguration, resolveCSharpOptions } from "./configuration.js";
 import type { HarnessOptions, ResolvedConfig } from "./configuration.js";
 import { loadTypeScriptFixtures, readTypeScriptFixtures, splitFixturePaths } from "./fixtures.js";
+import { readMethodFiles } from "./method-files.js";
 import { runtimeIdentity } from "./runtime-identity.js";
 import { setupCache } from "./setup-cache.js";
 import { readSetupImage, writeSetupImage } from "./setup-image.js";
@@ -22,6 +24,10 @@ import { Harness } from "./world.js";
 /** Open a world from shared .harness configuration, with optional local overrides. */
 export async function createHarness(options: HarnessOptions = {}): Promise<Harness> {
     const configuration = await loadConfiguration(options);
+    const methodFiles = await readMethodFiles(
+        configuration.directory,
+        configuration.settings.methods,
+    );
     const fixtures = await splitFixturePaths(configuration.fixtures);
 
     if (
@@ -30,7 +36,11 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
     ) {
         const packages = await loadAmlDocuments(configuration.packages.map((path) => ({ path })));
         const records = await loadAmlDocuments(fixtures.aml.map((path) => ({ path })));
-        const engine = createConfiguredEngine(configuration, { packages, fixtures: records });
+        const engine = createConfiguredEngine(
+            configuration,
+            { packages, fixtures: records },
+            methodFiles,
+        );
 
         return await finishSetup(engine, async () => {
             await loadTypeScriptFixtures(engine, fixtures.typescript);
@@ -60,6 +70,7 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
             packages: parseSetupSources(sources.slice(0, configuration.packages.length)),
             fixtures: parseSetupSources(sources.slice(configuration.packages.length)),
         },
+        methodFiles,
     );
 
     return await finishSetup(engine, async () => {
@@ -96,6 +107,7 @@ async function finishSetup(engine: Engine, prepare: () => Promise<void>): Promis
 function createConfiguredEngine(
     configuration: ResolvedConfig,
     setup: Parameters<typeof openEngine>[1],
+    methodFiles: readonly MethodFile[],
 ): Engine {
     const storage = new SqliteStorage();
     const executors: MethodExecutor[] = [];
@@ -124,6 +136,7 @@ function createConfiguredEngine(
                 ...(configuration.settings.ids ? { ids: configuration.settings.ids } : {}),
                 executors,
                 mocks: configuration.mocks,
+                methodFiles,
                 modules,
                 ...(configuration.settings.authorization !== undefined
                     ? { authorization: configuration.settings.authorization }

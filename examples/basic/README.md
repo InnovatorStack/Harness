@@ -1,10 +1,10 @@
 # Basic example
 
-Build and pack Harness at the repository root using the [installation steps](../../README.md).
+Install Bun 1.4.4.
 Then run in this directory:
 
 ```sh
-bun add --dev ../../innovatorstack-harness-0.1.0.tgz
+bun install
 bun test
 ```
 

@@ -3,7 +3,7 @@ import { errorMessage } from "../core/errors.js";
 import type { MethodDefinition } from "../methods/types.js";
 import { loadMocks } from "../mocks/configuration.js";
 import type { MockRegistry } from "../mocks/registry.js";
-import { PlatformCatalog } from "../platform/catalog.js";
+import type { PlatformCatalog } from "../platform/catalog.js";
 import { PlatformError } from "../platform/errors.js";
 import type { StorageValue, CatalogEntry } from "../storage/types.js";
 import { inspectPackages } from "../verification/inspection.js";
@@ -13,6 +13,7 @@ import { capabilities, CapabilityId, capabilityForLanguage } from "./capabilitie
 import { ExecutionEvidence } from "./executions.js";
 import { ExecutorInspection } from "./executors.js";
 import { inspectMetadata } from "./metadata.js";
+import { inspectMethodSources } from "./method-sources.js";
 import { checkMocks } from "./mocks.js";
 import { resolveDeclaration } from "./sources.js";
 import {
@@ -63,10 +64,12 @@ export async function checkCompatibility(
           )
         : undefined;
     const methods: MethodCompatibility[] = [];
+    const methodSources = await inspectMethodSources(inspection);
 
-    for (const declaration of inspection.report.methods) {
+    for (const declaration of methodSources.declarations) {
         const method = await inspectMethod(
             inspection,
+            methodSources.catalog,
             declaration,
             mocks,
             executors,
@@ -128,6 +131,7 @@ function metadataIssues(inspection: PackageInspection): CompatibilityIssue[] {
 
 async function inspectMethod(
     inspection: PackageInspection,
+    catalog: PlatformCatalog,
     declaration: PackageMethodDeclaration,
     registry: MockRegistry | undefined,
     executors: ExecutorInspection | undefined,
@@ -143,7 +147,7 @@ async function inspectMethod(
     const mocks = checkMocks(registry, "method", names);
     const issues = mockIssues(mocks, declaration.source);
     const fullyMocked = mocks.coverage === MockCoverage.Unconditional;
-    const definition = resolveMethod(inspection, entry, declaration, fullyMocked, issues);
+    const definition = resolveMethod(catalog, entry, declaration, fullyMocked, issues);
     const language = definition?.language ?? declaration.language;
     const executor: ExecutorCheck = executors
         ? await executors.executor(language, Boolean(definition) && !fullyMocked)
@@ -393,7 +397,7 @@ async function inspectMockSettings(
 }
 
 function resolveMethod(
-    inspection: PackageInspection,
+    catalog: PlatformCatalog,
     entry: CatalogEntry | undefined,
     declaration: PackageMethodDeclaration,
     fullyMocked: boolean,
@@ -401,9 +405,12 @@ function resolveMethod(
 ): MethodDefinition | undefined {
     let definition: MethodDefinition | undefined;
 
-    if (entry) {
+    const identifier =
+        entry?.id ?? (declaration.action === "source" ? declaration.name : undefined);
+
+    if (identifier) {
         try {
-            definition = new PlatformCatalog(inspection.storage).method(entry.id);
+            definition = catalog.method(identifier);
         } catch (error) {
             if (!(error instanceof PlatformError)) {
                 throw error;
@@ -417,7 +424,7 @@ function resolveMethod(
                             IssueSeverity.Error,
                             error.message,
                         ),
-                        source: declaration.source,
+                        source: error.source ?? declaration.source,
                         causeCode: error.code,
                     }),
                 );

@@ -9,6 +9,7 @@ import type { ItemNode } from "../items/item.js";
 import { parseItems } from "../items/xml.js";
 import { MethodEventDataKind } from "../methods/event-data.js";
 import type { MethodEventData } from "../methods/event-data.js";
+import type { MethodFile, MethodSourceResolution } from "../methods/sources.js";
 import type { MethodDefinition, MethodExecutor, MethodPorts } from "../methods/types.js";
 import { properties } from "../mocks/registry.js";
 import type { MockMatch, MockRegistry } from "../mocks/registry.js";
@@ -60,6 +61,7 @@ interface CallSource {
     readonly source: SourceLocation;
     readonly sourceHash?: string;
     readonly definition: SourceDefinition;
+    readonly methodSource?: MethodSourceResolution;
 }
 
 interface MethodCall {
@@ -110,6 +112,7 @@ const deleteOwnedItemOperation = defineOperation<
 export type { AuthorizationRequest } from "./security/types.js";
 
 export interface PlatformOptions {
+    readonly methodFiles?: readonly MethodFile[];
     readonly userId?: () => string;
     readonly executors?: readonly MethodExecutor[];
     readonly authorization?: AuthorizationPolicy;
@@ -160,7 +163,7 @@ export class Platform {
         private readonly now: () => Date = () => new Date(),
         select?: SelectQuery,
     ) {
-        this.catalog = new PlatformCatalog(storage);
+        this.catalog = new PlatformCatalog(storage, options.methodFiles);
         this.responses = new ActionResponses(dispatchItem, (type) => this.hasAfterEvents(type));
         this.security = new NativeSecurity(
             storage,
@@ -575,6 +578,7 @@ export class Platform {
             source: definition.source,
             sourceHash: definition.hash,
             definition: { type: "Method", id: definition.id },
+            ...(definition.methodSource ? { methodSource: definition.methodSource } : {}),
         };
         this.trace.record(context, { kind: "method", name: definition.name, ...source });
         await this.authorizeMethod(

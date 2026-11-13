@@ -1,6 +1,7 @@
 import type { SourceLocation } from "../diagnostics/source-location.js";
 import type { Item } from "../items/item.js";
 import type { MethodEventData } from "./event-data.js";
+import type { MethodSourceResolution } from "./sources.js";
 
 export { MethodEventDataKind } from "./event-data.js";
 export type {
@@ -18,6 +19,7 @@ export interface MethodDefinition {
     readonly code: string;
     readonly hash: string;
     readonly source: SourceLocation;
+    readonly methodSource?: MethodSourceResolution;
 }
 
 export interface MethodPorts {

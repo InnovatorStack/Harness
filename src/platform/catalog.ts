@@ -1,5 +1,7 @@
 import { CapabilityId } from "../compatibility/capabilities.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
+import { MethodSourceKind, methodFileLocation } from "../methods/sources.js";
+import type { MethodFile } from "../methods/sources.js";
 import type { MethodDefinition } from "../methods/types.js";
 import { presentationTypes } from "../packages/bootstrap.js";
 import { walkElements } from "../packages/elements.js";
@@ -11,6 +13,7 @@ import { Classifications } from "./classifications.js";
 import { PlatformError } from "./errors.js";
 import { EventBindings } from "./events/bindings.js";
 import { ServerEventVersion } from "./events/types.js";
+import { MethodSources } from "./method-sources.js";
 
 const definitionTypes = new Set([
     "itemtype",
@@ -72,10 +75,15 @@ export class PlatformCatalog {
     private epoch: number | undefined;
     private methods: Map<string, CatalogEntry[]> | undefined;
     private readonly definitions = new Map<string, MethodDefinition>();
+    private readonly sources: MethodSources;
 
-    constructor(private readonly storage: HarnessStorage) {
+    constructor(
+        private readonly storage: HarnessStorage,
+        methodFiles: readonly MethodFile[] = [],
+    ) {
         this.classifications = new Classifications(storage);
         this.bindings = new EventBindings(storage);
+        this.sources = new MethodSources(methodFiles);
     }
 
     assertMutable(definition: ItemTypeDefinition): void {
@@ -138,7 +146,7 @@ export class PlatformCatalog {
             );
         }
 
-        return current[0];
+        return current[0] ?? this.sources.entry(nameOrId);
     }
 
     private refreshMethods(): void {
@@ -185,9 +193,30 @@ export class PlatformCatalog {
             return cached;
         }
 
+        const definition = this.readMethod(method, nameOrId);
+        this.definitions.set(method.id, definition);
+
+        return definition;
+    }
+
+    private readMethod(method: CatalogEntry, nameOrId: string): MethodDefinition {
         const name = method.properties.name;
         const language = method.properties.method_type;
-        const code = method.properties.method_code;
+        const file = this.sources.file(method);
+        const local = file && "code" in file ? file : undefined;
+
+        if (file && "error" in file) {
+            throw new PlatformError(
+                "MethodSourceReadFailed",
+                `Cannot read Method source '${file.file}'.`,
+                {
+                    cause: file.error,
+                    source: methodFileLocation(file),
+                },
+            );
+        }
+
+        const code = local ? local.code : method.properties.method_code;
 
         if (typeof name !== "string" || typeof language !== "string" || typeof code !== "string") {
             throw new PlatformError(
@@ -196,15 +225,29 @@ export class PlatformCatalog {
             );
         }
 
+        const packageSource = this.sources.owns(method)
+            ? undefined
+            : Object.freeze({ ...methodCodeSource(this.storage, method.source) });
         const definition = Object.freeze({
             id: method.id,
             name,
             language,
             code,
-            source: Object.freeze({ ...methodCodeSource(this.storage, method.source) }),
+            source: local
+                ? methodFileLocation(local)
+                : Object.freeze({ ...methodCodeSource(this.storage, method.source) }),
             hash: new Bun.CryptoHasher("sha256").update(code).digest("hex"),
+            ...(file
+                ? {
+                      methodSource: Object.freeze({
+                          kind: local ? MethodSourceKind.LocalFile : MethodSourceKind.Package,
+                          configuredFile: file.file,
+                          fallback: local === undefined,
+                          ...(packageSource ? { packageSource } : {}),
+                      }),
+                  }
+                : {}),
         });
-        this.definitions.set(method.id, definition);
 
         return definition;
     }

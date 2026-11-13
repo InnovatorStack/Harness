@@ -1,6 +1,7 @@
 import type { CapabilityId } from "../compatibility/capabilities.js";
 import type { ExecutionInjection } from "../controls/failure-types.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
+import type { MethodSourceResolution } from "../methods/sources.js";
 import type { MockValue } from "../mocks/types.js";
 import type { SourceDefinition } from "../platform/trace.js";
 import type { StoredItem } from "../storage/types.js";
@@ -64,6 +65,7 @@ export interface ExecutionEvent {
 export type ExecutionDefinition = SourceDefinition;
 
 export interface ExecutionCall extends ExecutionLocation {
+    readonly methodSource?: MethodSourceResolution;
     readonly parentExecutionId?: string;
     readonly operation: string;
     readonly kind: ExecutionKind;
