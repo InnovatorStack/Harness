@@ -488,9 +488,12 @@ Unrepresentable or oversized failure context produces an explicit synchronizatio
 exception text beyond 16,384 characters is marked truncated.
 Pending relationship nodes retain their identity through changed repeated-ID requests, anonymous
 additions, removals, reordering and identical cloned replacements. Empty and removed containers
-remain distinct. This requires no configuration or business AML attributes. Untracked ambiguous
-requests and replacement of a native request root or existing Item-valued property fail with
-`UnsupportedRequestIdentity`; those DOM replacement profiles still need native qualification.
+remain distinct. Replacing an Item-valued property keeps the property wrapper and detaches its
+old child, including identical copies. Retained views of that old child stay independent of the
+new one. `setPropertyItem()` imports its argument, returns it and rebinds only that Item wrapper.
+This requires no configuration or business AML attributes. Untracked ambiguous requests and native
+request-root replacement fail with `UnsupportedRequestIdentity`. Document reload aliases and
+inserting an Item into itself remain unsupported; native executable comparisons are pending.
 Unknown Method templates and event argument types fail with explicit diagnostics.
 
 Lifecycle bindings, states, transitions, and pre/post Methods come from imported AML. `add` uses the start state; `promoteItem` validates the transition and updates `state` and `current_state` without creating another generation. Transition roles require the configured authorization policy or the existing explicit `authorization: "unchecked"` setting. Transactional pre/post Methods execute through the same Method dispatcher and configured mocks.

@@ -1,0 +1,18 @@
+<AML>
+    <Item type="RefPropertyRecord" action="add" id="B2100000000000000000000000000001">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>PROPERTY-001</item_number><name>Original</name>
+        <fixed_ref>B2100000000000000000000000000002</fixed_ref>
+        <generation>1</generation><is_current>1</is_current><new_version>0</new_version>
+    </Item>
+    <Item type="RefPropertyRecord" action="add" id="B2100000000000000000000000000002">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>TARGET-A</item_number><name>First target</name>
+        <generation>1</generation><is_current>1</is_current><new_version>0</new_version>
+    </Item>
+    <Item type="RefPropertyRecord" action="add" id="B2100000000000000000000000000003">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>TARGET-B</item_number><name>Second target</name>
+        <generation>1</generation><is_current>1</is_current><new_version>0</new_version>
+    </Item>
+</AML>

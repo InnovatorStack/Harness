@@ -32,6 +32,7 @@ public sealed record RequestChange(
 
 public sealed class RequestAlignment
 {
+    public bool ReplaceItem { get; set; }
     public Dictionary<string, RequestAlignment>? Properties { get; set; }
     public List<RelationshipAlignment>? Relationships { get; set; }
 }

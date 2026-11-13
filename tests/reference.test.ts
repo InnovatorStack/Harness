@@ -35,7 +35,7 @@ test("reference corpus covers required boundaries with unique cases and source-q
 
     expect(corpus.hash(first)).toMatch(/^[a-f\d]{64}$/u);
     expect(corpus.hash({ ...first, steps: [] })).not.toBe(corpus.hash(first));
-    expect(corpus.files).toHaveLength(14);
+    expect(corpus.files).toHaveLength(16);
     const paths = corpus.files.map((file) => file.path);
 
     expect(paths).toContain(".harness/packages/request-origins.xml");
@@ -43,6 +43,8 @@ test("reference corpus covers required boundaries with unique cases and source-q
     expect(paths).toContain(".harness/packages/copy-lifecycles.xml");
     expect(paths).toContain(".harness/packages/event-results.xml");
     expect(paths).toContain(".harness/fixtures/event-results.xml");
+    expect(paths).toContain(".harness/packages/property-items.xml");
+    expect(paths).toContain(".harness/fixtures/property-items.xml");
     expect(corpus.anchors.size).toBeGreaterThan(20);
     expect(inputBundle(corpus).authorization).toBe(AuthorizationMode.Native);
 });

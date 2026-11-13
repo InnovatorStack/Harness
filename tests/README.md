@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 84 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 86 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -62,7 +62,12 @@ entering business AML or stored records.
 Tests reject malformed, duplicated, foreign and over-budget origins, and cover failure/reset/world
 isolation plus retained managed Items from earlier invocations. Two portable contracts exercise
 original Methods with repeated and anonymous requests; native evidence remains pending. Native root
-and existing Item-valued-property replacement retain explicit diagnostics and transactional rollback.
+replacement retains an explicit diagnostic and transactional rollback.
+
+Property-Item cases verify changed and identical imported copies through real replacement and
+before-version Methods. Unit tests cover both C# templates, nested query properties, retained/detached
+XML and Item views, wrapper attributes, same/foreign-document arguments, return values, failure,
+reset and world isolation. Unqualified self-insertion rejects even when caught by Method source.
 
 Failure-context tests cover returned faults and exceptions from one or multiple before-version
 Methods, normalized batch selectors and nested generated replacements. Pending input changes

@@ -23,6 +23,7 @@ export interface RequestChange {
 }
 
 interface RequestAlignment {
+    replaceItem?: true;
     properties?: Record<string, RequestAlignment>;
     relationships?: readonly (RelationshipPosition & { readonly alignment?: RequestAlignment })[];
 }
@@ -188,7 +189,13 @@ function comparePropertyItems(current: Frame, pending: Frame[]): void {
         const next = getOwn(after.propertyItems, name);
 
         if (previous && next) {
-            assertPreservedOrigin(previous, next, `Item-valued property '${name}'`);
+            const origin = itemOrigin(previous);
+
+            if (origin !== undefined && origin !== itemOrigin(next)) {
+                replacePropertyItem(current, name, previous, next);
+                continue;
+            }
+
             const child = createFrame(previous, next, current.depth + 1);
             current.properties.push({ name, result: child.result });
             pending.push(child);
@@ -206,6 +213,22 @@ function comparePropertyItems(current: Frame, pending: Frame[]): void {
             result.changed = true;
         }
     }
+}
+
+function replacePropertyItem(
+    { result }: Frame,
+    name: string,
+    before: ItemNode,
+    after: ItemNode,
+): void {
+    result.before.propertyItems ??= {};
+    result.after.propertyItems ??= {};
+    setOwn(result.before.propertyItems, name, { type: before.type });
+    setOwn(result.after.propertyItems, name, after);
+    result.alignment ??= {};
+    result.alignment.properties ??= {};
+    setOwn(result.alignment.properties, name, { replaceItem: true });
+    result.changed = true;
 }
 
 function assertPreservedOrigin(before: ItemNode, after: ItemNode, location: string): void {
