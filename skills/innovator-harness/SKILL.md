@@ -29,6 +29,41 @@ evidence is needed, rather than turning every business test into a framework aud
 - Keep tests and project helpers outside `.harness`. Configuration is optional. Preserve
   existing session and authorization settings; use exported enums for declared modes.
 
+## Work on a separate Method file
+
+Harness 0.2.0 and later can map a Method name to the file the developer is editing:
+
+```ts
+// .harness/config.ts
+import type { HarnessConfig } from "@innovatorstack/harness";
+
+export default {
+    methods: {
+        SubmitReview: "../src/SubmitReview.cs",
+    },
+} satisfies HarnessConfig;
+```
+
+Paths resolve relative to the config file. Use the raw C# Method body, including its template
+marker when needed. The mapping retains imported IDs, permissions and event bindings;
+package files stay unchanged. Direct calls, nested calls and hooks use the same resolution.
+
+Only a missing file or parent directory falls back to package code. Existing-file read,
+compilation and runtime failures surface normally. If neither source exists, invocation
+fails. Explicit mocks still take precedence. A mapped Method without a package definition
+is callable as C#, but the mapping supplies no event or permission metadata.
+
+Each new `createHarness()` reads current source bytes, including file creation or deletion.
+An existing world and `reset()` retain their original source snapshot. Open a new world after
+edits; external C# files do not automatically trigger Bun's test watcher. Per-world mappings
+merge by Method name; `methods: {}` clears shared mappings for that world.
+
+Execution calls and Method trace events expose `source`, `sourceHash` and `methodSource`.
+Use `MethodSourceKind.LocalFile` or `MethodSourceKind.Package` and `fallback` to verify which
+implementation ran. Compatibility checks inspect that same effective source.
+
+## Seed starting records
+
 ```ts
 // .harness/fixtures.ts — ExampleReview must exist in the supplied export.
 import type { Fixtures } from "@innovatorstack/harness";
@@ -49,7 +84,7 @@ an old ID can still identify the previous generation. Inspect the imported versi
 // tests/submission.test.ts — adapt Method and property names to the original source.
 import { expect, test } from "bun:test";
 
-import { createHarness } from "@innovatorstack/harness";
+import { createHarness, MethodSourceKind } from "@innovatorstack/harness";
 
 test("saves permitted changes without setting an incomplete review's date", async () => {
     using harness = await createHarness();
@@ -65,6 +100,11 @@ test("saves permitted changes without setting an incomplete review's date", asyn
     const after = await harness.getOne("ExampleReview", { name: "Incomplete" });
     expect(after.properties.remark).toBe("After");
     expect(after.properties.approved_on).toBe(before.properties.approved_on);
+
+    const methods = harness.trace.filter((event) => event.kind === "method");
+    const submit = methods.find((event) => event.name === "SubmitReview");
+    expect(submit?.methodSource?.kind).toBe(MethodSourceKind.LocalFile);
+    expect(submit?.methodSource?.fallback).toBe(false);
 });
 ```
 
