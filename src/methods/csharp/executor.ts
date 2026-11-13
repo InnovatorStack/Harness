@@ -302,53 +302,35 @@ export class CSharpExecutor implements MethodExecutor {
         try {
             pending.security[Symbol.dispose]();
         } catch (error) {
-            pending.failure = { error };
+            pending.failure ??= { error };
         }
 
         this.pending.delete(id);
         clearTimeout(pending.timer);
 
-        if (pending.failure !== undefined) {
-            pending.reject(pending.failure.error);
+        try {
+            synchronizeContext(pending.context, message);
 
-            return;
-        }
+            if (pending.failure !== undefined) {
+                throw pending.failure.error;
+            }
 
-        if (message.kind === "failure") {
-            pending.reject(
-                new PlatformError(
-                    "MethodExecutionFailed",
-                    typeof message.error === "string"
-                        ? message.error
-                        : "Invalid managed failure response.",
-                ),
-            );
-        } else if (message.kind === "result") {
-            try {
-                const mutated = decodePayload(
-                    message.contextIsResult === true ? message.payload : message.context,
+            if (message.kind === "failure") {
+                throw managedFailure(message);
+            }
+
+            pending.resolve(new Item(decodePayload(message.payload)));
+        } catch (error) {
+            if (pending.failure !== undefined && pending.failure.error !== error) {
+                pending.reject(
+                    new AggregateError(
+                        [pending.failure.error, error],
+                        "Managed execution failed and its input could not be synchronized.",
+                    ),
                 );
-                const result = new Item(decodePayload(message.payload));
-                pending.context.payload.items = mutated.items;
-
-                if (mutated.error) {
-                    pending.context.payload.error = mutated.error;
-                } else {
-                    delete pending.context.payload.error;
-                }
-
-                if (mutated.result === undefined) {
-                    delete pending.context.payload.result;
-                } else {
-                    pending.context.payload.result = mutated.result;
-                }
-
-                pending.resolve(result);
-            } catch (error) {
+            } else {
                 pending.reject(error);
             }
-        } else {
-            pending.reject(new PlatformError("InvalidProtocol", "Unknown C# result kind."));
         }
     }
 
@@ -493,6 +475,50 @@ export class CSharpExecutor implements MethodExecutor {
 
 export function csharp(options: CSharpOptions = {}): MethodExecutor {
     return new CSharpExecutor(options);
+}
+
+function synchronizeContext(context: Item, message: Record<string, unknown>): void {
+    if (message.contextError !== undefined) {
+        throw managedFailure(message);
+    }
+
+    const input = message.contextIsResult === true ? message.payload : message.context;
+
+    if (input === undefined && message.kind === "failure") {
+        return;
+    }
+
+    const changed = decodePayload(input);
+    context.payload.items = changed.items;
+
+    if (changed.error === undefined) {
+        delete context.payload.error;
+    } else {
+        context.payload.error = changed.error;
+    }
+
+    if (changed.result === undefined) {
+        delete context.payload.result;
+    } else {
+        context.payload.result = changed.result;
+    }
+
+    if (changed.messages === undefined) {
+        delete context.payload.messages;
+    } else {
+        context.payload.messages = changed.messages;
+    }
+}
+
+function managedFailure(message: Record<string, unknown>): PlatformError {
+    let error =
+        typeof message.error === "string" ? message.error : "Invalid managed failure response.";
+
+    if (typeof message.contextError === "string") {
+        error += `\nFailed to synchronize Method input: ${message.contextError}`;
+    }
+
+    return new PlatformError("MethodExecutionFailed", error);
 }
 
 /** Settle outside the Windows pipe callback so Bun's native matchers can reenter its loop. */

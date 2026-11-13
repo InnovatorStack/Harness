@@ -59,6 +59,11 @@ Relationship-request cases retain surviving XML views across source-driven remov
 using native copy identities, including empty versus removed containers. Ambiguous repeated-ID
 edits retain explicit diagnostics and rollback until their XML identity metadata is available.
 
+Failure-context tests cover returned faults and exceptions from one or multiple before-version
+Methods, normalized batch selectors and nested generated replacements. Pending input changes
+survive while stored writes roll back. Invalid or oversized failure data produces explicit diagnostics;
+large exception text is marked truncated, and subsequent calls and resets remain usable.
+
 Historical unlock cases cover locked/unlocked sources, callback order, event suppression and rejection.
 Unit tests also exercise automatic/manual markers, real Get hydration, shared contexts, owned dependent
 cascades, other owners, bounded cycles/depth, resumed callbacks after rollback and generated User targets.

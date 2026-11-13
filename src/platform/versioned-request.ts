@@ -17,7 +17,7 @@ interface VersionCriteria {
     readonly oldId: string;
 }
 
-function versionCriteria(
+export function versionCriteria(
     original: Item,
     sources: readonly StoredItem[],
     fromUpdate: boolean,
@@ -51,15 +51,13 @@ function versionCriteria(
 
 /** Generated updates retain native criteria, but never repeat the version decision. */
 export function versionedRequest(
-    original: Item,
+    criteria: VersionCriteria,
     pending: Item,
     sources: readonly StoredItem[],
     targets: readonly VersionTarget[],
     automatic: boolean,
-    fromUpdate: boolean,
 ): Item {
     const request = pending.clone();
-    const criteria = versionCriteria(original, sources, fromUpdate);
     request.setAttribute("oldId", criteria.oldId);
     delete request.node.attributes.id;
     delete request.node.attributes.where;
