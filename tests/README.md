@@ -81,6 +81,13 @@ version-generation document replacement remain explicitly unsupported. Replaceme
 prove that caught reloads before BaseGet/BaseUpdate reject and roll back; BaseAdd reparses its
 reloaded input, following its separate native capture point.
 
+Add-identity cases verify that default Add allocates a missing or empty ID after replacement
+dispatch and before before-hooks. Original Methods inspect IDs before/after BaseAdd in both C#
+templates. Tests cover SDK preallocation, explicit IDs, nested allocation order, rejection rollback,
+abandoned work and reset/world isolation. Before-hooks changing the captured ID fail explicitly.
+Two portable contracts cover default allocation through the original replacement and before-hook;
+native executable comparisons remain pending.
+
 Failure-context tests cover returned faults and exceptions from one or multiple before-version
 Methods, normalized batch selectors and nested generated replacements. Pending input changes
 survive while stored writes roll back. Invalid or oversized failure data produces explicit diagnostics;

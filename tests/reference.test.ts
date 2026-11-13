@@ -35,7 +35,7 @@ test("reference corpus covers required boundaries with unique cases and source-q
 
     expect(corpus.hash(first)).toMatch(/^[a-f\d]{64}$/u);
     expect(corpus.hash({ ...first, steps: [] })).not.toBe(corpus.hash(first));
-    expect(corpus.files).toHaveLength(19);
+    expect(corpus.files).toHaveLength(20);
     const paths = corpus.files.map((file) => file.path);
 
     expect(paths).toContain(".harness/packages/request-origins.xml");
@@ -48,6 +48,7 @@ test("reference corpus covers required boundaries with unique cases and source-q
     expect(paths).toContain(".harness/packages/document-views.xml");
     expect(paths).toContain(".harness/packages/captured-requests.xml");
     expect(paths).toContain(".harness/fixtures/captured-requests.xml");
+    expect(paths).toContain(".harness/packages/add-identities.xml");
     expect(corpus.anchors.size).toBeGreaterThan(20);
     expect(inputBundle(corpus).authorization).toBe(AuthorizationMode.Native);
 });

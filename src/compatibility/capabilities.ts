@@ -73,6 +73,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
         limitations: [
             "Copy, clone, merge, purge and recursive platform actions are unavailable.",
             "Owned relationships and orphaned dependent Items are deleted transactionally; external references block deletion.",
+            "Default Add allocates a missing or empty ID before before-hooks, after replacement dispatch. Changing that captured ID in a before-hook remains unsupported.",
             "Collection replacements returning text require separate calls; they fail explicitly rather than dropping their results.",
         ],
         tests: [
@@ -80,6 +81,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/action-responses.test.ts",
             "tests/action-response-security.test.ts",
             "tests/creation.test.ts",
+            "tests/add-id-timing.test.ts",
             "tests/dependent-deletion.test.ts",
         ],
     }),
