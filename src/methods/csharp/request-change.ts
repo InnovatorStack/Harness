@@ -1,9 +1,10 @@
 import { getOwn, setOwn } from "../../core/data.js";
 import { dataDepthMax, dataNodesMax } from "../../core/limits.js";
 import type { ItemNode } from "../../items/item.js";
+import { itemOrigin } from "../../items/origins.js";
 import { PlatformError } from "../../platform/errors.js";
 import { relationshipOrder } from "./relationship-order.js";
-import type { RelationshipPosition, RequestCopyId } from "./relationship-order.js";
+import type { RelationshipPosition } from "./relationship-order.js";
 
 interface RequestNode {
     readonly type: string;
@@ -40,18 +41,14 @@ interface Frame {
     readonly properties: { readonly name: string; readonly result: Difference }[];
     readonly relationships: Difference[];
     readonly depth: number;
-    readonly copyId: RequestCopyId;
     order?: readonly RelationshipPosition[];
     finish: boolean;
 }
 
 /** Carry changes only: unchanged business values must not multiply the callback byte budget. */
-export function requestDifference(
-    before: ItemNode,
-    after: ItemNode,
-    copyId: RequestCopyId = (_type, id) => id,
-): RequestChange | undefined {
-    const root = createFrame(before, after, 0, copyId);
+export function requestDifference(before: ItemNode, after: ItemNode): RequestChange | undefined {
+    assertPreservedOrigin(before, after, "request root");
+    const root = createFrame(before, after, 0);
     const pending = [root];
     let visited = 0;
 
@@ -91,17 +88,11 @@ export function requestDifference(
         : undefined;
 }
 
-function createFrame(
-    before: ItemNode,
-    after: ItemNode,
-    depth: number,
-    copyId: RequestCopyId,
-): Frame {
+function createFrame(before: ItemNode, after: ItemNode, depth: number): Frame {
     return {
         before,
         after,
         depth,
-        copyId,
         result: {
             before: { type: before.type },
             after: { type: after.type },
@@ -197,7 +188,8 @@ function comparePropertyItems(current: Frame, pending: Frame[]): void {
         const next = getOwn(after.propertyItems, name);
 
         if (previous && next) {
-            const child = createFrame(previous, next, current.depth + 1, current.copyId);
+            assertPreservedOrigin(previous, next, `Item-valued property '${name}'`);
+            const child = createFrame(previous, next, current.depth + 1);
             current.properties.push({ name, result: child.result });
             pending.push(child);
         } else {
@@ -216,11 +208,22 @@ function comparePropertyItems(current: Frame, pending: Frame[]): void {
     }
 }
 
+function assertPreservedOrigin(before: ItemNode, after: ItemNode, location: string): void {
+    const origin = itemOrigin(before);
+
+    if (origin !== undefined && origin !== itemOrigin(after)) {
+        throw new PlatformError(
+            "UnsupportedRequestIdentity",
+            `Replacing the native ${location} requires a qualified DOM replacement profile.`,
+        );
+    }
+}
+
 function compareRelationships(current: Frame, pending: Frame[]): void {
     const { before, after, result } = current;
     const previous: RequestNode[] = before.relationships.map((node) => ({ type: node.type }));
     const next: RequestNode[] = [...after.relationships];
-    const order = relationshipOrder(before.relationships, after.relationships, current.copyId);
+    const order = relationshipOrder(before.relationships, after.relationships);
     current.order = order;
 
     for (const position of order) {
@@ -230,7 +233,7 @@ function compareRelationships(current: Frame, pending: Frame[]): void {
             position.after === undefined ? undefined : after.relationships[position.after];
 
         if (left && right && position.before !== undefined && position.after !== undefined) {
-            const child = createFrame(left, right, current.depth + 1, current.copyId);
+            const child = createFrame(left, right, current.depth + 1);
             current.relationships.push(child.result);
             previous[position.before] = child.result.before;
             next[position.after] = child.result.after;

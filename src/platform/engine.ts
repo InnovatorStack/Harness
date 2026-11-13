@@ -42,7 +42,6 @@ import { matches, projectedProperties, selectedProperties } from "./query.js";
 import { DependentDeletion } from "./references/deletion.js";
 import { ReferenceMaintenance } from "./references/maintenance.js";
 import { relationshipType } from "./relationship-type.js";
-import { transferRequestCopies } from "./request-copies.js";
 import { validateRequest } from "./request.js";
 import { Revisions } from "./revisions/policy.js";
 import { NativeSecurity } from "./security/policy.js";
@@ -745,7 +744,7 @@ export class Platform {
                 context,
             ),
         );
-        item.payload.items = structuredClone(result.payload.items);
+        item.payload.items = result.clone().payload.items;
 
         if (result.payload.messages === undefined) {
             delete item.payload.messages;
@@ -796,7 +795,7 @@ export class Platform {
             );
         }
 
-        item.payload.items = [structuredClone(result.node)];
+        item.payload.items = result.getItemByIndex(0).clone().payload.items;
     }
 
     private async apply(item: Item, context: ExecutionContext, baseEvent?: string): Promise<Item> {
@@ -1409,7 +1408,6 @@ export class Platform {
             return await this.apply(request, context, input.event);
         } finally {
             input.item.payload.items = request.payload.items;
-            transferRequestCopies(request, input.item);
         }
     }
 

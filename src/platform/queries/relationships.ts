@@ -72,7 +72,7 @@ export class RelationshipQueries {
         parent: StoredItem,
         context: ExecutionContext,
     ): Promise<Item> {
-        const scoped = structuredClone(request);
+        const scoped = new Item({ items: [request] }).clone().node;
         scoped.logical = [
             ...(scoped.logical ?? []),
             {

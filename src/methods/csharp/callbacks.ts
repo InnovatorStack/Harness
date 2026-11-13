@@ -3,33 +3,36 @@ import { Item } from "../../items/item.js";
 import type { ItemNode } from "../../items/item.js";
 import { parseItems } from "../../items/xml.js";
 import { PlatformError } from "../../platform/errors.js";
-import { requestCopyId } from "../../platform/request-copies.js";
 import type { MethodPorts } from "../types.js";
+import type { ManagedOrigins, OriginFrame } from "./origins.js";
 import { requestDifference } from "./request-change.js";
 import type { RequestChange } from "./request-change.js";
 import type { ManagedSecurity } from "./security.js";
 
 export interface ManagedCallbackState {
+    readonly origins: ManagedOrigins;
     request?: { readonly before: ItemNode; readonly item: Item };
 }
 
-export function requestChange(state: ManagedCallbackState): RequestChange | undefined {
+export function requestChange(
+    state: ManagedCallbackState,
+): (RequestChange & { readonly origins: OriginFrame }) | undefined {
     const request = state.request;
 
     if (!request) {
         return undefined;
     }
 
-    return requestDifference(request.before, request.item.node, (type, id) =>
-        requestCopyId(request.item, type, id),
-    );
+    const change = requestDifference(request.before, request.item.node);
+
+    return change ? { ...change, origins: state.origins.capture(request.item.payload) } : undefined;
 }
 
 export async function managedCallback(
     message: Record<string, unknown>,
     ports: MethodPorts,
     security: ManagedSecurity,
-    state: ManagedCallbackState = {},
+    state: ManagedCallbackState,
 ): Promise<Item> {
     if (security.handles(message.operation)) {
         return security.invoke(message.operation, message.payload, ports);
@@ -102,6 +105,7 @@ async function applyEventBase(
     }
 
     const item = items[0];
+    state.origins.bind(item.payload, payload.origins);
     state.request = { before: item.clone().node, item };
 
     return await ports.serverEvent.applyBase(item);

@@ -19,7 +19,6 @@ import { projectItem } from "./projection.js";
 import type { DependentDeletion } from "./references/deletion.js";
 import type { ReferenceMaintenance } from "./references/maintenance.js";
 import { RelationshipCopy } from "./relationship-copy.js";
-import { rememberRequestCopies } from "./request-copies.js";
 import { validateRequest } from "./request.js";
 import { isReleased } from "./revisions/policy.js";
 import type { Revisions } from "./revisions/policy.js";
@@ -332,7 +331,6 @@ export class Versioning {
             !manualVersioning(this.storage, definition),
         );
         const copies = new Map(prepared.flatMap((target) => [...target.copies]));
-        rememberRequestCopies(request, copies);
         remapVersionRelationships(this.storage, generated, copies, context);
         request.payload.items = generated.payload.items;
 

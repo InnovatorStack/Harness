@@ -11,6 +11,7 @@ public sealed class ItemData
 {
     internal XmlElement? Element { get; set; }
     internal long? SynchronizedRevision { get; set; }
+    internal ItemOrigin? Origin { get; set; }
     public string Type { get; set; } = "";
     public Dictionary<string, string> Attributes { get; set; } = new();
     public Dictionary<string, JsonElement> Properties { get; set; } = new();
@@ -24,8 +25,10 @@ public sealed record ItemMessage(string Name, string Value);
 
 public sealed record ItemError(string Code, string Message);
 
+public sealed record OriginFrame(string Scope, List<string> Tokens);
+
 public sealed record RequestChange(
-    ItemData Before, ItemData After, RequestAlignment? Alignment);
+    ItemData Before, ItemData After, RequestAlignment? Alignment, OriginFrame? Origins);
 
 public sealed class RequestAlignment
 {
@@ -50,6 +53,7 @@ public sealed record Invocation(
     string? Assembly,
     string? TypeName,
     ItemPayload? Context,
+    OriginFrame? ContextOrigins,
     EventMetadata? EventData,
     JsonElement Payload,
     string? Error,
@@ -173,6 +177,8 @@ public sealed class Protocol
 
 public sealed record Remote(Protocol Protocol, string InvocationId, EventMetadata? EventData = null)
 {
+    internal RequestOrigins Origins { get; } = new();
+
     public ItemPayload Call(
         string operation, object payload, Action<RequestChange>? synchronize = null)
         => Protocol.Call(InvocationId, operation, payload, synchronize);

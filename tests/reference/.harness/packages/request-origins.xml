@@ -1,0 +1,72 @@
+<AML>
+    <Item type="ItemType" action="add" id="A1080000000000000000000000000001">
+        <name>RefOriginRecord</name><is_versionable>1</is_versionable>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Property" action="add"><name>note</name><data_type>string</data_type></Item>
+            <Item type="Can Add" action="add"><related_id>A73B655731924CD0B027E4F4D5FCC0A9</related_id><can_add>1</can_add></Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+            <Item type="Server Event" action="add"><related_id>A4080000000000000000000000000001</related_id><server_event>onUpdate</server_event></Item>
+            <Item type="Server Event" action="add"><related_id>A4080000000000000000000000000002</related_id><server_event>onBeforeVersion</server_event></Item>
+        </Relationships>
+    </Item>
+    <Item type="ItemType" action="add" id="A1080000000000000000000000000002">
+        <name>RefOriginLink</name><is_relationship>1</is_relationship>
+        <Relationships>
+            <Item type="Property" action="add"><name>label</name><data_type>string</data_type></Item>
+            <Item type="Can Add" action="add"><related_id>A73B655731924CD0B027E4F4D5FCC0A9</related_id><can_add>1</can_add></Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+        </Relationships>
+    </Item>
+    <Item type="RelationshipType" action="add" id="A2080000000000000000000000000001">
+        <name>RefOriginLink</name><relationship_id>A1080000000000000000000000000002</relationship_id>
+        <source_id>A1080000000000000000000000000001</source_id><behavior>fixed</behavior>
+    </Item>
+    <Item type="Method" action="add" id="A4080000000000000000000000000001">
+        <name>RefOriginsUpdate</name><method_type>C#</method_type><method_code><![CDATA[//MethodTemplateName=CSharpInOut;
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(inDom.OuterXml));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefOriginsUpdate|" + aml);
+}
+var input = inDom.DocumentElement ?? throw new Exception("Missing input");
+bool initial = !input.HasAttribute("oldId");
+var rows = input.SelectNodes("Relationships/Item").Cast<XmlElement>().ToArray();
+var label = rows[0].SelectSingleNode("label");
+var text = label.FirstChild;
+var id = rows[0].GetAttributeNode("id");
+eventData.BaseUpdateItem(outDom);
+if (initial)
+{
+    var current = input.SelectNodes("Relationships/Item").Cast<XmlElement>().ToArray();
+    if (current.Length != 2 || !Object.ReferenceEquals(current[0], rows[1])
+        || !Object.ReferenceEquals(current[1], rows[0])
+        || !Object.ReferenceEquals(label, rows[0].SelectSingleNode("label"))
+        || !Object.ReferenceEquals(text, label.FirstChild) || label.InnerText != "Changed"
+        || (id != null && !Object.ReferenceEquals(id, rows[0].GetAttributeNode("id"))))
+    {
+        throw new Exception("Reference pending request lost its XML origin");
+    }
+}
+var result = outDom.SelectSingleNode("//Result/Item")
+    ?? throw new Exception("Missing base result");
+var note = result.SelectSingleNode("note") ?? result.AppendChild(outDom.CreateElement("note"));
+note.InnerText = "Origins verified";
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A4080000000000000000000000000002">
+        <name>RefOriginsBeforeVersion</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefOriginsBeforeVersion|" + aml);
+}
+var container = this.node.SelectSingleNode("Relationships");
+var rows = container.SelectNodes("Item").Cast<System.Xml.XmlElement>().ToArray();
+rows[0].SelectSingleNode("label").InnerText = "Changed";
+container.InsertBefore(rows[1], rows[0]);
+return this;
+]]></method_code>
+    </Item>
+</AML>

@@ -15,6 +15,7 @@ import { permissionCases } from "./cases/permissions.js";
 import { queryCases } from "./cases/queries.js";
 import { reclassificationCases } from "./cases/reclassification.js";
 import { referenceCases } from "./cases/references.js";
+import { requestOriginCases } from "./cases/request-origins.js";
 import { revisionCases } from "./cases/revisions.js";
 import { sourceAccessCases } from "./cases/source-access.js";
 import { stateEventCases } from "./cases/state-events.js";
@@ -41,6 +42,7 @@ export const cases: readonly ReferenceCase[] = [
     ...versioningCases,
     ...updateReentryCases,
     ...generatedUpdateCases,
+    ...requestOriginCases,
     ...eventCases,
     ...historicalUnlockCases,
     ...queryCases,
