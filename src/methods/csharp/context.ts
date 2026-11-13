@@ -1,5 +1,6 @@
 import type { Item, ItemPayload } from "../../items/item.js";
 import { PlatformError } from "../../platform/errors.js";
+import { documentInput, rememberDocument, validateDocument } from "./documents.js";
 import type { ManagedOrigins, OriginFrame } from "./origins.js";
 import { RetainedItems, requiredOrigin } from "./retained-items.js";
 
@@ -32,6 +33,7 @@ export class ManagedInput {
         const frame = message.contextIsResult === true ? message.origins : message.contextOrigins;
         const changed = this.origins.decode(input, frame);
         const retained = this.retainedInput(message);
+        const xml = validateDocument(message.contextDocument, changed);
         this.retained.synchronize(retained ? [changed, retained] : [changed]);
 
         for (const name of ["error", "result", "messages"] as const) {
@@ -39,6 +41,11 @@ export class ManagedInput {
         }
 
         Object.assign(this.context.payload, changed);
+        rememberDocument(this.context, xml, message.documentReplaced === true);
+    }
+
+    get document() {
+        return documentInput(this.context);
     }
 
     private retainedInput(message: Record<string, unknown>): ItemPayload | undefined {

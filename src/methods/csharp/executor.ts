@@ -217,6 +217,7 @@ export class CSharpExecutor implements MethodExecutor {
             ...compiled,
             context: context.payload,
             contextOrigins: input.frame,
+            document: input.document,
             ...(ports.eventData ? { eventData: ports.eventData } : {}),
         });
     }

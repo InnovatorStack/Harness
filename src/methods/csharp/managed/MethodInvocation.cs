@@ -14,12 +14,20 @@ internal static class MethodInvocation
     {
         var remote = new Remote(protocol, message.Id, message.EventData);
         IArasMethod? method = null;
+        XmlElement? initialRoot = null;
 
         try
         {
             using var scope = RemoteContext.Enter(remote);
+
+            if (message.Document is { } document && message.Context is { } input)
+            {
+                message = message with { Context = ManagedDocuments.Restore(input, document) };
+            }
+
             method = CreateMethod(message, context, shared, remote);
-            Execute(message, context, protocol, remote, method);
+            initialRoot = method.ContextDocument.DocumentElement;
+            Execute(message, context, protocol, remote, method, initialRoot);
         }
         catch (Exception exception)
         {
@@ -30,13 +38,13 @@ internal static class MethodInvocation
                 error = inner;
             }
 
-            WriteFailure(message, context, protocol, remote, method, error);
+            WriteFailure(message, context, protocol, remote, method, initialRoot, error);
         }
     }
 
     private static void WriteFailure(
         Invocation message, MethodContext context, Protocol protocol, Remote remote,
-        IArasMethod? method, Exception error)
+        IArasMethod? method, XmlElement? initialRoot, Exception error)
     {
         string failure = FailureText(error);
 
@@ -60,7 +68,9 @@ internal static class MethodInvocation
                 context = input,
                 contextOrigins = origins,
                 retainedContext = retained?.Payload,
-                retainedOrigins = retained?.Origins
+                retainedOrigins = retained?.Origins,
+                contextDocument = ContextXml(message, method, initialRoot),
+                documentReplaced = ReplacedRoot(method, initialRoot)
             });
         }
         catch (Exception contextError) when (contextError is NotSupportedException
@@ -114,7 +124,7 @@ internal static class MethodInvocation
     }
 
     private static void Execute(Invocation message, MethodContext context,
-        Protocol protocol, Remote remote, IArasMethod method)
+        Protocol protocol, Remote remote, IArasMethod method, XmlElement? initialRoot)
     {
         protocol.Write(new { kind = "started", id = message.Id, reusable = context.CanReuse });
         var result = method.Execute();
@@ -148,8 +158,28 @@ internal static class MethodInvocation
             origins = remote.Origins.Capture(returned),
             contextOrigins = changedOrigins,
             retainedContext = retained?.Payload,
-            retainedOrigins = retained?.Origins
+            retainedOrigins = retained?.Origins,
+            contextDocument = ContextXml(message, method, initialRoot),
+            documentReplaced = ReplacedRoot(method, initialRoot)
         });
+    }
+
+    private static string? ContextXml(
+        Invocation message, IArasMethod? method, XmlElement? initialRoot)
+    {
+        if (method is null || (message.Document is null
+            && ReferenceEquals(initialRoot, method.ContextDocument.DocumentElement)))
+        {
+            return null;
+        }
+
+        return method.ContextDocument.OuterXml;
+    }
+
+    private static bool ReplacedRoot(IArasMethod? method, XmlElement? initialRoot)
+    {
+        return method is not null
+            && !ReferenceEquals(initialRoot, method.ContextDocument.DocumentElement);
     }
 
     private static RetainedInput? CaptureDetachedInput(

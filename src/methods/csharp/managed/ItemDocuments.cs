@@ -13,9 +13,15 @@ internal static class ItemDocuments
     }
 
     private static readonly ConditionalWeakTable<XmlDocument, Projection> documents = new();
+    private static readonly ConditionalWeakTable<ItemPayload, XmlDocument> restored = new();
 
     internal static XmlDocument Create(ItemPayload payload)
     {
+        if (restored.TryGetValue(payload, out XmlDocument? document))
+        {
+            return document;
+        }
+
         if (payload.Items.FirstOrDefault()?.Element is { } element)
         {
             return XmlTraversal.Owner(element);
@@ -27,10 +33,15 @@ internal static class ItemDocuments
             return XmlTraversal.Owner(ItemXml.View(payload.Items[0]));
         }
 
-        var document = XmlTraversal.Document();
-        ResponseXml.Write(document, payload);
+        var created = XmlTraversal.Document();
+        ResponseXml.Write(created, payload);
 
-        return document;
+        return created;
+    }
+
+    internal static void Remember(ItemPayload payload, XmlDocument document)
+    {
+        restored.Add(payload, document);
     }
 
     internal static ItemPayload Read(XmlDocument document)

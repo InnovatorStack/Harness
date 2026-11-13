@@ -28,7 +28,13 @@ public sealed record ItemError(string Code, string Message);
 public sealed record OriginFrame(string Scope, List<string> Tokens);
 
 public sealed record RequestChange(
-    ItemData Before, ItemData After, RequestAlignment? Alignment, OriginFrame? Origins);
+    ItemData Before, ItemData After, RequestAlignment? Alignment);
+
+public sealed record DocumentInput(string Xml, RequestChange? Change);
+
+public sealed record BaseInputChange(
+    RequestChange? Request, OriginFrame Origins,
+    DocumentInput? Document, OriginFrame? DocumentOrigins);
 
 public sealed class RequestAlignment
 {
@@ -55,10 +61,11 @@ public sealed record Invocation(
     string? TypeName,
     ItemPayload? Context,
     OriginFrame? ContextOrigins,
+    DocumentInput? Document,
     EventMetadata? EventData,
     JsonElement Payload,
     string? Error,
-    RequestChange? RequestChange);
+    BaseInputChange? RequestChange);
 
 public sealed class Protocol
 {
@@ -100,7 +107,7 @@ public sealed class Protocol
 
     public ItemPayload Call(
         string invocationId, string operation, object payload,
-        Action<RequestChange>? synchronize = null)
+        Action<BaseInputChange>? synchronize = null)
     {
         var id = Interlocked.Increment(ref nextCallback).ToString();
         var completion = new TaskCompletionSource<Invocation>(
@@ -181,7 +188,7 @@ public sealed record Remote(Protocol Protocol, string InvocationId, EventMetadat
     internal RequestOrigins Origins { get; } = new();
 
     public ItemPayload Call(
-        string operation, object payload, Action<RequestChange>? synchronize = null)
+        string operation, object payload, Action<BaseInputChange>? synchronize = null)
         => Protocol.Call(InvocationId, operation, payload, synchronize);
 
     public void Unsupported(string capability)

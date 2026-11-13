@@ -59,8 +59,16 @@ public class ServerEventArgs
 
         var context = new ItemPayload { Items = new() { ItemXml.Bind(request) } };
         var origins = remote.Origins.Capture(context);
-        var payload = remote.Call("eventBase", new { name, xml = request.OuterXml, origins },
-            change => Synchronize(document, change));
+        bool wrapped = !ReferenceEquals(request, document.DocumentElement);
+        string xml = request.OuterXml;
+
+        if (wrapped)
+        {
+            xml = document.OuterXml;
+        }
+
+        var payload = remote.Call("eventBase", new { name, xml, origins, document = wrapped },
+            change => Synchronize(document, request, change));
         ResponseXml.Write(output, payload);
     }
 
@@ -93,14 +101,30 @@ public class ServerEventArgs
         return current;
     }
 
-    private void Synchronize(XmlDocument document, RequestChange change)
+    private void Synchronize(XmlDocument document, XmlElement request, BaseInputChange change)
     {
         try
         {
-            RequestXml.Synchronize(document, change);
-            XmlElement request = RequestXml.Input(document);
+            if (change.Request is { } patch)
+            {
+                RequestXml.Synchronize(request, patch);
+            }
+
             remote.Origins.Apply(new ItemPayload { Items = new() { ItemXml.Bind(request) } },
                 change.Origins);
+
+            if (change.Document is { } input)
+            {
+                XmlDocument current = ManagedDocuments.Read(input);
+                document.RemoveAll();
+
+                foreach (XmlNode node in current.ChildNodes)
+                {
+                    document.AppendChild(document.ImportNode(node, deep: true));
+                }
+
+                remote.Origins.Apply(ResponseXml.Read(document), change.DocumentOrigins);
+            }
         }
         catch (Exception exception)
             when (exception is NotSupportedException or InvalidOperationException)
