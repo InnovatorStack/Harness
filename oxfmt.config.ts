@@ -13,6 +13,8 @@ export default defineConfig({
         "tests/results/**",
         "workspaces/**",
         ".harness/local/**",
+        "docs/.astro/**",
+        "docs/dist/**",
         // Package XML and original Method source are data, never formatter inputs.
         "**/*.xml",
         "**/*.aml",

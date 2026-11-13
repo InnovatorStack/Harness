@@ -128,18 +128,23 @@ export async function checkSkillExamples(root: string, directory: string): Promi
 }
 
 export async function checkReadmeExamples(root: string, directory: string): Promise<string> {
-    const readme = await Bun.file(join(root, "README.md")).text();
-    const blocks = [...readme.matchAll(/```ts\n([\s\S]*?)```/gu)].map((match) => match[1]);
-    const fixtures = blocks.find((block) => block?.startsWith("// .harness/fixtures.ts\n"));
-    const test = blocks.find((block) => block?.startsWith("// tests/solution.test.ts\n"));
+    const results: string[] = [];
 
-    if (fixtures === undefined || test === undefined) {
-        throw new Error("The quickstart must include its checked fixture and test examples.");
+    for (const path of ["README.md", "docs/src/content/docs/index.md"]) {
+        const document = await Bun.file(join(root, path)).text();
+        const blocks = [...document.matchAll(/```ts\n([\s\S]*?)```/gu)].map((match) => match[1]);
+        const fixtures = blocks.find((block) => block?.startsWith("// .harness/fixtures.ts\n"));
+        const test = blocks.find((block) => block?.startsWith("// tests/solution.test.ts\n"));
+
+        if (fixtures === undefined || test === undefined) {
+            throw new Error(`${path} must include its checked fixture and test examples.`);
+        }
+
+        await rm(join(directory, "tests"), { recursive: true });
+        await Bun.write(join(directory, ".harness/fixtures.ts"), fixtures);
+        await Bun.write(join(directory, "tests/quickstart.test.ts"), test);
+        results.push(`${path}\n${await checkConsumer(root, directory)}`);
     }
 
-    await rm(join(directory, "tests"), { recursive: true });
-    await Bun.write(join(directory, ".harness/fixtures.ts"), fixtures);
-    await Bun.write(join(directory, "tests/quickstart.test.ts"), test);
-
-    return await checkConsumer(root, directory);
+    return results.join("\n");
 }

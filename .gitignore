@@ -12,3 +12,5 @@ src/**/managed/bin/
 src/**/managed/obj/
 tests/results/
 /workspaces/
+docs/.astro/
+docs/dist/
