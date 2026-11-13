@@ -77,9 +77,9 @@ They cover default Get/Add, versionable and nonversionable per-record updates, b
 changes before/after detachment, rollback and reset/world isolation. Protocol tests reject replaced
 retained roots, conflicting data and conflicting child identities before mutating caller objects.
 A portable Get contract exercises the captured query and both original hooks. Version-generation
-document replacement remains explicitly unsupported. Replacement Methods also
-prove that caught reloads before BaseGet/BaseUpdate reject and roll back; BaseAdd reparses its
-reloaded input, following its separate native capture point.
+document replacement remains explicitly unsupported. Replacement Methods verify reloads before
+BaseGet/BaseUpdate, with current-document Get hooks and captured per-record Update hooks.
+BaseAdd reparses its reloaded input, following its separate native capture point.
 
 Base-document tests use both C# templates to retain original XML nodes through a default Get/Add
 base call while later hooks see a reloaded document with its actual wrappers and comments. They
@@ -87,6 +87,14 @@ cover returned faults, nested rollback, controlled reset and separate worlds. XM
 reject before changing caller objects. Identical data cannot hide changed Item origins; moving
 retained nodes into new XML containers keeps an explicit guard. Ordinary unchanged inputs retain
 sparse synchronization, including the 3 MiB regression case.
+
+Base-entry tests cover both C# templates, different current ItemTypes, live XML/text views,
+version-suppressed saves, faults, nested rollback, reset and independent worlds. A second reload
+retains changes on the earlier current document separately from the original action input.
+Nonversionable updates pin their original targets and execution flags without rewriting source XML.
+Protocol cases reject shared/foreign origins and incomplete frames. Moving retained nodes and
+generation document reentry remain guarded. A portable Get case exercises the original source
+and its distinct hook context; native executable comparisons remain pending.
 
 Add-identity cases verify that default Add allocates a missing or empty ID after replacement
 dispatch and before before-hooks. Original Methods inspect IDs before/after BaseAdd in both C#

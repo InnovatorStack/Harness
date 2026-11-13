@@ -11,6 +11,7 @@ import type {
 } from "../storage/types.js";
 import { ApplicationError, PlatformError } from "./errors.js";
 import { afterUpdateFrames, afterVersionFrames } from "./events/data.js";
+import { requestDocument } from "./events/input.js";
 import type { EventRunners, UpdateResult } from "./events/types.js";
 import type { GraphActions } from "./graph-actions.js";
 import type { ClassificationChange, LifeCycles } from "./lifecycle.js";
@@ -279,6 +280,7 @@ export class Versioning {
             await this.beforeUpdate(definition, prepared, context);
 
             if (this.shouldVersion(definition, record, prepared.request)) {
+                this.assertVersionDocument(request);
                 // Native update restarts the selected batch from its original request.
                 request.setAction("version");
 
@@ -309,6 +311,7 @@ export class Versioning {
         context: ExecutionContext,
         fromUpdate = false,
     ): Promise<UpdateResult> {
+        this.assertVersionDocument(request);
         this.authorizeTargets(definition, records, "version", context);
         const sources = records.map((record) => this.currentRecord(record));
         const criteria = versionCriteria(request, sources, fromUpdate);
@@ -355,6 +358,15 @@ export class Versioning {
             return { response, completed: true };
         } finally {
             request.payload.items = generated.payload.items;
+        }
+    }
+
+    private assertVersionDocument(request: Item): void {
+        if (requestDocument(request) !== request) {
+            throw new PlatformError(
+                "UnsupportedRequestIdentity",
+                "Version-generation reentry requires the captured request and current document.",
+            );
         }
     }
 

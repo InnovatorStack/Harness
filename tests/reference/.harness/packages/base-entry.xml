@@ -1,0 +1,60 @@
+<AML>
+    <Item type="ItemType" action="add" id="A1150000000000000000000000000001">
+        <name>RefEntryGet</name>
+        <Relationships>
+            <Item type="Property" action="add"><name>item_number</name><data_type>string</data_type><is_required>1</is_required></Item>
+            <Item type="Property" action="add"><name>name</name><data_type>string</data_type></Item>
+            <Item type="Can Add" action="add"><related_id>A73B655731924CD0B027E4F4D5FCC0A9</related_id><can_add>1</can_add></Item>
+            <Item type="Allowed Permission" action="add"><related_id>A6000000000000000000000000000001</related_id><is_default>1</is_default></Item>
+            <Item type="Server Event" action="add"><related_id>A40F0000000000000000000000000001</related_id><server_event>onGet</server_event></Item>
+            <Item type="Server Event" action="add"><related_id>A40F0000000000000000000000000002</related_id><server_event>onBeforeGet</server_event></Item>
+        </Relationships>
+    </Item>
+    <Item type="Method" action="add" id="A40F0000000000000000000000000001">
+        <name>RefReloadEntryGet</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefReloadEntryGet|" + aml);
+}
+var selected = this.node;
+selected.SelectSingleNode("name").InnerText = "Captured value";
+this.loadAML("<AML><!--Entry marker--><Item type='RefPlain' action='add'><name>Current document</name></Item></AML>");
+var root = this.dom.DocumentElement;
+var current = this.node;
+var name = current.SelectSingleNode("name");
+var text = name.FirstChild;
+var output = new System.Xml.XmlDocument();
+eventData.BaseGetItem(output);
+if (selected.ParentNode != null || selected.SelectSingleNode("name").InnerText != "Captured value")
+{
+    throw new Exception("BaseGet lost its earlier captured request");
+}
+if (!Object.ReferenceEquals(root, this.dom.DocumentElement)
+    || !Object.ReferenceEquals(current, root.SelectSingleNode("Item"))
+    || !Object.ReferenceEquals(text, name.FirstChild)
+    || name.InnerText != "Changed current document")
+{
+    throw new Exception("BaseGet replaced current-document views instead of updating them");
+}
+var result = this.getInnovator().newItem();
+result.loadAML(output.OuterXml);
+return result;
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A40F0000000000000000000000000002">
+        <name>RefInspectEntryGet</name><method_type>C#</method_type><method_code><![CDATA[
+if (Environment.GetEnvironmentVariable("INNOVATOR_HARNESS_REFERENCE_CAPTURE") == "1")
+{
+    var aml = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(this.ToString()));
+    Console.WriteLine("HARNESS_REFERENCE_EVENT|RefInspectEntryGet|" + aml);
+}
+if (this.getType() != "RefPlain" || this.getProperty("name") != "Current document")
+{
+    throw new Exception("The hook did not receive the current document");
+}
+this.setProperty("name", "Changed current document");
+return this;
+]]></method_code>
+    </Item>
+</AML>

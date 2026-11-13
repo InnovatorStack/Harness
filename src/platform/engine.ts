@@ -27,7 +27,9 @@ import { PlatformCatalog } from "./catalog.js";
 import { creationDefaults } from "./creation.js";
 import { ApplicationError, PlatformError, requireSuccess } from "./errors.js";
 import { AfterEvents } from "./events/after.js";
+import { BaseUpdates } from "./events/base-updates.js";
 import { afterAddFrames, afterUpdateFrames } from "./events/data.js";
+import { requestDocument } from "./events/input.js";
 import { EventReplacements } from "./events/replacement.js";
 import type { ApplyEventBase } from "./events/replacement.js";
 import { ServerEventVersion } from "./events/types.js";
@@ -148,6 +150,7 @@ export class Platform {
     private readonly replacements = new EventReplacements();
     private readonly boundMethods = new WeakMap<MethodCall, BoundMethodKind>();
     private readonly baseOverrides = new WeakMap<BaseItemCall, ApplyEventBase>();
+    private readonly baseUpdates = new BaseUpdates();
     private readonly afterEvents: AfterEvents;
 
     constructor(
@@ -845,7 +848,7 @@ export class Platform {
         }
 
         this.traceAction(definition, item, action, context);
-        const enabled = request.attributes.serverEvents !== "0";
+        const enabled = this.baseUpdates.enabled(item) ?? request.attributes.serverEvents !== "0";
         this.assertActionSupported(definition, action);
         await this.authorizeAction(definition, action, item, context);
 
@@ -903,7 +906,7 @@ export class Platform {
 
         const targetId = request.attributes.id;
         const responseRequest = { ...request, attributes: { ...request.attributes } };
-        await this.events(definition, `onBefore${verb}`, item, enabled, context);
+        await this.events(definition, `onBefore${verb}`, requestDocument(item), enabled, context);
         validateRequest(request, action);
 
         this.assertActionContext(definition, request, action, targetId);
@@ -1565,7 +1568,6 @@ export class Platform {
         context: ExecutionContext,
         baseEvent?: string,
     ): Promise<Item> {
-        const request = item.node;
         const action = item.getAction();
         const records = await this.mutationTargets(definition, item, context);
         const result: ItemNode[] = [];
@@ -1617,7 +1619,9 @@ export class Platform {
             );
         }
 
-        return replaced ? response : await this.responses.complete(request, response, context);
+        return replaced
+            ? response
+            : await this.responses.complete(this.baseUpdates.response(item), response, context);
     }
 
     private async mutationTargets(
@@ -1625,7 +1629,10 @@ export class Platform {
         item: Item,
         context: ExecutionContext,
     ): Promise<readonly StoredItem[]> {
-        const records = await this.query(definition, item.node, context);
+        const pinned = this.baseUpdates.targets(item);
+        const records = pinned
+            ? this.pinnedMutationTargets(definition, pinned, context)
+            : await this.query(definition, item.node, context);
         const action = item.getAction();
 
         if (records.length === 0) {
@@ -1638,6 +1645,25 @@ export class Platform {
         }
 
         return action === "delete" ? this.deletionTargets(definition, records, context) : records;
+    }
+
+    private pinnedMutationTargets(
+        definition: ItemTypeDefinition,
+        ids: readonly string[],
+        context: ExecutionContext,
+    ): StoredItem[] {
+        return ids.map((id) => {
+            spendContext(context);
+            const record = this.storage.getItem(definition.name, id);
+
+            if (!record) {
+                throw new ApplicationError(
+                    Item.error(`Captured '${definition.name}:${id}' no longer exists.`, "NoItems"),
+                );
+            }
+
+            return record;
+        });
     }
 
     private deletionTargets(
@@ -1677,6 +1703,12 @@ export class Platform {
         item.node.attributes.id = record.id;
         delete item.node.attributes.where;
         delete item.node.attributes.idlist;
+        const attributes = { ...item.node.attributes };
+        const applyBase: ApplyEventBase | undefined =
+            verb === "Update"
+                ? (pending, nested) =>
+                      this.applyCapturedMutation(pending, record.id, attributes, nested)
+                : undefined;
         const replacement = await this.replaceAction(
             definition,
             item,
@@ -1684,6 +1716,7 @@ export class Platform {
             enabled,
             context,
             baseEvent,
+            applyBase,
         );
 
         if (replacement) {
@@ -1702,6 +1735,17 @@ export class Platform {
             ),
             replaced: false,
         };
+    }
+
+    private async applyCapturedMutation(
+        item: Item,
+        id: string,
+        attributes: Readonly<Record<string, string>>,
+        context: ExecutionContext,
+    ): Promise<Item> {
+        using _scope = this.baseUpdates.enter(item, id, attributes, context);
+
+        return await this.apply(item, context, "onUpdate");
     }
 
     private async mutateTargetBase(

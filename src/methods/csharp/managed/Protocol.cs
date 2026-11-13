@@ -34,7 +34,8 @@ public sealed record DocumentInput(string Xml, RequestChange? Change);
 
 public sealed record BaseInputChange(
     RequestChange? Request, OriginFrame Origins,
-    DocumentInput? Document, OriginFrame? DocumentOrigins);
+    DocumentInput? Document, RequestChange? DocumentChange, OriginFrame? DocumentOrigins,
+    RequestChange? RetainedDocument, OriginFrame? RetainedOrigins);
 
 public sealed class RequestAlignment
 {

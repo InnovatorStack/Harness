@@ -495,10 +495,14 @@ This requires no configuration or business AML attributes. Default Get, Add and 
 retain their captured request nodes when a before Method reloads the document; later bindings receive
 the current document. Captured changes made before and after detachment remain observable on success
 and rejection. Untracked ambiguous requests and unqualified root changes retain explicit diagnostics.
-Get/Update base delegates currently reject input replaced before delegation; Add reparses that input
-at base entry. During default Get/Add base calls, detached-root reloads synchronize the captured
+Get/Update base delegates retain their captured input when the replacement Method reloads its
+document; Add reparses at base entry. Before-Get hooks receive the current document, while
+before-Update hooks receive per-record copies of captured data. Versionable saves support that
+reload when no new generation is needed. During default Get/Add base calls, reloads synchronize the captured
 request and current document separately, including native wrappers and comments. Moving retained
 request nodes into new XML containers and version-generation document reentry remain unsupported.
+Nonversionable base updates retain their selected targets and execution flags even if the
+replacement changes the XML ID, `serverEvents` or `doGetItem`; those XML attributes remain intact.
 
 Default Add assigns a missing or empty ID before `onBeforeAdd`, after any `onAdd` replacement
 delegates to the base action. The pending input retains that ID, including after `BaseAddItem`

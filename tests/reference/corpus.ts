@@ -6,6 +6,7 @@ import { actionResponseCases } from "./cases/action-responses.js";
 import { actionCases } from "./cases/actions.js";
 import { addIdentityCases } from "./cases/add-identities.js";
 import { baseDocumentCases } from "./cases/base-documents.js";
+import { baseEntryCases } from "./cases/base-entry.js";
 import { boundPermissionCases } from "./cases/bound-permissions.js";
 import { capturedRequestCases } from "./cases/captured-requests.js";
 import { classificationCases } from "./cases/classifications.js";
@@ -47,6 +48,7 @@ export const cases: readonly ReferenceCase[] = [
     ...actionResponseCases,
     ...addIdentityCases,
     ...baseDocumentCases,
+    ...baseEntryCases,
     ...versioningCases,
     ...updateReentryCases,
     ...generatedUpdateCases,
