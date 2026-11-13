@@ -150,13 +150,17 @@ test("original C# reads observe floated relationships through the normal expande
     using h = await createHarness({ cwd: project.cwd, csharp: {} });
     const parent = await h.getOne("ReferenceRecord", { name: "Parent" });
     const child = await h.getOne("ReferenceRecord", { name: "Child" });
-    await h.add("ReferenceFloat", { source_id: parent.id, related_id: child.id });
+    const link = await h.add("ReferenceFloat", { source_id: parent.id, related_id: child.id });
     const next = await h.update(child, { name: "New child" });
     const result = await h.callMethod("ReadRelated", { parent: parent.id });
 
-    expect(result.getID()).toBe(next.id);
-    expect(result.getProperty("name")).toBe("New child");
-    expect(result.getProperty("generation")).toBe("2");
+    expect(result.getID()).toBe(link.id);
+    expect(result.getType()).toBe("ReferenceFloat");
+    const related = result.getPropertyItem("related_id");
+
+    expect(related?.getID()).toBe(next.id);
+    expect(related?.getProperty("name")).toBe("New child");
+    expect(related?.getProperty("generation")).toBe("2");
 }, 60_000);
 
 test("floating references recover from an older generation in their target family", async () => {

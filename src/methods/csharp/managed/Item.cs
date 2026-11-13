@@ -13,12 +13,45 @@ public interface IArasMethod
 public class Item
 {
     public const string XPathResultItem = "//Result/Item";
-    private readonly ItemPayload payload;
+    private const string SoapNamespace =
+        "(namespace-uri()='http://schemas.xmlsoap.org/soap/envelope/' or namespace-uri()='')";
+    private const string FaultPath = "/*[local-name()='Envelope' and " + SoapNamespace
+        + "]/*[local-name()='Body' and " + SoapNamespace
+        + "]/*[local-name()='Fault' and " + SoapNamespace + "]";
+
+    public XmlElement? node { get; set; }
+    public XmlDocument? dom { get; set; }
+    public XmlNodeList? nodeList { get; set; }
+    protected Remote Remote { get; }
+    protected CallContext CCO { get; }
 
     public ItemPayload Payload
     {
         get
         {
+            var payload = new ItemPayload();
+
+            if (node is { } element)
+            {
+                payload.Items.Add(ItemXml.Bind(element));
+            }
+            else if (nodeList is { } items)
+            {
+                if (items.Count > WorkLimits.NodesMax)
+                {
+                    Remote.Unsupported("Item payload exceeds its selection limit.");
+                }
+
+                foreach (XmlNode selected in items)
+                {
+                    payload.Items.Add(ItemXml.Bind(RequireItem(selected)));
+                }
+            }
+            else
+            {
+                return DocumentPayload;
+            }
+
             try
             {
                 ItemXml.Synchronize(payload);
@@ -34,60 +67,121 @@ public class Item
         }
     }
 
-    public XmlElement node => ItemXml.View(Node);
-    public XmlDocument dom => ItemXml.ViewDocument(Payload);
-    protected Remote Remote
-    {
-        get;
-    }
-    protected CallContext CCO { get; }
+    public ItemPayload DocumentPayload => ReadDocument(dom
+        ?? throw new InvalidOperationException("The Item has no XML document."));
 
     public Item(ItemPayload payload, Remote remote)
+        : this(ItemDocuments.Create(payload), null, null, remote)
     {
-        this.payload = payload;
-        Remote = remote;
-        CCO = new CallContext(remote);
-        ItemXml.Initialize(payload);
+        InitializeSelection();
     }
 
-    private ItemData Node
+    private Item(XmlDocument? document, XmlElement? element, XmlNodeList? items, Remote remote)
+    {
+        dom = document;
+        node = element;
+        nodeList = items;
+        Remote = remote;
+        CCO = new CallContext(remote);
+    }
+
+    protected ItemPayload ReadDocument(XmlDocument document) => ItemDocuments.Read(document);
+
+    private XmlElement Element
     {
         get
         {
-            if (payload.Error is not null || payload.Items.Count != 1)
+            if (dom is null)
             {
-                throw new InvalidOperationException("This operation requires one non-error Item.");
+                throw new InvalidOperationException("The Item has no XML document.");
             }
 
-            return payload.Items[0];
+            return RequireItem(node);
         }
     }
+    private ItemData Node => ItemXml.Bind(Element);
 
-    public bool isError() => payload.Error is not null;
+    private static XmlElement RequireItem(XmlNode? selected)
+    {
+        if (selected is XmlElement { Name: "Item" } element)
+        {
+            return element;
+        }
+
+        throw new InvalidOperationException("This operation requires one Item element.");
+    }
+
+    private XmlElement RequireAttached()
+    {
+        XmlElement element = Element;
+        XmlNode? ancestor = element;
+        int depth = 0;
+
+        while (ancestor is not null && !ReferenceEquals(ancestor, dom))
+        {
+            if (++depth > WorkLimits.DepthMax)
+            {
+                Remote.Unsupported("Item attachment exceeds its nesting limit.");
+            }
+
+            ancestor = ancestor.ParentNode;
+        }
+
+        if (dom is null || ancestor is null)
+        {
+            throw new InvalidOperationException("The selected Item is detached from its document.");
+        }
+
+        return element;
+    }
+
+    public bool isError() => dom?.SelectSingleNode(FaultPath) is not null;
 
     public bool isNew() => getAttribute("isNew") == "1";
 
-    public string getErrorString() => payload.Error?.Message ?? "";
+    public string getErrorString() => dom?.SelectSingleNode(FaultPath + "/faultstring")
+        ?.InnerText ?? "";
 
-    public string getErrorCode() => payload.Error?.Code ?? "";
+    public string getErrorCode() => dom?.SelectSingleNode(FaultPath + "/faultcode")
+        ?.InnerText ?? "";
 
-    public string getResult() => payload.Result ?? "";
+    public string getResult() => dom?.SelectSingleNode("//Result")?.InnerText ?? "";
 
     public int getItemCount()
     {
-        if (isError())
+        if (dom is null)
         {
             return -1;
         }
 
-        return payload.Items.Count;
+        if (nodeList is { } items)
+        {
+            return items.Count;
+        }
+
+        if (isError())
+        {
+            if (getErrorCode() == "0")
+            {
+                return 0;
+            }
+
+            return -1;
+        }
+
+        if (node is null)
+        {
+            return -1;
+        }
+
+        return 1;
     }
 
     public string getID()
     {
-        if (node.HasAttribute("id"))
+        if (Element.HasAttribute("id"))
         {
-            return node.GetAttribute("id");
+            return Element.GetAttribute("id");
         }
 
         return getProperty("id");
@@ -95,9 +189,9 @@ public class Item
 
     public void setID(string id) => setAttribute("id", id);
 
-    public string getType() => node.GetAttribute("type");
+    public string getType() => Element.GetAttribute("type");
 
-    public void setType(string type) => node.SetAttribute("type", type);
+    public void setType(string type) => Element.SetAttribute("type", type);
 
     public string getAction() => getAttribute("action", "get");
 
@@ -105,9 +199,9 @@ public class Item
 
     public string getAttribute(string name, string fallback = "")
     {
-        if (node.HasAttribute(name))
+        if (Element.HasAttribute(name))
         {
-            return node.GetAttribute(name);
+            return Element.GetAttribute(name);
         }
 
         return fallback;
@@ -115,21 +209,39 @@ public class Item
 
     public void setAttribute(string name, string value)
     {
-        node.SetAttribute(name, value);
+        Element.SetAttribute(name, value);
 
-        if (name == "id" && ItemXml.FindProperty(node, "id") is { } property)
+        if (name == "id" && ItemXml.FindProperty(Element, "id") is { } property)
         {
             property.InnerText = value;
         }
     }
 
-    public Item getItemByIndex(int index) => Wrap(new List<ItemData> { payload.Items[index] });
+    public Item getItemByIndex(int index)
+    {
+        if (nodeList is null)
+        {
+            if (index != 0)
+            {
+                throw new InvalidOperationException("The Item is not a collection.");
+            }
+
+            return this;
+        }
+
+        if (index < 0 || index >= nodeList.Count)
+        {
+            throw new IndexOutOfRangeException("The Item index is outside its collection.");
+        }
+
+        return new Item(dom, RequireItem(nodeList[index]), null, Remote);
+    }
 
     public string getProperty(string name, string fallback = "")
     {
-        if (name == "id" && node.HasAttribute("id"))
+        if (name == "id" && Element.HasAttribute("id"))
         {
-            string id = node.GetAttribute("id");
+            string id = Element.GetAttribute("id");
 
             if (id.Length > 0)
             {
@@ -139,7 +251,7 @@ public class Item
             return fallback;
         }
 
-        XmlElement? property = ItemXml.FindProperty(node, name);
+        XmlElement? property = ItemXml.FindProperty(Element, name);
 
         if (property is null || property.GetAttribute("is_null") == "1")
         {
@@ -188,12 +300,12 @@ public class Item
 
     public void removeProperty(string name)
     {
-        var properties = node.ChildNodes.OfType<XmlElement>()
+        var properties = Element.ChildNodes.OfType<XmlElement>()
             .Where(child => child.Name == name).ToList();
 
         foreach (XmlElement property in properties)
         {
-            node.RemoveChild(property);
+            Element.RemoveChild(property);
         }
 
         Node.Properties.Remove(name);
@@ -203,7 +315,7 @@ public class Item
 
     public string getPropertyAttribute(string property, string attribute, string fallback = "")
     {
-        XmlElement? element = ItemXml.FindProperty(node, property);
+        XmlElement? element = ItemXml.FindProperty(Element, property);
 
         if (element is not null && element.HasAttribute(attribute))
         {
@@ -220,24 +332,21 @@ public class Item
 
     public Item setPropertyItem(string name, Item item)
     {
-        if (ReferenceEquals(this, item))
-        {
-            Remote.Unsupported(
-                "Setting an Item as its own property requires document-alias support.");
-        }
-
-        XmlElement source = item.node;
-        XmlElement property = ItemXml.Property(Node, name);
+        _ = RequireAttached();
+        ItemData parent = Node;
+        XmlElement source = item.Element;
+        XmlElement property = ItemXml.Property(parent, name);
         XmlElement copy = PropertyItems.Replace(property, source);
-        item.payload.Items[0] = ItemXml.Bind(copy);
-        Node.Properties.Remove(name);
+        item.node = copy;
+        item.dom = dom;
+        parent.Properties.Remove(name);
 
         return item;
     }
 
     public Item? getPropertyItem(string name)
     {
-        XmlElement? property = ItemXml.FindProperty(node, name);
+        XmlElement? property = ItemXml.FindProperty(Element, name);
         XmlElement? item = property?.ChildNodes.OfType<XmlElement>()
             .FirstOrDefault(child => child.Name == "Item");
 
@@ -246,22 +355,21 @@ public class Item
             return null;
         }
 
-        return Wrap(new List<ItemData> { ItemXml.Bind(item) });
+        return new Item(dom, item, null, Remote);
     }
 
-    public Item getRelationships() => Wrap(Relationships().Select(ItemXml.Bind).ToList());
+    public Item getRelationships() => SelectItems(Element, "Relationships/Item", true);
 
     public Item getRelationships(string type)
     {
-        return Wrap(Relationships()
-            .Where(item => item.GetAttribute("type")
-                .Equals(type, StringComparison.OrdinalIgnoreCase))
-            .Select(ItemXml.Bind).ToList());
+        return SelectItems(Element, "Relationships/Item[@type='" + type + "']", true);
     }
 
     public void addRelationship(Item item)
     {
-        ItemXml.Attach(ItemXml.Property(Node, "Relationships"), item.Node);
+        XmlElement relationships = ItemXml.Property(Node, "Relationships");
+        item.node = PropertyItems.Append(relationships, item.Element);
+        item.dom = dom;
     }
 
     public Item newItem(string type = "", string action = "")
@@ -269,24 +377,18 @@ public class Item
 
     public Innovator getInnovator() => new(Remote);
 
-    public Item apply()
-    {
-        if (isError() || payload.Items.Count != 1)
-        {
-            throw new InvalidOperationException("apply requires one non-error Item.");
-        }
-
-        return new Item(Remote.Call("apply", Payload), Remote);
-    }
+    public Item apply() => apply(null);
 
     public Item apply(string? action)
     {
+        _ = RequireAttached();
+
         if (action is not null)
         {
             setAction(action);
         }
 
-        return apply();
+        return new Item(Remote.Call("apply", Payload), Remote);
     }
 
     public void fetchRelationships(string type)
@@ -312,7 +414,7 @@ public class Item
             parent.RemoveChild(relationship);
         }
 
-        foreach (ItemData relationship in result.payload.Items)
+        foreach (ItemData relationship in result.Payload.Items)
         {
             ItemXml.Attach(ItemXml.Property(Node, "Relationships"), relationship);
         }
@@ -320,25 +422,93 @@ public class Item
 
     public void loadAML(string xml)
     {
-        ItemPayload parsed = ItemXml.Parse(xml);
-        payload.Items = parsed.Items;
-        payload.Error = parsed.Error;
-        payload.Result = parsed.Result;
-        payload.Messages = parsed.Messages;
+        dom ??= XmlTraversal.Document();
+
+        try
+        {
+            XmlTraversal.Load(dom, xml);
+        }
+        catch
+        {
+            dom = null;
+
+            throw;
+        }
+        finally
+        {
+            InitializeSelection();
+        }
     }
 
     public Item getItemsByXPath(string expression)
     {
-        return Wrap(ItemXml.SelectItems(payload, expression));
+        XmlDocument document = dom
+            ?? throw new InvalidOperationException("The Item has no XML document.");
+        XmlNode context = node ?? (XmlNode)document;
+
+        return SelectItems(context, expression, false);
     }
 
-    public override string ToString() => ItemXml.Serialize(payload);
+    public override string ToString()
+    {
+        if (dom is null)
+        {
+            return "";
+        }
+
+        if (dom.DocumentElement is { } root)
+        {
+            XmlTraversal.Validate(root);
+        }
+
+        return dom.OuterXml;
+    }
+
+    private void InitializeSelection()
+    {
+        node = null;
+        nodeList = null;
+        XmlNodeList? selected = dom?.SelectNodes("Item|AML/Item|//Result/Item");
+
+        if (selected?.Count == 1)
+        {
+            node = RequireItem(selected[0]);
+        }
+        else if (selected is { Count: > 1 })
+        {
+            nodeList = selected;
+        }
+    }
+
+    private Item SelectItems(XmlNode context, string expression, bool collection)
+    {
+        XmlNodeList selected = context.SelectNodes(expression)
+            ?? throw new InvalidOperationException("XPath did not return a node collection.");
+
+        if (selected.Count > WorkLimits.NodesMax)
+        {
+            Remote.Unsupported("Item XPath exceeds its selection limit.");
+        }
+
+        foreach (XmlNode selectedNode in selected)
+        {
+            if (selectedNode is not XmlElement { Name: "Item" })
+            {
+                throw new InvalidOperationException("Item XPath must select Item elements.");
+            }
+        }
+
+        if (!collection && selected.Count == 1)
+        {
+            return new Item(dom, RequireItem(selected[0]), null, Remote);
+        }
+
+        return new Item(dom, null, selected, Remote);
+    }
 
     private IEnumerable<XmlElement> Relationships()
     {
-        return ItemXml.FindProperty(node, "Relationships")?.ChildNodes.OfType<XmlElement>()
+        return ItemXml.FindProperty(Element, "Relationships")?.ChildNodes.OfType<XmlElement>()
             ?? Enumerable.Empty<XmlElement>();
     }
-
-    private Item Wrap(List<ItemData> items) => new(new ItemPayload { Items = items }, Remote);
 }

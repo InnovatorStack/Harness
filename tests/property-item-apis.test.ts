@@ -25,18 +25,32 @@ test.each([
     60_000,
 );
 
-test("caught self-insertion cannot commit writes without a qualified document-alias profile", async () => {
+test("self-insertion rebinds the argument while retaining the parent document and aliases", async () => {
     const source = `
-var holder = this.newItem("ReferenceHolder", "add");
-holder.setProperty("name", "Must roll back");
-holder.apply();
-try { this.setPropertyItem("self", this); }
-catch (Exception) { }
-return this.getInnovator().newResult("Caught unsupported insertion");`;
+this.setProperty("name", "Parent");
+var original = this.node;
+var document = this.dom;
+var alias = this.getItemsByXPath("/Item");
+var inserted = this.setPropertyItem("self", this);
+this.setProperty("name", "Child");
+if (!Object.ReferenceEquals(this, inserted)
+    || !Object.ReferenceEquals(document.DocumentElement, original)
+    || !Object.ReferenceEquals(alias.node, original)
+    || Object.ReferenceEquals(this.node, original)
+    || !Object.ReferenceEquals(document, this.dom)
+    || alias.getProperty("name") != "Parent"
+    || this.getProperty("name") != "Child")
+{
+    throw new Exception("Self-insertion lost the parent or argument view");
+}
+return this;`;
     await using project = await referenceProject(referenceMethod("SelfInsertion", source));
     using h = await createHarness({ cwd: project.cwd, csharp: {} });
+    const before = h.state.get("ReferenceRecord");
+    const result = await h.callMethod("SelfInsertion");
 
-    await expect(h.callMethod("SelfInsertion")).rejects.toThrow("document-alias support");
-    expect(h.state.get("ReferenceHolder")).toEqual([]);
-    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
+    expect(result.getProperty("name")).toBe("Parent");
+    expect(result.getPropertyItem("self")?.getProperty("name")).toBe("Child");
+    expect(h.state.get("ReferenceRecord")).toEqual(before);
+    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.Committed);
 }, 60_000);

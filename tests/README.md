@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 86 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 88 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -67,7 +67,11 @@ replacement retains an explicit diagnostic and transactional rollback.
 Property-Item cases verify changed and identical imported copies through real replacement and
 before-version Methods. Unit tests cover both C# templates, nested query properties, retained/detached
 XML and Item views, wrapper attributes, same/foreign-document arguments, return values, failure,
-reset and world isolation. Unqualified self-insertion rejects even when caught by Method source.
+reset and world isolation. Document-view tests separate selections from their shared XML, including
+reloads, detached nodes, independent native fields, scalar/fault inspection, whole-document returns,
+selected-Item application and self-insertion. Failure cases cover both templates, rollback, reset and
+separate worlds. Two portable contracts cover document views and selected-Item returns; offline
+SDK observations qualify local adapter behavior, not native server execution.
 
 Failure-context tests cover returned faults and exceptions from one or multiple before-version
 Methods, normalized batch selectors and nested generated replacements. Pending input changes

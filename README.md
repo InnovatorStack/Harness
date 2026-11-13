@@ -492,8 +492,12 @@ remain distinct. Replacing an Item-valued property keeps the property wrapper an
 old child, including identical copies. Retained views of that old child stay independent of the
 new one. `setPropertyItem()` imports its argument, returns it and rebinds only that Item wrapper.
 This requires no configuration or business AML attributes. Untracked ambiguous requests and native
-request-root replacement fail with `UnsupportedRequestIdentity`. Document reload aliases and
-inserting an Item into itself remain unsupported; native executable comparisons are pending.
+request-root replacement fail with `UnsupportedRequestIdentity`.
+Managed Items keep their selected nodes separate from their shared XML document. Reloading that
+XML leaves retained views on their original detached nodes. `ToString()` and Method returns read
+the whole document; `apply()` submits only the selected, attached Item. Scalar and fault inspection
+reads the current document. Self-insertion preserves the parent document and rebinds its argument.
+Native executable comparisons remain pending.
 Unknown Method templates and event argument types fail with explicit diagnostics.
 
 Lifecycle bindings, states, transitions, and pre/post Methods come from imported AML. `add` uses the start state; `promoteItem` validates the transition and updates `state` and `current_state` without creating another generation. Transition roles require the configured authorization policy or the existing explicit `authorization: "unchecked"` setting. Transactional pre/post Methods execute through the same Method dispatcher and configured mocks.

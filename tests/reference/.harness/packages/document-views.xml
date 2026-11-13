@@ -1,0 +1,48 @@
+<AML>
+    <Item type="Method" action="add" id="A40B0000000000000000000000000001">
+        <name>RefDocumentReloadViews</name><method_type>C#</method_type><method_code><![CDATA[
+var collection = this.newItem();
+collection.loadAML("<Result><Item type='RefPlain' id='A' /><Item type='RefPlain' id='B' /></Result>");
+var document = collection.dom;
+var previousRoot = document.DocumentElement;
+var first = collection.getItemByIndex(0);
+collection.loadAML("<Result><Item type='RefPlain' id='C' /></Result>");
+if (!Object.ReferenceEquals(document, collection.dom) || first.getID() != "A"
+    || previousRoot.ParentNode != null || collection.getItemCount() != 1
+    || !Object.ReferenceEquals(first.node.ParentNode, previousRoot)
+    || first.ToString() != collection.ToString())
+{
+    throw new Exception("Reload changed the retained collection view");
+}
+var parent = this.newItem();
+parent.loadAML("<Item type='RefPlain' id='P'><name>Parent</name></Item>");
+var root = parent.node;
+var alias = parent.getItemsByXPath("/Item");
+var inserted = parent.setPropertyItem("self", parent);
+parent.setProperty("name", "Child");
+if (!Object.ReferenceEquals(parent, inserted) || Object.ReferenceEquals(root, parent.node)
+    || !Object.ReferenceEquals(root, parent.dom.DocumentElement)
+    || !Object.ReferenceEquals(root, alias.node) || alias.getProperty("name") != "Parent"
+    || parent.getProperty("name") != "Child")
+{
+    throw new Exception("Self-insertion lost the parent or child view");
+}
+var scalar = this.getInnovator().newResult("Before");
+var scalarDocument = scalar.dom;
+scalarDocument.SelectSingleNode("//Result").InnerText = "After";
+if (scalar.getResult() != "After" || scalar.getItemCount() != -1
+    || !Object.ReferenceEquals(scalarDocument, scalar.dom))
+{
+    throw new Exception("Scalar inspection used stale response data");
+}
+return this.getInnovator().newResult("Document views verified");
+]]></method_code>
+    </Item>
+    <Item type="Method" action="add" id="A40B0000000000000000000000000002">
+        <name>RefDocumentReturnSelection</name><method_type>C#</method_type><method_code><![CDATA[
+var collection = this.newItem();
+collection.loadAML("<Result><Item type='RefPlain' id='A'><name>First</name></Item><Item type='RefPlain' id='B'><name>Second</name></Item></Result>");
+return collection.getItemByIndex(0);
+]]></method_code>
+    </Item>
+</AML>

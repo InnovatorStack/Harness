@@ -7,9 +7,13 @@ namespace InnovatorHarness.Generated;
 
 public sealed class __TYPE_NAME__ : Item, IArasMethod
 {
+    private readonly System.Xml.XmlDocument InputDocument;
+
     public __TYPE_NAME__(ItemPayload context, Remote remote)
         : base(context, remote)
     {
+        InputDocument = dom
+            ?? throw new InvalidOperationException("Missing Method input document.");
     }
 
     public Item Execute()
@@ -21,8 +25,5 @@ __METHOD_CODE__
 #line default
     }
 
-    ItemPayload IArasMethod.ContextPayload => Payload;
-
-    private System.Xml.XmlDocument InputDocument => node.OwnerDocument
-        ?? throw new InvalidOperationException("Missing Method input document.");
+    ItemPayload IArasMethod.ContextPayload => ReadDocument(InputDocument);
 }

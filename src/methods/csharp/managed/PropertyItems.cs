@@ -7,13 +7,7 @@ internal static class PropertyItems
     // A property keeps its wrapper and attributes; the supplied Item becomes an imported copy.
     public static XmlElement Replace(XmlElement property, XmlElement source)
     {
-        XmlTraversal.Validate(source);
-
-        if (XmlTraversal.Owner(property).ImportNode(source, deep: true) is not XmlElement copy)
-        {
-            throw new InvalidOperationException("A property Item copy must remain an element.");
-        }
-
+        XmlElement copy = Copy(property, source);
         var previous = property.ChildNodes.OfType<XmlElement>()
             .FirstOrDefault(child => child.Name == "Item");
 
@@ -28,5 +22,25 @@ internal static class PropertyItems
         }
 
         return copy;
+    }
+
+    public static XmlElement Append(XmlElement parent, XmlElement source)
+    {
+        XmlElement copy = Copy(parent, source);
+        parent.AppendChild(copy);
+
+        return copy;
+    }
+
+    private static XmlElement Copy(XmlElement parent, XmlElement source)
+    {
+        XmlTraversal.Validate(source);
+
+        if (XmlTraversal.Owner(parent).ImportNode(source, deep: true) is XmlElement copy)
+        {
+            return copy;
+        }
+
+        throw new InvalidOperationException("An imported Item must remain an element.");
     }
 }
