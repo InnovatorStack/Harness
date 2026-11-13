@@ -42,6 +42,7 @@ import { matches, projectedProperties, selectedProperties } from "./query.js";
 import { DependentDeletion } from "./references/deletion.js";
 import { ReferenceMaintenance } from "./references/maintenance.js";
 import { relationshipType } from "./relationship-type.js";
+import { transferRequestCopies } from "./request-copies.js";
 import { validateRequest } from "./request.js";
 import { Revisions } from "./revisions/policy.js";
 import { NativeSecurity } from "./security/policy.js";
@@ -1396,15 +1397,20 @@ export class Platform {
         }
     }
 
-    private applyBaseItem(input: BaseItemCall, context: ExecutionContext): Promise<Item> {
+    private async applyBaseItem(input: BaseItemCall, context: ExecutionContext): Promise<Item> {
         const applyBase = this.baseOverrides.get(input);
         const request = input.item.clone();
 
-        if (applyBase) {
-            return applyBase(request, context);
-        }
+        try {
+            if (applyBase) {
+                return await applyBase(request, context);
+            }
 
-        return this.apply(request, context, input.event);
+            return await this.apply(request, context, input.event);
+        } finally {
+            input.item.payload.items = request.payload.items;
+            transferRequestCopies(request, input.item);
+        }
     }
 
     private async updateEvent(

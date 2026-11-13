@@ -76,7 +76,7 @@ export function renderMethod(
         ["__EVENT_ARGS_TYPE__", eventType],
         [
             "__EVENT_ARGS_CONSTRUCTOR__",
-            `new ${eventType}(${baseArgumentTypes.has(eventType) ? "Remote, dom" : "Remote"})`,
+            `new ${eventType}(${baseArgumentTypes.has(eventType) ? "Remote, InputDocument" : "Remote"})`,
         ],
     ]);
 

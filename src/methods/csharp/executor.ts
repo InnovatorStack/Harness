@@ -3,7 +3,8 @@ import { decodePayload } from "../../items/codec.js";
 import { Item } from "../../items/item.js";
 import { ApplicationError, PlatformError } from "../../platform/errors.js";
 import type { MethodDefinition, MethodExecutor, MethodPorts } from "../types.js";
-import { managedCallback } from "./callbacks.js";
+import { managedCallback, requestChange } from "./callbacks.js";
+import type { ManagedCallbackState } from "./callbacks.js";
 import { CSharpCompiler } from "./compiler.js";
 import type { CompiledMethod, CSharpOptions } from "./compiler.js";
 import { encodeMessage, pendingCallsMax, messageBytesMax } from "./protocol.js";
@@ -383,38 +384,57 @@ export class CSharpExecutor implements MethodExecutor {
         }
 
         this.callbacks.add(id);
+        const state: ManagedCallbackState = {};
 
         try {
-            const result = await managedCallback(message, pending.ports, pending.security);
+            const result = await managedCallback(message, pending.ports, pending.security, state);
 
             if (this.worker === worker) {
-                this.send({ kind: "callbackResult", id, payload: result.payload });
+                this.send({
+                    kind: "callbackResult",
+                    id,
+                    payload: result.payload,
+                    requestChange: requestChange(state),
+                });
             }
         } catch (error) {
             if (this.worker !== worker) {
                 return;
             }
 
-            if (error instanceof ApplicationError) {
-                this.send({ kind: "callbackResult", id, payload: error.item.payload });
-            } else {
-                pending.failure = { error };
-                const message = error instanceof Error ? error.message : String(error);
-
-                try {
-                    pending.ports.fail(message);
-                } catch (failure) {
-                    // fail() poisons the owning transaction and is required to throw.
-                    pending.failure = { error: failure };
-                }
-
-                this.send({ kind: "callbackResult", id, error: message });
-            }
+            this.failCallback(error, pending, id, state);
         } finally {
             if (this.worker === worker) {
                 this.callbacks.delete(id);
             }
         }
+    }
+
+    private failCallback(
+        error: unknown,
+        pending: PendingInvocation,
+        id: string,
+        state: ManagedCallbackState,
+    ): void {
+        const response = { kind: "callbackResult", id, requestChange: requestChange(state) };
+
+        if (error instanceof ApplicationError) {
+            this.send({ ...response, payload: error.item.payload });
+
+            return;
+        }
+
+        pending.failure = { error };
+        const message = error instanceof Error ? error.message : String(error);
+
+        try {
+            pending.ports.fail(message);
+        } catch (failure) {
+            // fail() poisons the owning transaction and is required to throw.
+            pending.failure = { error: failure };
+        }
+
+        this.send({ ...response, error: message });
     }
 
     private stop(error: unknown, reuse = false): void {

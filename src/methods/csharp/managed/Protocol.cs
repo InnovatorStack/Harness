@@ -24,6 +24,18 @@ public sealed record ItemMessage(string Name, string Value);
 
 public sealed record ItemError(string Code, string Message);
 
+public sealed record RequestChange(
+    ItemData Before, ItemData After, RequestAlignment? Alignment);
+
+public sealed class RequestAlignment
+{
+    public Dictionary<string, RequestAlignment>? Properties { get; set; }
+    public List<RelationshipAlignment>? Relationships { get; set; }
+}
+
+public sealed record RelationshipAlignment(
+    int? Before, int? After, RequestAlignment? Alignment);
+
 public sealed class ItemPayload
 {
     public List<ItemData> Items { get; set; } = new();
@@ -40,7 +52,8 @@ public sealed record Invocation(
     ItemPayload? Context,
     EventMetadata? EventData,
     JsonElement Payload,
-    string? Error);
+    string? Error,
+    RequestChange? RequestChange);
 
 public sealed class Protocol
 {
@@ -80,7 +93,9 @@ public sealed class Protocol
         }
     }
 
-    public ItemPayload Call(string invocationId, string operation, object payload)
+    public ItemPayload Call(
+        string invocationId, string operation, object payload,
+        Action<RequestChange>? synchronize = null)
     {
         var id = Interlocked.Increment(ref nextCallback).ToString();
         var completion = new TaskCompletionSource<Invocation>(
@@ -107,6 +122,16 @@ public sealed class Protocol
                 payload
             });
             var response = completion.Task.GetAwaiter().GetResult();
+
+            if (response.RequestChange is { } change)
+            {
+                if (synchronize is null)
+                {
+                    throw new InvalidOperationException("Unexpected request synchronization.");
+                }
+
+                synchronize(change);
+            }
 
             if (response.Error is not null)
             {
@@ -148,8 +173,9 @@ public sealed class Protocol
 
 public sealed record Remote(Protocol Protocol, string InvocationId, EventMetadata? EventData = null)
 {
-    public ItemPayload Call(string operation, object payload)
-        => Protocol.Call(InvocationId, operation, payload);
+    public ItemPayload Call(
+        string operation, object payload, Action<RequestChange>? synchronize = null)
+        => Protocol.Call(InvocationId, operation, payload, synchronize);
 
     public void Unsupported(string capability)
     {

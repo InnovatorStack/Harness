@@ -9,8 +9,23 @@ public class ServerEventArgs(Remote remote, XmlDocument? input = null)
     {
         var document = input
             ?? throw new InvalidOperationException("A base delegate requires its event context.");
-        var payload = remote.Call("eventBase", new { name, xml = document.OuterXml });
+        XmlElement request = RequestXml.Input(document);
+        var payload = remote.Call("eventBase", new { name, xml = request.OuterXml },
+            change => Synchronize(document, change));
         ResponseXml.Write(output, payload);
+    }
+
+    private void Synchronize(XmlDocument document, RequestChange change)
+    {
+        try
+        {
+            RequestXml.Synchronize(document, change);
+        }
+        catch (Exception exception)
+            when (exception is NotSupportedException or InvalidOperationException)
+        {
+            remote.Unsupported(exception.Message);
+        }
     }
 }
 
