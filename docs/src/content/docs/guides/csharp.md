@@ -4,6 +4,51 @@ title: "Run C# Methods"
 
 The C# executor starts lazily. It requires an installed .NET 10 SDK; its managed helper restores pinned Newtonsoft.Json 13.0.4 through NuGet. Harness does not install the SDK or depend on proprietary IOM/server assemblies. Original `method_code` is inserted unchanged into the managed template, with source mappings and hashes. Compiled artifacts are cached outside the repository.
 
+## Working Method files
+
+Available in Harness 0.2.0 and later.
+
+Map a Method name to the C# file you are editing:
+
+```ts
+// .harness/config.ts
+import type { HarnessConfig } from "@innovatorstack/harness";
+
+export default {
+    methods: {
+        SubmitReview: "../src/SubmitReview.cs",
+    },
+} satisfies HarnessConfig;
+```
+
+Paths resolve relative to the configuration file. The file contains the normal Aras Method body,
+including its `MethodTemplateName` comment when needed. Its filename can differ from the Method name.
+
+Harness uses the file instead of the package's `method_code`, retaining imported IDs, execution
+permissions and event bindings. Direct calls, nested calls and hooks share this resolution. Package
+files and stored package definitions stay unchanged. A mapped C# Method can also be called without a
+package definition; the mapping supplies its name, not event or permission metadata.
+
+A missing file or parent directory falls back to the imported implementation. If neither exists,
+calling the Method fails normally. An existing file that cannot be read or compiled fails explicitly;
+runtime failures follow normal rollback. These errors never fall back to package code. Explicit mocks
+still take precedence over source execution.
+
+Each `createHarness()` reads the mapped files anew. Changes, creation and deletion are picked up even
+when package setup is cached. A running world retains its original source selection through `reset()`;
+open a new world to load edits. Automatic watch triggering for external C# files is not provided.
+
+Per-world `methods` entries override shared names case-insensitively and retain other mappings.
+Use `methods: {}` to disable all shared mappings for that world.
+
+Execution calls expose the actual location in `source` and the effective body hash in `sourceHash`.
+`methodSource` records `MethodSourceKind.LocalFile` or `MethodSourceKind.Package`, the `configuredFile`,
+whether `fallback` occurred and the original `packageSource` when available. Compatibility checks
+inspect and optionally compile that same effective source while keeping the package inventory intact.
+
+The [server Methods example](https://github.com/InnovatorStack/Harness/tree/main/examples/server-methods)
+uses a working C# file with its original package and hooks.
+
 ## Compilation and reuse
 
 The helper builds once per adapter version. Changed Methods compile directly through the installed SDK compiler without a project restore or MSBuild run. A warm managed process can serve successive worlds, with fresh invocation instances and isolated mutable statics. Only assemblies with no static storage beyond constants and supported dependencies retain JIT code across worlds. Unknown or process-global APIs and supplied reference assemblies keep process isolation. Reuse retires after 32 worlds, and idle processes close automatically.

@@ -1,6 +1,6 @@
 {
     "name": "@innovatorstack/harness",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "private": false,
     "description": "Local testing and instrumentation for Aras Innovator, built with Bun and TypeScript",
     "keywords": [

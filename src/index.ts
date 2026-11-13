@@ -1,4 +1,6 @@
 export { createHarness } from "./harness/create.js";
+export { MethodSourceKind } from "./methods/sources.js";
+export type { MethodSourceResolution } from "./methods/sources.js";
 export { AuthorizationMode } from "./platform/security/types.js";
 export {
     checkCompatibility,

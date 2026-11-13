@@ -29,15 +29,16 @@ using world = await createHarness({
 
 ## Common settings
 
-| Setting                | Use it for                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------- |
-| `packages`             | Additional package paths; conventional packages always load.                    |
-| `fixtures`             | Explicit shared data inputs.                                                    |
-| `mocks`                | Extra JSON mock files or per-world rules.                                       |
-| `session.user`         | Selecting an imported User for identity, locks and permissions.                 |
-| `csharp`               | Reference assemblies and execution timeout; `false` disables managed execution. |
-| `authorization`        | Native permissions or a custom policy.                                          |
-| `clock`, `ids`         | Deterministic test values.                                                      |
-| `modules`, `executors` | Extension factories for a world.                                                |
+| Setting                | Use it for                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `packages`             | Additional package paths; conventional packages always load.                      |
+| `fixtures`             | Explicit shared data inputs.                                                      |
+| `methods`              | Method names mapped to working source files; missing files fall back to packages. |
+| `mocks`                | Extra JSON mock files or per-world rules.                                         |
+| `session.user`         | Selecting an imported User for identity, locks and permissions.                   |
+| `csharp`               | Reference assemblies and execution timeout; `false` disables managed execution.   |
+| `authorization`        | Native permissions or a custom policy.                                            |
+| `clock`, `ids`         | Deterministic test values.                                                        |
+| `modules`, `executors` | Extension factories for a world.                                                  |
 
 See [C# Methods](/Harness/guides/csharp/), [permissions](/Harness/reference/permissions/) and [test controls](/Harness/guides/test-controls/) for complete examples.

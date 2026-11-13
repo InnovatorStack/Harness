@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { createHarness, FailurePoint, ItemAction } from "@innovatorstack/harness";
+import { createHarness, FailurePoint, ItemAction, MethodSourceKind } from "@innovatorstack/harness";
 
 test("an incomplete review saves its remark while preserving its approval date", async () => {
     using harness = await createHarness();
@@ -20,6 +20,9 @@ test("an incomplete review saves its remark while preserving its approval date",
     const methods = harness.trace.filter((event) => event.kind === "method");
     expect(methods.map((event) => event.name)).toContain("SubmitReview");
     expect(methods.map((event) => event.name)).toContain("GuardReview");
+    const submit = methods.find((event) => event.name === "SubmitReview");
+    expect(submit?.methodSource?.kind).toBe(MethodSourceKind.LocalFile);
+    expect(submit?.methodSource?.fallback).toBe(false);
 });
 
 test("a complete review accepts its approval date", async () => {

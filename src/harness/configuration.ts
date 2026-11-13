@@ -17,6 +17,7 @@ import { AuthorizationMode } from "../platform/security/types.js";
 import type { StorageValue } from "../storage/types.js";
 import { executorFactories, moduleFactories } from "./extensions.js";
 import type { ExecutorFactory, ModuleFactory } from "./extensions.js";
+import { methodMappings, mergeMethodMappings } from "./method-files.js";
 import { loadSetupModule } from "./setup-module.js";
 
 export interface HarnessConfig {
@@ -25,6 +26,8 @@ export interface HarnessConfig {
     /** Additional inputs, relative to the config file. .harness/packages is always loaded. */
     readonly packages?: readonly string[];
     readonly fixtures?: readonly string[];
+    /** Working Method bodies, relative to the configuration file. Missing files use packages. */
+    readonly methods?: Readonly<Record<string, string>>;
     readonly csharp?: CSharpOptions | false;
     readonly authorization?: PlatformOptions["authorization"];
     readonly session?: { readonly user: Readonly<Record<string, StorageValue>> };
@@ -152,6 +155,11 @@ async function resolveSettings(options: HarnessOptions): Promise<ResolvedSetting
         Object.entries(options).filter(([name]) => name !== "cwd" && name !== "config"),
     );
     const merged = { ...configured, ...overrides };
+    const methods = mergeMethodMappings(configured.methods, options.methods);
+
+    if (methods !== undefined) {
+        merged.methods = methods;
+    }
 
     if (typeof configured.csharp === "object" && typeof options.csharp === "object") {
         merged.csharp = { ...configured.csharp, ...options.csharp };
@@ -264,7 +272,9 @@ function paths(value: unknown, name: string): readonly string[] | undefined {
 function parseConfiguration(value: Record<string, unknown>, path: string): HarnessConfig {
     validateConfigurationKeys(value, path);
 
-    const configuration: { -readonly [Key in keyof HarnessConfig]: HarnessConfig[Key] } = {};
+    const configuration: { -readonly [Key in keyof HarnessConfig]: HarnessConfig[Key] } = {
+        ...parseInputs(value),
+    };
 
     const clock = clockSettings(value.clock);
     const ids = idSettings(value.ids);
@@ -275,17 +285,6 @@ function parseConfiguration(value: Record<string, unknown>, path: string): Harne
 
     if (ids !== undefined) {
         configuration.ids = ids;
-    }
-
-    const packages = paths(value.packages, "packages");
-    const fixtures = paths(value.fixtures, "fixtures");
-
-    if (packages) {
-        configuration.packages = packages;
-    }
-
-    if (fixtures) {
-        configuration.fixtures = fixtures;
     }
 
     if (value.modules !== undefined) {
@@ -326,6 +325,20 @@ function parseConfiguration(value: Record<string, unknown>, path: string): Harne
     }
 
     return configuration;
+}
+
+function parseInputs(
+    value: Record<string, unknown>,
+): Pick<HarnessConfig, "packages" | "fixtures" | "methods"> {
+    const packages = paths(value.packages, "packages");
+    const fixtures = paths(value.fixtures, "fixtures");
+    const methods = methodMappings(value.methods);
+
+    return {
+        ...(packages ? { packages } : {}),
+        ...(fixtures ? { fixtures } : {}),
+        ...(methods !== undefined ? { methods } : {}),
+    };
 }
 
 function parseCSharp(value: unknown): CSharpOptions {
@@ -406,6 +419,7 @@ function validateConfigurationKeys(value: Record<string, unknown>, path: string)
         "ids",
         "packages",
         "fixtures",
+        "methods",
         "csharp",
         "authorization",
         "session",

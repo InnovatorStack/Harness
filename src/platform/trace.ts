@@ -4,6 +4,7 @@ import { traceBytesMax, traceEventsMax } from "../core/limits.js";
 import type { ExecutionContext, TransactionOutcome } from "../core/types.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
 import type { ItemPayload } from "../items/item.js";
+import type { MethodSourceResolution } from "../methods/sources.js";
 import type { MockValue } from "../mocks/types.js";
 import type { StoredItem } from "../storage/types.js";
 import { PlatformError } from "./errors.js";
@@ -31,6 +32,7 @@ export interface PlatformTraceEvent {
     readonly name: string;
     readonly source?: SourceLocation;
     readonly sourceHash?: string;
+    readonly methodSource?: MethodSourceResolution;
     readonly request?: Readonly<ItemPayload>;
     readonly result?: Readonly<ItemPayload>;
     readonly definition?: SourceDefinition;

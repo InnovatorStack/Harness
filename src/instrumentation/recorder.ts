@@ -2,6 +2,7 @@ import type { ExecutionInjection } from "../controls/failure-types.js";
 import type { InjectionDetails } from "../controls/targets.js";
 import type { RuntimeExecution, RuntimeObserver, TransactionOutcome } from "../core/types.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
+import type { MethodSourceResolution } from "../methods/sources.js";
 import { appliedItem } from "../platform/request.js";
 import type { PlatformTraceEvent } from "../platform/trace.js";
 import { describeFailure } from "./failures.js";
@@ -56,6 +57,7 @@ interface PendingCall {
     result?: ExecutionValue;
     source?: SourceLocation;
     sourceHash?: string;
+    methodSource?: MethodSourceResolution;
     definition?: ExecutionDefinition;
     via?: ExecutionEvent;
     readonly events: ExecutionEvent[];
@@ -302,15 +304,15 @@ export class ExecutionRecorder implements RuntimeObserver {
                 call.kind = ExecutionKind.Sql;
             }
 
-            if (target.source) {
+            if (target.source && call.source === undefined) {
                 call.source = Object.freeze({ ...target.source });
             }
 
-            if (target.definition) {
+            if (target.definition && call.definition === undefined) {
                 call.definition = Object.freeze({ ...target.definition });
             }
 
-            if (target.sourceHash) {
+            if (target.sourceHash && call.sourceHash === undefined) {
                 call.sourceHash = target.sourceHash;
             }
         }
@@ -392,6 +394,10 @@ export class ExecutionRecorder implements RuntimeObserver {
 
             if (event.sourceHash) {
                 call.sourceHash = event.sourceHash;
+            }
+
+            if (event.methodSource) {
+                call.methodSource = event.methodSource;
             }
 
             if (event.definition) {

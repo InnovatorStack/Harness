@@ -6,7 +6,7 @@
         "test": "bun test"
     },
     "devDependencies": {
-        "@innovatorstack/harness": "^0.1.0",
+        "@innovatorstack/harness": "^0.2.0",
         "@types/bun": "^1.4.4"
     }
 }
