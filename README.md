@@ -494,8 +494,9 @@ new one. `setPropertyItem()` imports its argument, returns it and rebinds only t
 This requires no configuration or business AML attributes. Default Get, Add and per-record updates
 retain their captured request nodes when a before Method reloads the document; later bindings receive
 the current document. Captured changes made before and after detachment remain observable on success
-and rejection. Untracked ambiguous requests, base-delegate root replacement and version-generation
-document replacement still fail with `UnsupportedRequestIdentity`.
+and rejection. Untracked ambiguous requests and unqualified root changes retain explicit diagnostics.
+Get/Update base delegates currently reject input replaced before delegation; Add reparses that input
+at base entry. Document replacement during a base call and version-generation reentry remain unsupported.
 Managed Items keep their selected nodes separate from their shared XML document. Reloading that
 XML leaves retained views on their original detached nodes. `ToString()` and Method returns read
 the whole document; `apply()` submits only the selected, attached Item. Scalar and fault inspection

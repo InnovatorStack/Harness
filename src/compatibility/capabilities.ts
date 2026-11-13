@@ -309,7 +309,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Both C# templates synchronize supported base-action input changes in place before returning or reporting failure. Retained XML views stay live, with responses kept separate.",
             "Private pending-node origins preserve relationship views through changed repeated IDs, anonymous additions, removals, reordering and identical replacement. Empty and removed containers remain distinct.",
             "Item-valued property replacements retain the property wrapper and detach the old child, including identical copies. Retained XML and Item views stay independent of the imported copy.",
-            "Default Get/Add and per-record updates keep captured request nodes across before-event document reloads. Base-delegate root replacement and version-generation document replacement remain unsupported.",
+            "Default Get/Add and per-record updates keep captured request nodes across before-event document reloads. Get/Update base delegates reject earlier input replacement; Add reparses it. Replacement during a base call and version-generation reentry remain unsupported.",
             "The base port is invocation-scoped. Native release-specific context and locking parity remain unverified.",
         ],
         tests: [
@@ -443,6 +443,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/document-views.test.ts",
             "tests/document-isolation.test.ts",
             "tests/captured-requests.test.ts",
+            "tests/base-input-reload.test.ts",
             "tests/managed-input.test.ts",
             "tests/base-input.test.ts",
             "tests/failed-context.test.ts",

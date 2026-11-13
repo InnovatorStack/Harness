@@ -77,7 +77,9 @@ They cover default Get/Add, versionable and nonversionable per-record updates, b
 changes before/after detachment, rollback and reset/world isolation. Protocol tests reject replaced
 retained roots, conflicting data and conflicting child identities before mutating caller objects.
 A portable Get contract exercises the captured query and both original hooks. Base-delegate and
-version-generation document replacement remain explicitly unsupported.
+version-generation document replacement remain explicitly unsupported. Replacement Methods also
+prove that caught reloads before BaseGet/BaseUpdate reject and roll back; BaseAdd reparses its
+reloaded input, following its separate native capture point.
 
 Failure-context tests cover returned faults and exceptions from one or multiple before-version
 Methods, normalized batch selectors and nested generated replacements. Pending input changes

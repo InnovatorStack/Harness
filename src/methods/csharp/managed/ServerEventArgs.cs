@@ -3,18 +3,94 @@ using InnovatorHarness.Managed;
 
 namespace Aras.Server.Core;
 
-public class ServerEventArgs(Remote remote, XmlDocument? input = null)
+public class ServerEventArgs
 {
+    private const string InputReloadGap =
+        "Replacing Get/Update input before base delegation requires its captured "
+        + "request node and current document to be transferred separately.";
+    private readonly Remote remote;
+    private readonly XmlDocument? input;
+    private readonly XmlElement? originalRoot;
+    private readonly XmlElement? originalRequest;
+
+    public ServerEventArgs(Remote remote, XmlDocument? input = null)
+    {
+        this.remote = remote;
+        this.input = input;
+
+        if (input is not null)
+        {
+            originalRoot = input.DocumentElement;
+            originalRequest = SingleRequest(input);
+        }
+    }
+
+    private static XmlElement? SingleRequest(XmlDocument document)
+    {
+        if (document.DocumentElement is { Name: "Item" } root)
+        {
+            return root;
+        }
+
+        XmlNodeList? selected = document.SelectNodes("Item|AML/Item|//Result/Item");
+
+        if (selected is { Count: 1 } && selected[0] is XmlElement item)
+        {
+            return item;
+        }
+
+        return null;
+    }
+
     protected void ApplyBase(string name, XmlDocument output)
     {
         var document = input
             ?? throw new InvalidOperationException("A base delegate requires its event context.");
-        XmlElement request = RequestXml.Input(document);
+        XmlElement request;
+
+        if (name is "onGet" or "onUpdate")
+        {
+            request = CapturedInput(document);
+        }
+        else
+        {
+            request = RequestXml.Input(document);
+        }
+
         var context = new ItemPayload { Items = new() { ItemXml.Bind(request) } };
         var origins = remote.Origins.Capture(context);
         var payload = remote.Call("eventBase", new { name, xml = request.OuterXml, origins },
             change => Synchronize(document, change));
         ResponseXml.Write(output, payload);
+    }
+
+    private XmlElement CapturedInput(XmlDocument document)
+    {
+        if (!ReferenceEquals(originalRoot, document.DocumentElement))
+        {
+            remote.Unsupported(InputReloadGap);
+        }
+
+        XmlElement current;
+
+        try
+        {
+            current = RequestXml.Input(document);
+        }
+        catch (Exception exception)
+            when (exception is InvalidOperationException or NotSupportedException)
+        {
+            remote.Unsupported(InputReloadGap);
+
+            throw;
+        }
+
+        if (!ReferenceEquals(originalRequest, current))
+        {
+            remote.Unsupported(InputReloadGap);
+        }
+
+        return current;
     }
 
     private void Synchronize(XmlDocument document, RequestChange change)
