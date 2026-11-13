@@ -232,7 +232,7 @@ test("nested Item and relationship helpers keep attached views live across docum
     relationship.setProperty("note", "Before");
     parent.addRelationship(relationship);
     relationship.setProperty("note", "After");
-    if (parent.getRelationships("Link").getProperty("note") != "After") throw new Exception("Relationship alias disconnected");
+    if (parent.getRelationships("Link").getItemByIndex(0).getProperty("note") != "After") throw new Exception("Relationship alias disconnected");
     return parent;
   `,
     );

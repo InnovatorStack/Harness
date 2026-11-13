@@ -20,7 +20,11 @@ internal sealed class DomChanges
 
     internal static long Version(XmlElement element)
     {
-        var document = XmlTraversal.Owner(element);
+        return Version(XmlTraversal.Owner(element));
+    }
+
+    internal static long Version(XmlDocument document)
+    {
         var changes = documents.GetValue(document, owner => new DomChanges(owner));
 
         return Volatile.Read(ref changes.revision);

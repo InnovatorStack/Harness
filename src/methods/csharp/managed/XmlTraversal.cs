@@ -23,6 +23,14 @@ internal static class XmlTraversal
 
     public static XmlDocument Load(string xml)
     {
+        var document = Document();
+        Load(document, xml);
+
+        return document;
+    }
+
+    public static void Load(XmlDocument document, string xml)
+    {
         if (xml.Length > WorkLimits.DataBytesMax)
         {
             throw new NotSupportedException("XML exceeds the managed text limit.");
@@ -53,10 +61,7 @@ internal static class XmlTraversal
 
         using var input = new StringReader(xml);
         using XmlReader validated = XmlReader.Create(input, settings);
-        var document = Document();
         document.Load(validated);
-
-        return document;
     }
 
     public static IEnumerable<XmlElement> Elements(XmlElement root)

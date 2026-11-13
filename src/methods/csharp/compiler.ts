@@ -104,6 +104,7 @@ export class CSharpCompiler {
             "ProtocolJson.cs",
             "DomChanges.cs",
             "Item.cs",
+            "ItemDocuments.cs",
             "ItemXml.cs",
             "PropertyItems.cs",
             "LogicalData.cs",

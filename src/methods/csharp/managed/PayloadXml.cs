@@ -35,23 +35,4 @@ internal static class PayloadXml
 
         return result;
     }
-
-    public static void Synchronize(ItemPayload payload)
-    {
-        XmlDocument? document = payload.Items.FirstOrDefault()?.Element?.OwnerDocument;
-
-        if (document is null || document.DocumentElement?.LocalName != "Envelope")
-        {
-            return;
-        }
-
-        XmlNodeList nodes = document.SelectNodes("/*/*/Message/event")
-            ?? throw new InvalidOperationException("Response metadata must be readable.");
-        payload.Messages = new();
-
-        foreach (XmlElement entry in nodes.OfType<XmlElement>())
-        {
-            payload.Messages.Add(new(entry.GetAttribute("name"), entry.GetAttribute("value")));
-        }
-    }
 }

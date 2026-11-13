@@ -12,11 +12,13 @@ internal static class MethodInvocation
         MethodAssemblies? shared, Protocol protocol)
     {
         var remote = new Remote(protocol, message.Id, message.EventData);
+        IArasMethod? method = null;
 
         try
         {
             using var scope = RemoteContext.Enter(remote);
-            Execute(message, context, shared, protocol, remote);
+            method = CreateMethod(message, context, shared, remote);
+            Execute(message, context, protocol, remote, method);
         }
         catch (Exception exception)
         {
@@ -27,21 +29,22 @@ internal static class MethodInvocation
                 error = inner;
             }
 
-            WriteFailure(message, context, protocol, remote, error);
+            WriteFailure(message, context, protocol, remote, method, error);
         }
     }
 
     private static void WriteFailure(
         Invocation message, MethodContext context, Protocol protocol, Remote remote,
-        Exception error)
+        IArasMethod? method, Exception error)
     {
         string failure = FailureText(error);
 
         try
         {
+            ItemPayload? input = method?.ContextPayload ?? message.Context;
             OriginFrame? origins = null;
 
-            if (message.Context is { } input)
+            if (input is not null)
             {
                 origins = remote.Origins.Capture(input);
             }
@@ -52,7 +55,7 @@ internal static class MethodInvocation
                 id = message.Id,
                 reusable = context.CanReuse,
                 error = failure,
-                context = message.Context,
+                context = input,
                 contextOrigins = origins
             });
         }
@@ -82,8 +85,8 @@ internal static class MethodInvocation
         return text;
     }
 
-    private static void Execute(Invocation message, MethodContext context,
-        MethodAssemblies? shared, Protocol protocol, Remote remote)
+    private static IArasMethod CreateMethod(Invocation message, MethodContext context,
+        MethodAssemblies? shared, Remote remote)
     {
         if (message.Assembly is null || message.TypeName is null || message.Context is null)
         {
@@ -101,8 +104,14 @@ internal static class MethodInvocation
         var type = assembly.GetType(message.TypeName, throwOnError: true)
             ?? throw new InvalidOperationException("Compiled Method type is missing.");
         var instance = Activator.CreateInstance(type, message.Context, remote);
-        var method = instance as IArasMethod
+
+        return instance as IArasMethod
             ?? throw new InvalidOperationException("Compiled Method has the wrong template.");
+    }
+
+    private static void Execute(Invocation message, MethodContext context,
+        Protocol protocol, Remote remote, IArasMethod method)
+    {
         protocol.Write(new { kind = "started", id = message.Id, reusable = context.CanReuse });
         var result = method.Execute();
         var original = method.ContextPayload;
@@ -110,7 +119,7 @@ internal static class MethodInvocation
 
         if (result is not null)
         {
-            returned = result.Payload;
+            returned = result.DocumentPayload;
         }
 
         var contextIsResult = ReferenceEquals(returned, original);

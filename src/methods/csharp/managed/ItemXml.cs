@@ -26,46 +26,6 @@ internal static class ItemXml
         return element;
     }
 
-    public static void Initialize(ItemPayload payload)
-    {
-        if ((payload.Items.Count < 2 && payload.Messages is not { Count: > 0 })
-            || payload.Items.Any(item => item.Element is not null))
-        {
-            return;
-        }
-
-        var document = XmlTraversal.Document();
-        XmlElement root = PayloadXml.CreateResult(document, payload);
-
-        foreach (ItemData item in payload.Items)
-        {
-            root.AppendChild(WriteItem(document, item));
-        }
-    }
-
-    public static XmlDocument ViewDocument(ItemPayload payload)
-    {
-        if (payload.Items.Count > 0)
-        {
-            XmlElement item = View(payload.Items[0]);
-            var owner = XmlTraversal.Owner(item);
-
-            if (owner.DocumentElement == item)
-            {
-                owner.RemoveChild(item);
-                XmlElement result = PayloadXml.CreateResult(owner, payload);
-                result.AppendChild(item);
-            }
-
-            return owner;
-        }
-
-        var document = XmlTraversal.Document();
-        ResponseXml.Write(document, payload);
-
-        return document;
-    }
-
     public static ItemData Bind(XmlElement element)
     {
         return bindings.GetValue(element, node => new ItemData { Element = node });
@@ -96,122 +56,11 @@ internal static class ItemXml
         AttachElement(parent, View(item));
     }
 
-    public static ItemPayload Parse(string xml)
-    {
-        var document = XmlTraversal.Load(xml);
-        XmlElement root = XmlTraversal.Root(document);
-
-        if (root.LocalName == "Envelope")
-        {
-            return ResponseXml.Read(document);
-        }
-
-        if (root.Name == "Item")
-        {
-            return new ItemPayload { Items = new() { Bind(root) } };
-        }
-
-        if (root.Name != "AML" && root.Name != "Result")
-        {
-            throw new InvalidOperationException("Expected an Item, AML, or Result element.");
-        }
-
-        var items = new List<ItemData>();
-
-        foreach (XmlElement element in root.ChildNodes.OfType<XmlElement>())
-        {
-            if (element.Name != "Item")
-            {
-                throw new InvalidOperationException("Expected an Item element.");
-            }
-
-            items.Add(Bind(element));
-        }
-
-        if (items.Count == 0 && root.Name == "Result")
-        {
-            return new ItemPayload { Result = root.InnerText };
-        }
-
-        return new ItemPayload { Items = items };
-    }
-
     public static void Synchronize(ItemPayload payload)
     {
-        PayloadXml.Synchronize(payload);
-
         foreach (ItemData item in payload.Items)
         {
             ReadItem(item);
-        }
-    }
-
-    public static List<ItemData> SelectItems(ItemPayload payload, string expression)
-    {
-        var selected = new List<ItemData>();
-        var (document, originals) = Document(payload);
-        XmlNodeList nodes = XmlTraversal.Root(document).SelectNodes(expression)
-            ?? throw new InvalidOperationException("XPath did not return a node collection.");
-
-        foreach (XmlNode node in nodes)
-        {
-            if (node is not XmlElement element
-                || !originals.TryGetValue(element, out ItemData? item))
-            {
-                throw new InvalidOperationException("Item XPath must select Item elements.");
-            }
-
-            selected.Add(item);
-        }
-
-        return selected;
-    }
-
-    public static string Serialize(ItemPayload payload)
-    {
-        var (document, _) = Document(payload);
-
-        return XmlTraversal.Root(document).OuterXml;
-    }
-
-    private static (XmlDocument, Dictionary<XmlElement, ItemData>) Document(ItemPayload payload)
-    {
-        var document = XmlTraversal.Document();
-        XmlElement root = PayloadXml.CreateResult(document, payload);
-
-        if (payload.Result is not null)
-        {
-            root.InnerText = payload.Result;
-        }
-
-        var originals = new Dictionary<XmlElement, ItemData>();
-
-        foreach (ItemData item in payload.Items)
-        {
-            XmlElement source = View(item);
-            XmlTraversal.Validate(source);
-
-            if (document.ImportNode(source, deep: true) is not XmlElement copy)
-            {
-                throw new InvalidOperationException("An XML copy must retain its element type.");
-            }
-
-            MapItems(source, copy, originals);
-            root.AppendChild(copy);
-        }
-
-        return (document, originals);
-    }
-
-    private static void MapItems(
-        XmlElement source, XmlElement copy, Dictionary<XmlElement, ItemData> originals)
-    {
-        foreach (var (original, copied) in XmlTraversal.Pairs(source, copy))
-        {
-            if (original.Name == "Item")
-            {
-                originals.Add(copied, Bind(original));
-            }
         }
     }
 

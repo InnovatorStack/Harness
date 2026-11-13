@@ -10,7 +10,7 @@ public sealed class InOutInvocation
     public IOMConnection Connection { get; }
     public XmlDocument Input { get; }
     public XmlDocument Output { get; }
-    public ItemPayload ContextPayload => context.Payload;
+    public ItemPayload ContextPayload => context.DocumentPayload;
 
     public InOutInvocation(ItemPayload payload, Remote remote)
     {
@@ -18,14 +18,8 @@ public sealed class InOutInvocation
         Connection = new IOMConnection(remote);
         context = new Item(payload, remote);
 
-        if (payload.Items.Count == 1)
-        {
-            Input = XmlTraversal.Owner(context.node);
-        }
-        else
-        {
-            Input = ItemXml.ViewDocument(context.Payload);
-        }
+        Input = context.dom
+            ?? throw new InvalidOperationException("Missing Method input document.");
 
         Output = XmlTraversal.Document();
         PayloadXml.CreateResult(Output, new ItemPayload(), wrapEnvelope: true);
