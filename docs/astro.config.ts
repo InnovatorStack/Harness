@@ -8,7 +8,7 @@ export default defineConfig({
     integrations: [
         starlight({
             title: "Harness",
-            description: "Set up and test Innovator solutions locally with Bun.",
+            description: "Set up and test Aras Innovator solutions locally with Bun.",
             logo: {
                 light: "./src/assets/mark.svg",
                 dark: "./src/assets/mark-on-dark.svg",

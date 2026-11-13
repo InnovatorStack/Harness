@@ -2,7 +2,7 @@
 title: "Getting started"
 ---
 
-Harness runs your Innovator solution locally so a test can invoke its real Methods, fetch stored records, and check the result. Packages supply the schema and event wiring. Fixtures supply starting data.
+Harness runs your Aras Innovator solution locally so a test can invoke its real Methods, fetch stored records, and check the result. Packages supply the schema and event wiring. Fixtures supply starting data.
 
 ## 1. Install
 
