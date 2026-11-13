@@ -262,6 +262,8 @@ An empty `mocks: []` disables shared responses. Configuration can supply `mocks:
 
 The same dispatch handles direct calls, nested calls, and imported events. Matching calls skip source execution and C# compilation; unmocked calls execute normally. Responses are isolated per invocation and world. Traces label mocks and include their arguments, declaration, response file, and hash.
 
+Mocked before/after hook responses supply callback output; they do not patch the shared event input.
+
 For SQL boundaries, `{ sql: "ProcedureName", response: ... }` replaces a named procedure. `{ sql: true, when: { method: "CallingMethod" }, response: ... }` replaces inline SQL from a particular Method without copying its SQL text into setup. Unmatched SQL still fails explicitly; no SQL engine is implied.
 
 ## C# and extensions
@@ -421,6 +423,13 @@ Without item handlers, the after-version scalar ID is empty and the after-update
 Custom executors receive immutable `MethodPorts.eventData`, discriminated by `MethodEventDataKind`.
 Nested ordinary Methods receive no inherited event metadata. Both C# templates expose the corresponding
 native argument classes. Hook writes, errors and metadata snapshots retain transaction/reset isolation.
+
+Ordinary before/after hooks share mutable input. A separately returned Item, text or empty Result
+does not replace that input. After-Get hooks mutate the actual result collection; their separate
+responses leave its paging metadata intact. Any returned SOAP fault rejects the hook and rolls
+back the request, including a no-items fault with code `0`. Nested ordinary Methods can handle
+their own no-items results. Replacement Methods and direct Method calls retain their returned
+responses; C# `return null` supplies an empty Result.
 
 Parent versioning clones stored relationship values without `onBeforeCopy`, `onAfterCopy`,
 or relationship add/update hooks. Required and inherited bindings are also skipped; their mocks

@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 81 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 84 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
@@ -68,6 +68,12 @@ Failure-context tests cover returned faults and exceptions from one or multiple 
 Methods, normalized batch selectors and nested generated replacements. Pending input changes
 survive while stored writes roll back. Invalid or oversized failure data produces explicit diagnostics;
 large exception text is marked truncated, and subsequent calls and resets remain usable.
+
+Event-response cases distinguish shared input mutations from separate Item/text/null returns,
+after-Get response hydration, zero-code hook rejection and ordinary null Method responses.
+Unit tests cover both C# templates, chained hooks, paging metadata, rollback, reset, mocked faults
+and handled no-items results from nested ordinary Methods. These local contracts remain pending
+native executable comparisons.
 
 Historical unlock cases cover locked/unlocked sources, callback order, event suppression and rejection.
 Unit tests also exercise automatic/manual markers, real Get hydration, shared contexts, owned dependent

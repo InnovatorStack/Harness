@@ -63,6 +63,7 @@ export const watchedTypes: readonly WatchedType[] = [
     },
     { type: "RefBatch", keys: ["item_number", "generation"], properties: namedProperties },
     { type: "RefStateRecord", keys: ["item_number", "generation"], properties: documentProperties },
+    { type: "RefEventRecord", keys: ["item_number", "generation"], properties: documentProperties },
     {
         type: "RefOriginRecord",
         keys: ["item_number", "generation"],
@@ -174,6 +175,7 @@ export const idProperties = new Set([
 ]);
 
 export const fixtureBindings = {
+    "event-record": { type: "RefEventRecord", item_number: "EVENT-001" },
     "origin-record": { type: "RefOriginRecord", item_number: "ORIGIN-001" },
     "origin-link": { type: "RefOriginLink", label: "Existing" },
     "class-start": { type: "RefClassified", item_number: "CLASS-START" },

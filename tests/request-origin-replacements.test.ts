@@ -10,7 +10,8 @@ const profiles = [
         source: `var replacement = this.newItem(this.getType(), this.getAction());
             replacement.setID(this.getID());
             replacement.setProperty("name", "Replaced root");
-            return replacement;`,
+            this.loadAML(replacement.ToString());
+            return this;`,
     },
     {
         name: "Item-valued property",

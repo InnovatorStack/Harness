@@ -1,0 +1,7 @@
+<AML>
+    <Item type="RefEventRecord" action="add" id="B2090000000000000000000000000001">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>EVENT-001</item_number><name>Original</name><note>Original note</note>
+        <generation>1</generation><is_current>1</is_current><new_version>0</new_version>
+    </Item>
+</AML>

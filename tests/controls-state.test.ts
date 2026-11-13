@@ -4,19 +4,14 @@ import { createHarness } from "../src/index.js";
 import { controlMethod, controlProject } from "./helpers/controls.js";
 
 test("raw state reads automatic fixtures without executing imported get hooks", async () => {
-    await using project = await controlProject(`${controlMethod("FilterGet", "return this;")}
+    const source = `this.setProperty("item_number", "Hidden");
+return this.getInnovator().newResult("Separate hook response");`;
+    await using project = await controlProject(`${controlMethod("FilterGet", source)}
         <Item type="Server Event" action="add"><source_id>CONTROL_DOCUMENT</source_id>
         <related_id>CONTROL_FilterGet</related_id><server_event>onBeforeGet</server_event></Item>`);
     using h = await createHarness({
         cwd: project.cwd,
-        mocks: [
-            {
-                method: "FilterGet",
-                response: {
-                    aml: '<Item type="ControlledDocument" action="get"><item_number>Hidden</item_number></Item>',
-                },
-            },
-        ],
+        csharp: {},
     });
     const count = h.executions.length;
     expect(h.state.get("ControlledDocument")).toHaveLength(2);
@@ -25,8 +20,9 @@ test("raw state reads automatic fixtures without executing imported get hooks", 
     ).toBe("Original");
     expect(h.executions).toHaveLength(count);
     expect(await h.get("ControlledDocument")).toEqual([]);
+    expect(h.executions.at(-1)?.mocks).toEqual([]);
     expect(h.state.get("ControlledDocument")).toHaveLength(2);
-});
+}, 60_000);
 
 test("raw state exposes history and returns deeply immutable detached records", async () => {
     await using project = await controlProject();
