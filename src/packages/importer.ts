@@ -3,6 +3,7 @@ import { isBaselineSource } from "../baseline/source.js";
 import { getOwn, setOwn } from "../core/data.js";
 import { errorMessage } from "../core/errors.js";
 import type { SourceLocation } from "../diagnostics/source-location.js";
+import { withPackageTransaction } from "../storage/package-transaction.js";
 import type {
     CatalogEntry,
     HarnessStorage,
@@ -52,6 +53,20 @@ export interface PackageLoadReport {
 }
 
 export class PackageImporter {
+    constructor(private readonly storage: HarnessStorage) {}
+
+    import(
+        documents: readonly AmlDocument[],
+        fixtureFiles: ReadonlySet<string> = new Set(),
+    ): PackageLoadReport {
+        return withPackageTransaction(this.storage, () =>
+            new ImportSession(this.storage).import(documents, fixtureFiles),
+        );
+    }
+}
+
+/** All planning state belongs to one import and is read inside its write boundary. */
+class ImportSession {
     private readonly draft: ImportDraft;
     private readonly defaults: PackageDefaults;
     private readonly generatedIds: { id: string; source: SourceLocation }[] = [];
@@ -70,7 +85,7 @@ export class PackageImporter {
 
     import(
         documents: readonly AmlDocument[],
-        fixtureFiles: ReadonlySet<string> = new Set(),
+        fixtureFiles: ReadonlySet<string>,
     ): PackageLoadReport {
         this.fixtureFiles = fixtureFiles;
         this.defaults.initialize();

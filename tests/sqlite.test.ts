@@ -115,6 +115,61 @@ describe("SqliteStorage", () => {
         });
     });
 
+    test("duplicate IDs preserve the original row and its omitted property values", () => {
+        const storage = create();
+        storage.defineItemType(partType);
+        storage.insertItem({ type: "Part", id: "Original", properties: { name: "First" } });
+        let failure: unknown;
+
+        try {
+            storage.insertItem({
+                type: "Part",
+                id: "original",
+                properties: { name: "Replacement", quantity: 9 },
+            });
+        } catch (error) {
+            failure = error;
+        }
+
+        expect(failure).toBeInstanceOf(StorageError);
+
+        if (!(failure instanceof StorageError)) {
+            throw new TypeError("A duplicate insert must report its storage error.");
+        }
+
+        expect(failure.code).toBe("ITEM_EXISTS");
+        expect(storage.listItems("Part")).toEqual([
+            { type: "Part", id: "Original", properties: { name: "First" } },
+        ]);
+    });
+
+    test("an ordinary insert rolls back its row when the presence write fails", () => {
+        const storage = create();
+        storage.defineItemType(partType);
+        const database = Database.deserialize(storage.snapshot());
+
+        try {
+            database.run(`CREATE TRIGGER reject_presence BEFORE INSERT ON _harness_presence
+                WHEN NEW.id = 'FAIL'
+                BEGIN SELECT RAISE(FAIL, 'Rejected presence write'); END;`);
+            storage.restore(new Uint8Array(database.serialize()));
+        } finally {
+            database.close();
+        }
+
+        storage.transactions.begin();
+        expect(() =>
+            storage.insertItem({ type: "Part", id: "FAIL", properties: { name: "Rejected" } }),
+        ).toThrow("Rejected presence write");
+        expect(storage.listItems("Part")).toEqual([]);
+
+        storage.insertItem({ type: "Part", id: "KEEP", properties: { name: "Accepted" } });
+        storage.transactions.commit();
+        expect(storage.listItems("Part")).toEqual([
+            { type: "Part", id: "KEEP", properties: { name: "Accepted" } },
+        ]);
+    });
+
     test("metadata reads remain immutable and follow transaction rollback and snapshot restore", () => {
         const storage = create();
         storage.defineItemType(partType);

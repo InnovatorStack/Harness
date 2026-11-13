@@ -30,7 +30,7 @@ These checks do not establish native platform parity.
 
 ## Reference behavior suite
 
-`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 89 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
+`tests/reference/` owns original AML, fixture data, C# Methods, cases, comparison rules and native-evidence validation. It uses no customer packages or connections. The 93 cases run through the ordinary dispatcher and managed adapter in `AuthorizationMode.Native`, with explicit User/Alias/Member, Can Add and Permission/Access data. They use no mocks or injected failures.
 
 Action response cases check minimal write acknowledgements, fetch-back of the new generation,
 lock/unlock messages and deletion messages. Unit tests also cover nested response defaults,
