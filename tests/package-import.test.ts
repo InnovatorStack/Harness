@@ -278,10 +278,13 @@ describe("PackageImporter", () => {
     });
 
     test("matches mixed-case ItemType names and IDs consistently with SQLite", () => {
+        const started = performance.now();
+        const cpu = process.cpuUsage();
         importXml(
             `<AML>${partSchema}<Item type="FixturePart" id="ONE" action="add"><label>Original</label><next_part type="fixturepart">two</next_part></Item><Item type="FixturePart" id="TWO" action="add"><label>Target</label></Item></AML>`,
             "baseline.xml",
         );
+        const imported = performance.now();
         importXml(
             '<Item type="fixturepart" id="one" action="edit"><label>Updated</label><next_part><Item type="FIXTUREPART" action="get" id="two" /></next_part></Item>',
             "patch.xml",
@@ -291,6 +294,18 @@ describe("PackageImporter", () => {
             next_part: "TWO",
         });
         expect(storage.listItems("FixturePart")).toHaveLength(2);
+        const completed = performance.now();
+        const slowImportMs = 1000;
+
+        if (completed - started > slowImportMs) {
+            const used = process.cpuUsage(cpu);
+            console.warn("Slow package import", {
+                addMs: imported - started,
+                patchMs: completed - imported,
+                cpuMs: (used.user + used.system) / 1000,
+                memoryBytes: process.memoryUsage(),
+            });
+        }
     });
 
     test("patches current stored state rather than reverting prior runtime mutations", () => {

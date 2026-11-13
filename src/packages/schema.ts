@@ -1,6 +1,7 @@
 import { baselineTypeNames } from "../baseline/catalog.js";
 import { getOwn, setOwn } from "../core/data.js";
 import { metadataEpoch } from "../storage/metadata-epoch.js";
+import { propertyFor } from "../storage/properties.js";
 import type {
     CatalogEntry,
     HarnessStorage,
@@ -251,7 +252,7 @@ export function convertProperties(
             continue;
         }
 
-        const property = definition.properties.find((property) => property.name === name);
+        const property = propertyFor(definition, name);
 
         if (!property && name !== "source_id" && name !== "related_id") {
             throw new PackageImportError(
