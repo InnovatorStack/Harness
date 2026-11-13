@@ -5,7 +5,7 @@
 
 # Harness
 
-Test Innovator solutions locally with Bun. Load normal AML package exports, add starting data, and run original server Methods against an isolated SQLite database.
+Test Aras Innovator solutions locally with Bun. Load normal AML package exports, add starting data, and run original server Methods against an isolated SQLite database.
 
 [Documentation](https://innovatorstack.github.io/Harness/) · [Examples](./examples) · [Agent skill](./skills/innovator-harness/SKILL.md)
 
