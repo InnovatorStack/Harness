@@ -1,13 +1,30 @@
-import { expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 
 import { createHarness } from "../src/index.js";
+import { SetupTiming } from "./helpers/setup-timing.js";
+
+let timing: SetupTiming;
+
+beforeEach(() => {
+    timing = new SetupTiming();
+});
+
+afterEach(() => {
+    timing.finish();
+});
 
 test("shared setup imports packages and fixtures before the test queries data", async () => {
-    using world = await createHarness();
+    using world = await timing.phase("create harness", () => createHarness());
 
-    const parent = await world.getOne("TestNode", { name: "Parent" });
-    const child = await world.getOne("TestNode", { name: "Child" });
-    const links = await world.get("TestLink", { source_id: parent.id });
+    const parent = await timing.phase("get parent", () =>
+        world.getOne("TestNode", { name: "Parent" }),
+    );
+    const child = await timing.phase("get child", () =>
+        world.getOne("TestNode", { name: "Child" }),
+    );
+    const links = await timing.phase("get relationships", () =>
+        world.get("TestLink", { source_id: parent.id }),
+    );
 
     expect(parent.properties.count).toBe(9);
     expect(child.properties.count).toBe(0);
