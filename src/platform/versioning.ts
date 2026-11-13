@@ -27,7 +27,11 @@ import type { NativeSecurity } from "./security/policy.js";
 import type { PlatformTrace } from "./trace.js";
 import { normalizeProperties } from "./values.js";
 import { manualVersioning } from "./version-policy.js";
-import { remapVersionRelationships, versionedRequest } from "./versioned-request.js";
+import {
+    remapVersionRelationships,
+    versionCriteria,
+    versionedRequest,
+} from "./versioned-request.js";
 
 const managedProperties = ["config_id", "generation", "is_current", "new_version", "locked_by_id"];
 
@@ -142,10 +146,11 @@ export class Versioning {
             const targets = records.map((record) => this.currentRecord(record));
             this.authorizeTargets(definition, targets, "update", nested);
 
-            const result = await this.updateBatch(definition, targets, pending, nested);
-            request.payload.items = pending.clone().payload.items;
-
-            return result;
+            try {
+                return await this.updateBatch(definition, targets, pending, nested);
+            } finally {
+                request.payload.items = pending.payload.items;
+            }
         });
     }
 
@@ -306,7 +311,8 @@ export class Versioning {
     ): Promise<UpdateResult> {
         this.authorizeTargets(definition, records, "version", context);
         const sources = records.map((record) => this.currentRecord(record));
-        const update = await this.beforeVersions(definition, sources, request, context);
+        const criteria = versionCriteria(request, sources, fromUpdate);
+        await this.beforeVersions(definition, sources, request, context);
         const prepared: PreparedVersion[] = [];
 
         for (const source of sources) {
@@ -319,28 +325,38 @@ export class Versioning {
         await this.locks.unlockVersionSources(definition, sources, context);
         await this.finishVersions(definition, sources, prepared, context);
         const generated = versionedRequest(
+            criteria,
             request,
-            update,
             sources,
             prepared,
             !manualVersioning(this.storage, definition),
-            fromUpdate,
         );
         const copies = new Map(prepared.flatMap((target) => [...target.copies]));
         rememberRequestCopies(request, copies);
         remapVersionRelationships(this.storage, generated, copies, context);
         request.payload.items = generated.payload.items;
-        const response = await this.runners.update(
-            definition,
-            generated,
-            context,
-            async (pending, nested) => ({
-                response: await this.updateVersions(definition, sources, prepared, pending, nested),
-                completed: false,
-            }),
-        );
 
-        return { response, completed: true };
+        try {
+            const response = await this.runners.update(
+                definition,
+                generated,
+                context,
+                async (pending, nested) => ({
+                    response: await this.updateVersions(
+                        definition,
+                        sources,
+                        prepared,
+                        pending,
+                        nested,
+                    ),
+                    completed: false,
+                }),
+            );
+
+            return { response, completed: true };
+        } finally {
+            request.payload.items = generated.payload.items;
+        }
     }
 
     private async updateVersions(
@@ -381,7 +397,7 @@ export class Versioning {
         records: readonly StoredItem[],
         request: Item,
         context: ExecutionContext,
-    ): Promise<Item> {
+    ): Promise<void> {
         for (const record of records) {
             assertActiveContext(context);
             this.storage.updateItem(definition.name, record.id, {
@@ -390,20 +406,19 @@ export class Versioning {
             });
         }
 
-        const update = request.clone();
-        update.setAction("version");
-        delete update.node.attributes.where;
-        delete update.node.attributes.idlist;
+        request.setAction("version");
+        delete request.node.attributes.where;
+        delete request.node.attributes.idlist;
 
         for (const record of records) {
-            update.setProperty("id", record.id);
-            this.removeManagedProperties(update, record);
-            await this.runners.item(definition, "onBeforeVersion", update, true, context);
+            request.setProperty("id", record.id);
+            this.removeManagedProperties(request, record);
+            await this.runners.item(definition, "onBeforeVersion", request, true, context);
 
             if (
-                update.getID() !== record.id ||
-                update.getType() !== definition.name ||
-                update.getAction() !== "version"
+                request.getID() !== record.id ||
+                request.getType() !== definition.name ||
+                request.getAction() !== "version"
             ) {
                 throw new PlatformError(
                     "UnsupportedContextChange",
@@ -411,10 +426,8 @@ export class Versioning {
                 );
             }
 
-            this.removeManagedProperties(update, record);
+            this.removeManagedProperties(request, record);
         }
-
-        return update;
     }
 
     private async afterUpdates(

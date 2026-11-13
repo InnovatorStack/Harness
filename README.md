@@ -447,7 +447,9 @@ unlocked before the after hooks. These writes and Method side effects share roll
 Automatic source markers reset to zero; manual markers remain unchanged. Hook contexts containing
 only type and ID are hydrated through Get and retain shared pending values across the unlock batch.
 Administrative lock overrides remain unimplemented. Native event context profiles are still unverified.
-Before-version Methods receive pending request values. Cloning preserves stored business values
+Before-version Methods share pending request values. Supported input changes remain visible after
+rejection or an exception, while stored writes roll back. Original selection criteria are captured
+before hooks normalize the input. Cloning preserves stored business values
 until the subsequent update hooks finish; after-version Methods can query that intermediate clone.
 
 Generated updates enter `onUpdate` again with versioning disabled. The replacement can modify pending
@@ -472,6 +474,9 @@ call returns or throws. Generated selectors, `oldId`, copied relationship IDs an
 preserve retained element, attribute and text references. Responses stay in the output document.
 Unchanged request values are omitted from synchronization messages; the existing transport limits
 still apply. A failed synchronization rejects the transaction even if the Method catches it.
+Throwing C# Methods return their supported pending input changes before reporting the error.
+Unrepresentable or oversized failure context produces an explicit synchronization diagnostic;
+exception text beyond 16,384 characters is marked truncated.
 Saved relationship identities preserve retained nodes across supported removal and reordering of
 pending requests, including the distinction between an empty and removed container. Ambiguous
 repeated-ID edits need additional XML identity metadata and fail with `UnsupportedRequestIdentity`.

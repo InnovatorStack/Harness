@@ -1,9 +1,13 @@
 using System.Reflection;
+using System.Text.Json;
+using System.Xml;
 
 namespace InnovatorHarness.Managed;
 
 internal static class MethodInvocation
 {
+    private const int FailureTextMax = 16 * 1024;
+
     internal static void Run(Invocation message, MethodContext context,
         MethodAssemblies? shared, Protocol protocol)
     {
@@ -20,14 +24,55 @@ internal static class MethodInvocation
                 error = inner;
             }
 
+            WriteFailure(message, context, protocol, error);
+        }
+    }
+
+    private static void WriteFailure(
+        Invocation message, MethodContext context, Protocol protocol, Exception error)
+    {
+        string failure = FailureText(error);
+
+        try
+        {
+            if (message.Context is { } input)
+            {
+                ItemXml.Synchronize(input);
+            }
+
             protocol.Write(new
             {
                 kind = "failure",
                 id = message.Id,
                 reusable = context.CanReuse,
-                error = error.ToString()
+                error = failure,
+                context = message.Context
             });
         }
+        catch (Exception contextError) when (contextError is NotSupportedException
+            or InvalidOperationException or JsonException or ArgumentException or XmlException)
+        {
+            protocol.Write(new
+            {
+                kind = "failure",
+                id = message.Id,
+                reusable = context.CanReuse,
+                error = failure,
+                contextError = FailureText(contextError)
+            });
+        }
+    }
+
+    private static string FailureText(Exception error)
+    {
+        string text = error.ToString();
+
+        if (text.Length > FailureTextMax)
+        {
+            return text[..FailureTextMax] + " [truncated]";
+        }
+
+        return text;
     }
 
     private static void Execute(Invocation message, MethodContext context,
