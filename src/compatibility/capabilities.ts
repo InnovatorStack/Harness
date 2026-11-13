@@ -302,13 +302,19 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Imported replacement bindings own the request and bypass native hooks unless they explicitly delegate to the base action.",
             "CSharpInOut supports native base delegates for get/add/update/delete/lock/unlock/promote; other replacement-specific fields remain unavailable.",
             "Both C# templates synchronize supported base-action input changes in place before returning or reporting failure. Retained XML views stay live, with responses kept separate.",
-            "Native copy identities preserve supported pending relationship removals, reordering and empty-container presence. Ambiguous repeated-ID edits require additional XML identity metadata and fail explicitly.",
+            "Private pending-node origins preserve relationship views through changed repeated IDs, anonymous additions, removals, reordering and identical replacement. Empty and removed containers remain distinct.",
+            "Untracked ambiguous requests and replacement of a native root or existing Item-valued property fail explicitly until their DOM replacement profiles are qualified.",
             "The base port is invocation-scoped. Native release-specific context and locking parity remain unverified.",
         ],
         tests: [
             "tests/state-replacements.test.ts",
             "tests/base-input.test.ts",
             "tests/base-input-relationships.test.ts",
+            "tests/request-origins.test.ts",
+            "tests/request-origin-structure.test.ts",
+            "tests/request-origin-isolation.test.ts",
+            "tests/request-origin-nesting.test.ts",
+            "tests/request-origin-replacements.test.ts",
         ],
     }),
     descriptor({
@@ -419,6 +425,7 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "Only the implemented managed server API is available; compilation does not prove runtime behavior.",
             "Native replacement delegates preserve live input XML views across supported selector, property and nested relationship changes. Synchronization failures reject the owning transaction.",
             "Throwing Methods return supported pending input changes before rejection. Unrepresentable or oversized failure context is diagnosed explicitly; long exception text is marked truncated.",
+            "Pending XML identity is private to managed invocations and survives supported Item clones and event returns. Origin tokens are bounded and excluded from business payloads, AML and stored records.",
             "ErrorLookup formats one imported UserMessage text; native localization, language fallback and legacy static permission APIs are unavailable.",
         ],
         tests: [
@@ -428,6 +435,9 @@ export const capabilities: readonly CapabilityDescriptor[] = Object.freeze([
             "tests/failed-context.test.ts",
             "tests/failed-context-transport.test.ts",
             "tests/failed-generated-context.test.ts",
+            "tests/item-origins.test.ts",
+            "tests/request-origins.test.ts",
+            "tests/request-origin-isolation.test.ts",
         ],
     }),
     descriptor({

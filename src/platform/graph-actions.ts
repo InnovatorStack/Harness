@@ -74,7 +74,7 @@ export class GraphActions {
 
         for (const original of request.relationships) {
             spendContext(context);
-            const child = structuredClone(original);
+            const child = new Item({ items: [original] }).clone().node;
             const type = relationshipType(this.storage, definition, child.type);
             const action = child.attributes.action ?? "get";
 

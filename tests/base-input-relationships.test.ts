@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { CapabilityId, createHarness, ExecutionOutcome } from "../src/index.js";
+import { createHarness } from "../src/index.js";
 import { generatedUpdateSources } from "./helpers/generated-updates.js";
 import { referenceEvent, referenceMethod, referenceProject } from "./helpers/references.js";
 
@@ -105,7 +105,7 @@ test.each([
     60_000,
 );
 
-test("ambiguous repeated-ID edits report their missing identity profile instead of changing another view", async () => {
+test("a real Method changes one repeated-ID input while the final request still controls the write", async () => {
     const hook =
         referenceMethod(
             "ChangeRepeatedRequest",
@@ -119,20 +119,16 @@ test("ambiguous repeated-ID edits report their missing identity profile instead 
     using h = await createHarness({ cwd: project.cwd, csharp: {} });
     const parent = await h.getOne("ReferenceRecord", { name: "Parent" });
     const first = h.state.getOne("ReferenceFixed", { sort_order: 1 });
-    const records = h.state.get("ReferenceRecord");
-    const links = h.state.get("ReferenceFixed");
-
-    await expect(
-        h.applyAML(`<Item type="ReferenceRecord" action="edit" id="${parent.id}"><name>Repeated request</name>
+    const result =
+        await h.applyAML(`<Item type="ReferenceRecord" action="edit" id="${parent.id}"><name>Repeated request</name>
         <Relationships>
             <Item type="ReferenceFixed" action="edit" id="${first.id}"><sort_order>10</sort_order></Item>
             <Item type="ReferenceFixed" action="edit" id="${first.id}"><sort_order>20</sort_order></Item>
-        </Relationships></Item>`),
-    ).rejects.toMatchObject({
-        code: "UnsupportedRequestIdentity",
-        capability: CapabilityId.CSharp,
-    });
-    expect(h.state.get("ReferenceRecord")).toEqual(records);
-    expect(h.state.get("ReferenceFixed")).toEqual(links);
-    expect(h.executions.at(-1)?.outcome).toBe(ExecutionOutcome.RolledBack);
+        </Relationships></Item>`);
+    const current = h.state.getOne("ReferenceFixed", { source_id: result.getID(), sort_order: 20 });
+
+    expect(result.isError()).toBe(false);
+    expect(current.id).not.toBe(first.id);
+    expect(h.state.getOne("ReferenceFixed", { id: first.id }).properties.sort_order).toBe(1);
+    expect(h.executions.at(-1)?.mocks).toEqual([]);
 }, 60_000);

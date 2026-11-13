@@ -1,0 +1,11 @@
+<AML>
+    <Item type="RefOriginRecord" action="add" id="B2080000000000000000000000000001">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <item_number>ORIGIN-001</item_number><name>Original</name>
+        <generation>1</generation><is_current>1</is_current><new_version>0</new_version>
+    </Item>
+    <Item type="RefOriginLink" action="add" id="B2080000000000000000000000000002">
+        <permission_id>A6000000000000000000000000000001</permission_id>
+        <source_id>B2080000000000000000000000000001</source_id><label>Existing</label>
+    </Item>
+</AML>

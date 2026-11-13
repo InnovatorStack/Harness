@@ -11,9 +11,12 @@ internal static class MethodInvocation
     internal static void Run(Invocation message, MethodContext context,
         MethodAssemblies? shared, Protocol protocol)
     {
+        var remote = new Remote(protocol, message.Id, message.EventData);
+
         try
         {
-            Execute(message, context, shared, protocol);
+            using var scope = RemoteContext.Enter(remote);
+            Execute(message, context, shared, protocol, remote);
         }
         catch (Exception exception)
         {
@@ -24,20 +27,23 @@ internal static class MethodInvocation
                 error = inner;
             }
 
-            WriteFailure(message, context, protocol, error);
+            WriteFailure(message, context, protocol, remote, error);
         }
     }
 
     private static void WriteFailure(
-        Invocation message, MethodContext context, Protocol protocol, Exception error)
+        Invocation message, MethodContext context, Protocol protocol, Remote remote,
+        Exception error)
     {
         string failure = FailureText(error);
 
         try
         {
+            OriginFrame? origins = null;
+
             if (message.Context is { } input)
             {
-                ItemXml.Synchronize(input);
+                origins = remote.Origins.Capture(input);
             }
 
             protocol.Write(new
@@ -46,7 +52,8 @@ internal static class MethodInvocation
                 id = message.Id,
                 reusable = context.CanReuse,
                 error = failure,
-                context = message.Context
+                context = message.Context,
+                contextOrigins = origins
             });
         }
         catch (Exception contextError) when (contextError is NotSupportedException
@@ -76,13 +83,14 @@ internal static class MethodInvocation
     }
 
     private static void Execute(Invocation message, MethodContext context,
-        MethodAssemblies? shared, Protocol protocol)
+        MethodAssemblies? shared, Protocol protocol, Remote remote)
     {
         if (message.Assembly is null || message.TypeName is null || message.Context is null)
         {
             throw new InvalidOperationException("Incomplete managed invocation.");
         }
 
+        remote.Origins.Apply(message.Context, message.ContextOrigins);
         var assembly = shared?.Find(message.Assembly);
 
         if (assembly is null)
@@ -92,8 +100,6 @@ internal static class MethodInvocation
 
         var type = assembly.GetType(message.TypeName, throwOnError: true)
             ?? throw new InvalidOperationException("Compiled Method type is missing.");
-        var remote = new Remote(protocol, message.Id, message.EventData);
-        using var scope = RemoteContext.Enter(remote);
         var instance = Activator.CreateInstance(type, message.Context, remote);
         var method = instance as IArasMethod
             ?? throw new InvalidOperationException("Compiled Method has the wrong template.");
@@ -109,10 +115,12 @@ internal static class MethodInvocation
 
         var contextIsResult = ReferenceEquals(returned, original);
         ItemPayload? changedContext = null;
+        OriginFrame? changedOrigins = null;
 
         if (!contextIsResult)
         {
             changedContext = original;
+            changedOrigins = remote.Origins.Capture(original);
         }
 
         protocol.Write(new
@@ -122,7 +130,9 @@ internal static class MethodInvocation
             payload = returned,
             reusable = context.CanReuse,
             contextIsResult,
-            context = changedContext
+            context = changedContext,
+            origins = remote.Origins.Capture(returned),
+            contextOrigins = changedOrigins
         });
     }
 }

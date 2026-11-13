@@ -1,6 +1,7 @@
-import { cloneData, getOwn, setOwn } from "../core/data.js";
+import { getOwn, setOwn } from "../core/data.js";
 import type { StorageValue } from "../storage/types.js";
 import type { AmlLogicalGroup } from "./logical.js";
+import { cloneItemPayload } from "./origins.js";
 
 export { AmlLogicalOperator } from "./logical.js";
 export type { AmlLogicalGroup, AmlLogicalTerm, AmlPropertyCondition } from "./logical.js";
@@ -198,7 +199,7 @@ export class Item {
     }
 
     clone(): Item {
-        return new Item(cloneData(this.payload));
+        return new Item(cloneItemPayload(this.payload));
     }
 
     get node(): ItemNode {

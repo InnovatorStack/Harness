@@ -1,5 +1,4 @@
 import { requestOperationsMax } from "../../core/limits.js";
-import { decodePayload } from "../../items/codec.js";
 import { Item } from "../../items/item.js";
 import { ApplicationError, PlatformError } from "../../platform/errors.js";
 import type { MethodDefinition, MethodExecutor, MethodPorts } from "../types.js";
@@ -7,6 +6,7 @@ import { managedCallback, requestChange } from "./callbacks.js";
 import type { ManagedCallbackState } from "./callbacks.js";
 import { CSharpCompiler } from "./compiler.js";
 import type { CompiledMethod, CSharpOptions } from "./compiler.js";
+import { ManagedOrigins } from "./origins.js";
 import { encodeMessage, pendingCallsMax, messageBytesMax } from "./protocol.js";
 import { ManagedSecurity } from "./security.js";
 import { acquireWorker, releaseWorker } from "./worker.js";
@@ -19,6 +19,7 @@ interface PendingInvocation {
     received: boolean;
     started: boolean;
     readonly security: ManagedSecurity;
+    readonly origins: ManagedOrigins;
     callbackCount: number;
     readonly context: Item;
     readonly ports: MethodPorts;
@@ -76,6 +77,7 @@ export class CSharpExecutor implements MethodExecutor {
 
         this.loadedAssemblies.add(compiled.assembly);
         const id = String(++this.nextId);
+        const origins = new ManagedOrigins();
 
         return await new Promise<Item>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -91,10 +93,11 @@ export class CSharpExecutor implements MethodExecutor {
                 started: false,
                 callbackCount: 0,
                 security: new ManagedSecurity(),
+                origins,
             });
 
             try {
-                this.invoke(id, compiled, context, ports);
+                this.invoke(id, compiled, context, ports, origins);
             } catch (error) {
                 this.stop(error);
             }
@@ -191,7 +194,13 @@ export class CSharpExecutor implements MethodExecutor {
         });
     }
 
-    private invoke(id: string, compiled: CompiledMethod, context: Item, ports: MethodPorts): void {
+    private invoke(
+        id: string,
+        compiled: CompiledMethod,
+        context: Item,
+        ports: MethodPorts,
+        origins: ManagedOrigins,
+    ): void {
         if (!this.transport) {
             throw new PlatformError(
                 "WorkerUnavailable",
@@ -205,6 +214,7 @@ export class CSharpExecutor implements MethodExecutor {
             id,
             ...compiled,
             context: context.payload,
+            contextOrigins: origins.capture(context.payload),
             ...(ports.eventData ? { eventData: ports.eventData } : {}),
         });
     }
@@ -309,7 +319,7 @@ export class CSharpExecutor implements MethodExecutor {
         clearTimeout(pending.timer);
 
         try {
-            synchronizeContext(pending.context, message);
+            synchronizeContext(pending.context, message, pending.origins);
 
             if (pending.failure !== undefined) {
                 throw pending.failure.error;
@@ -319,7 +329,7 @@ export class CSharpExecutor implements MethodExecutor {
                 throw managedFailure(message);
             }
 
-            pending.resolve(new Item(decodePayload(message.payload)));
+            pending.resolve(new Item(pending.origins.decode(message.payload, message.origins)));
         } catch (error) {
             if (pending.failure !== undefined && pending.failure.error !== error) {
                 pending.reject(
@@ -366,7 +376,7 @@ export class CSharpExecutor implements MethodExecutor {
         }
 
         this.callbacks.add(id);
-        const state: ManagedCallbackState = {};
+        const state: ManagedCallbackState = { origins: pending.origins };
 
         try {
             const result = await managedCallback(message, pending.ports, pending.security, state);
@@ -477,7 +487,11 @@ export function csharp(options: CSharpOptions = {}): MethodExecutor {
     return new CSharpExecutor(options);
 }
 
-function synchronizeContext(context: Item, message: Record<string, unknown>): void {
+function synchronizeContext(
+    context: Item,
+    message: Record<string, unknown>,
+    origins: ManagedOrigins,
+): void {
     if (message.contextError !== undefined) {
         throw managedFailure(message);
     }
@@ -488,7 +502,8 @@ function synchronizeContext(context: Item, message: Record<string, unknown>): vo
         return;
     }
 
-    const changed = decodePayload(input);
+    const frame = message.contextIsResult === true ? message.origins : message.contextOrigins;
+    const changed = origins.decode(input, frame);
     context.payload.items = changed.items;
 
     if (changed.error === undefined) {

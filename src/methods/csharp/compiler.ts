@@ -128,6 +128,7 @@ export class CSharpCompiler {
             "ResponseXml.cs",
             "RequestXml.cs",
             "RequestRelationships.cs",
+            "RequestOrigins.cs",
             "XmlProperties.cs",
             "Program.cs",
         ];
